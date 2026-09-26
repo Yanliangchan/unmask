@@ -15,6 +15,8 @@
     hostname: { color: "#63c5b8", shape: "round-hexagon", label: "Hostname" },
     ip: { color: "#a3adbd", shape: "pentagon", label: "IP address" },
     phone: { color: "#f78fb3", shape: "vee", label: "Phone" },
+    web_mention: { color: "#8ab4f8", shape: "round-triangle", label: "Web mention" },
+    image: { color: "#ffd479", shape: "star", label: "Image" },
     other: { color: "#b0b8c4", shape: "barrel", label: "Other" }
   };
   function typeOf(t) { return TYPES[t] || TYPES.other; }

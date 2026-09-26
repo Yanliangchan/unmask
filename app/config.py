@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     )
     spiderfoot_use_case: str = Field(default="passive", alias="UNMASK_SPIDERFOOT_USE_CASE")
     crtsh_url: str = Field(default="https://crt.sh/", alias="UNMASK_CRTSH_URL")
+    brave_api_key: str = Field(default="", alias="UNMASK_BRAVE_API_KEY")
+    # Result pages per Brave query (20 results each); each costs one API call.
+    brave_max_results: int = Field(default=20, alias="UNMASK_BRAVE_MAX_RESULTS")
 
     # Automatic pivots. Depth = how many pivot runs may chain off each other;
     # budget = most pivots one evaluation may start. Anything over is logged

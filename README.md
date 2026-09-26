@@ -46,7 +46,7 @@ Built phase by phase; each phase is verified before the next starts.
 | 4 | Pivot rule engine + Pivot Log | ⏳ |
 | 5 | Graph tab (Cytoscape, PageRank centrality, self-hosted) | ✅ |
 | 6 | Timeline diffs, watch mode (jittered, staggered), retention purges, scheduled health checks, alerts | ✅ |
-| 7 | DuckDuckGo + Brave adapters, search-link buttons | ⏳ |
+| 7 | DuckDuckGo (Instant Answers) + Brave Search adapters, search-link and reverse-image buttons | ✅ |
 | 8 | Reporting / export | ⏳ |
 | 9 | GHunt, PhoneInfoga, ExifTool (disabled by default), multi-user sharing | ⏳ |
 | 10 | AI synthesis layer | ⏳ |
@@ -143,7 +143,15 @@ carries a completion check for the way that tool fails silently.
 | theHarvester | domain | GPL-2.0 | C | compares sources searched with exceptions logged (it writes a clean empty report even when every source failed) |
 | crt.sh | domain | API | B | non-JSON 200 responses (error and bot-check pages) are failures |
 | Amass | domain | Apache-2.0 | C | completion message, >50% of queried data sources failing |
+| Brave Search | username, email, name, domain, phone | API (key) | D | non-search JSON (rate-limit/error bodies) is a failure; shown as "Not configured" without `UNMASK_BRAVE_API_KEY` |
+| DuckDuckGo | username, email, name, domain, phone | API | C/D | official Instant Answer API only (summaries, not full web results); a non-JSON body is a failure |
 | SpiderFoot | domain, IP | MIT | C/D | final "Scan completed with status FINISHED" (it exits 0 and prints `[]` on failed scans) |
+
+Every entity also has a **Search ↗** menu: Google, Google Images, Bing, DuckDuckGo and
+`site:` searches on LinkedIn, Reddit and Pastebin, pre-filled with the value and the
+case's context tags. Image targets get reverse-image search (Google Lens, Yandex, Bing
+Visual Search, TinEye). The analyst opens these links, not the platform, in a new tab
+with no referrer.
 
 Tools are pinned in `scripts/install-tools.sh`, which is also the tool manifest. Health checks
 run each tool against a known-good target (or a reserved address that proves the run's

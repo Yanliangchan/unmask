@@ -32,3 +32,19 @@
   <button type="button" class="toast-close" aria-label="Dismiss" data-dismiss-toast>&times;</button>
 </div>
 {%- endmacro %}
+
+{% macro search_menu(entity_type, value, tags) -%}
+{% set links = search_links(entity_type, value, tags) %}
+{% if links %}
+<details class="search-menu" data-stop>
+  <summary class="btn btn-xs btn-ghost" data-stop>Search ↗</summary>
+  <div class="search-menu-list" role="menu">
+    {% for group, items in links | groupby("group") %}
+    <p class="search-menu-group">{{ group }}</p>
+    {% for l in items %}<a role="menuitem" href="{{ l.url }}" target="_blank" rel="noopener noreferrer nofollow" data-stop>{{ l.label }}</a>{% endfor %}
+    {% endfor %}
+    <p class="search-menu-note">Opens in a new tab without a referrer. The search engine sees this query.</p>
+  </div>
+</details>
+{% endif %}
+{%- endmacro %}

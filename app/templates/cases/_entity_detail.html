@@ -2,6 +2,7 @@
 {% set explanation = entity.attributes.get('_score_explanation') or [] %}
 <div class="entity-detail">
   <section>
+    <div class="detail-actions">{{ ui.search_menu(entity.type, entity.value, case | case_tags) }}</div>
     <h3 class="detail-title">Why this confidence</h3>
     {% if explanation %}
     <ul class="why-list small">{% for line in explanation %}<li>{{ line }}</li>{% endfor %}</ul>

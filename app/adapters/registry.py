@@ -9,6 +9,7 @@ from app.adapters.maigret import MaigretAdapter
 from app.adapters.sherlock import SherlockAdapter
 from app.adapters.spiderfoot import SpiderFootAdapter
 from app.adapters.theharvester import TheHarvesterAdapter
+from app.adapters.websearch import BraveSearchAdapter, DuckDuckGoAdapter
 
 _ADAPTERS: dict[str, ToolAdapter] = {}
 
@@ -42,6 +43,8 @@ CORE_ADAPTERS: tuple[type[ToolAdapter], ...] = (
     CrtShAdapter,
     AmassAdapter,
     SpiderFootAdapter,
+    DuckDuckGoAdapter,
+    BraveSearchAdapter,
 )
 
 for _cls in CORE_ADAPTERS:

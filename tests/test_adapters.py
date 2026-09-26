@@ -436,6 +436,6 @@ def test_core_adapters_are_unique_and_cover_target_types():
     from app.adapters.registry import CORE_ADAPTERS
 
     names = [cls.name for cls in CORE_ADAPTERS]
-    assert len(names) == len(set(names)) == 8
+    assert len(names) == len(set(names)) == 10
     covered = {t for cls in CORE_ADAPTERS for t in cls.input_types}
     assert {"username", "email", "domain", "ip"} <= covered

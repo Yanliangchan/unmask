@@ -330,6 +330,8 @@ form.switch { margin: 0; }
 .shape-tag { clip-path: polygon(0 0, 70% 0, 100% 50%, 70% 100%, 0 100%); }
 .shape-vee { clip-path: polygon(0 0, 50% 40%, 100% 0, 50% 100%); }
 .shape-barrel { border-radius: 30% / 50%; }
+.shape-round-triangle { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.shape-star { clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
 .graph-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(520px, 90%); background: var(--bg-elev); border-left: 1px solid var(--border-strong); z-index: 3; display: flex; flex-direction: column; box-shadow: -12px 0 32px rgba(0,0,0,.35); }
 .graph-panel-head { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding: .6rem .8rem; border-bottom: 1px solid var(--border); font-family: var(--mono); overflow-wrap: anywhere; }
 .graph-panel-body { overflow: auto; padding: .25rem .8rem 1rem; }
@@ -348,3 +350,15 @@ form.switch { margin: 0; }
 .entity.is-focused .entity-row td { background: color-mix(in srgb, var(--accent) 16%, transparent); }
 .purge-soon { color: var(--warn); }
 @media (max-width: 900px) { .timeline-cols { grid-template-columns: 1fr; } }
+
+/* Search-link menu */
+.search-menu { position: relative; display: inline-block; }
+.search-menu > summary { list-style: none; }
+.search-menu > summary::-webkit-details-marker { display: none; }
+.search-menu-list { position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 220px; background: var(--bg-elev); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: .35rem 0; box-shadow: 0 10px 30px rgba(0,0,0,.45); text-align: left; white-space: normal; }
+.search-menu-list a { display: block; padding: .3rem .8rem; color: var(--text); }
+.search-menu-list a:hover, .search-menu-list a:focus { background: color-mix(in srgb, var(--accent) 12%, transparent); text-decoration: none; }
+.search-menu-group { margin: .35rem .8rem .1rem; font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.search-menu-note { margin: .4rem .8rem .1rem; font-size: .72rem; color: var(--muted); max-width: 240px; }
+.detail-actions { display: flex; justify-content: flex-end; }
+.graph-panel .detail-actions .search-menu-list { left: 0; right: auto; }

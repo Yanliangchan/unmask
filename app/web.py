@@ -14,6 +14,7 @@ from markupsafe import Markup
 
 from app.config import get_settings
 from app.models import SOURCE_RELIABILITY
+from app.search_links import search_links
 from app.security import csrf_token
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
@@ -114,3 +115,7 @@ templates.env.filters["public_attributes"] = lambda attrs: {
     k: v for k, v in (attrs or {}).items() if not str(k).startswith("_")
 }
 templates.env.globals["SOURCE_RELIABILITY"] = SOURCE_RELIABILITY
+templates.env.globals["search_links"] = search_links
+templates.env.filters["case_tags"] = lambda case: sorted(
+    {t for target in (case.targets or []) for t in (target.context_tags or [])}
+)
