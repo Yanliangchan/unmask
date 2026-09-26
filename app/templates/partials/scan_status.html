@@ -21,9 +21,12 @@
     <progress max="{{ run.jobs_total }}" value="{{ run.jobs_done }}" aria-label="Scan progress"></progress>
     {% endif %}
   </div>
-  {% if run.failure_details %}
+  {% set notes = run.failure_details or {} %}
+  {% if notes.get('_correlation') %}<p class="small muted scan-note">Correlation: {{ notes._correlation }}</p>{% endif %}
+  {% set failures = notes | dictsort | rejectattr("0", "equalto", "_correlation") | list %}
+  {% if failures %}
   <ul class="scan-failures" role="list">
-    {% for tool, reason in run.failure_details | dictsort %}
+    {% for tool, reason in failures %}
     <li>{% if not tool.startswith('_') %}{{ ui.tool_badge(tool, true) }}{% endif %} <span class="small">{{ reason }}</span></li>
     {% endfor %}
   </ul>

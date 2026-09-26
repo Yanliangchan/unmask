@@ -95,6 +95,14 @@
     if (open && window.htmx) window.htmx.trigger(row, "expand");
   }
 
+  // "Merge with…" reveals its picker row; Cancel hides it again.
+  document.addEventListener("click", function (e) {
+    var reveal = e.target.closest("[data-reveal]");
+    if (reveal) { var r = document.querySelector(reveal.dataset.reveal); if (r) r.hidden = false; }
+    var hide = e.target.closest("[data-hide]");
+    if (hide) { var h = document.querySelector(hide.dataset.hide); if (h) h.hidden = true; }
+  });
+
   document.addEventListener("click", function (e) {
     if (e.target.closest("[data-stop], a, button, input, select, label")) {
       var toast = e.target.closest("[data-dismiss-toast]");
@@ -148,6 +156,8 @@
     setTimeout(function () { el.remove(); }, 8000);
   }
   window.unmaskToast = toast;
+  // Server-sent notices arrive as an HX-Trigger "toast" event (script is deferred, so <body> exists).
+  document.body.addEventListener("toast", function (e) { toast(e.detail.message); });
 
   document.addEventListener("htmx:responseError", function (e) {
     var xhr = e.detail.xhr;

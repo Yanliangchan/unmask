@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.registry import all_adapters, get_adapter
 from app.audit import log_access
+from app.correlation.engine import lock_case, rescore_case
 from app.db import get_session
 from app.jobs import enqueue_health_check, enqueue_scan, uses_rq, worker_count
 from app.models import TARGET_TYPES, Entity, ScanRun, User
@@ -271,14 +272,10 @@ async def entity_detail_partial(
     user: User = Depends(current_user),
 ):
     case = await get_case_for_user(session, case_id, user)
-    entity, relations, observations = await entity_detail(session, case.id, entity_id)
-    if entity is None:
+    detail = await entity_detail(session, case.id, entity_id)
+    if detail is None:
         raise HTTPException(status_code=404, detail="Entity not found")
-    return render(
-        request,
-        "cases/_entity_detail.html",
-        {"case": case, "entity": entity, "relations": relations, "observations": observations},
-    )
+    return render(request, "cases/_entity_detail.html", {"case": case, "d": detail, "entity": detail.entity})
 
 
 @router.post("/cases/{case_id}/entities/{entity_id}/confirm", dependencies=[Depends(verify_csrf)])
@@ -302,6 +299,9 @@ async def toggle_confirm(
         ip=client_ip(request),
         entity_id=str(entity.id),
     )
+    # Confirmation is a human override: rescore so it takes effect at once.
+    await lock_case(session, case.id)
+    await rescore_case(session, case.id)
     await session.commit()
     rows = await list_entities(session, case.id, EntityFilters())
     row = next((r for r in rows if r.entity.id == entity.id), None)

@@ -1,0 +1,4 @@
+# Correlation pass 2 (local sentence embeddings). Optional: without these the
+# engine runs pass 1 only and says so in the UI. torch is installed separately
+# from the CPU-only index (see Dockerfile) to keep the image small.
+sentence-transformers==3.3.1

@@ -176,6 +176,7 @@ class ScanRun(Base):
     tools_completed: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, server_default=text("'{}'"))
     tools_failed: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, server_default=text("'{}'"))
     # {"tool_name": "reason"} — every failure is recorded, never swallowed.
+    # Keys starting with "_" are run-level notes (e.g. "_correlation" summary).
     failure_details: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     jobs_total: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
     jobs_done: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
@@ -260,7 +261,8 @@ class Relation(Base):
     )
     relation_type: Mapped[str] = mapped_column(Text, nullable=False)
     source_tool: Mapped[str] = mapped_column(Text, nullable=False)
-    match_explanation: Mapped[str | None] = mapped_column(Text)
+    # Explanations quote the values they compare, so they are encrypted too.
+    match_explanation: Mapped[str | None] = mapped_column(EncryptedText)
     confidence: Mapped[float | None] = mapped_column(Float)
     created_by: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'engine'"))
     created_at: Mapped[datetime] = _now()

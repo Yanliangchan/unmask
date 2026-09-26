@@ -61,6 +61,12 @@ class Settings(BaseSettings):
     spiderfoot_use_case: str = Field(default="passive", alias="UNMASK_SPIDERFOOT_USE_CASE")
     crtsh_url: str = Field(default="https://crt.sh/", alias="UNMASK_CRTSH_URL")
 
+    # Correlation. The model must already be on disk (the Docker image bakes it
+    # in); set UNMASK_EMBEDDING_MODEL="" to turn pass 2 off.
+    embedding_model: str = Field(default="sentence-transformers/all-MiniLM-L6-v2", alias="UNMASK_EMBEDDING_MODEL")
+    embedding_cache_dir: str = Field(default="", alias="UNMASK_EMBEDDING_CACHE")
+    embedding_threshold: float = Field(default=0.8, alias="UNMASK_EMBEDDING_THRESHOLD")
+
     @field_validator("database_url")
     @classmethod
     def _async_driver(cls, v: str) -> str:

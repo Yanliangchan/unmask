@@ -42,7 +42,7 @@ Built phase by phase; each phase is verified before the next starts.
 | 0 | Scaffold, full schema + migrations, auth, Railway deploy config | ✅ |
 | 1 | `ToolAdapter` interface, Sherlock adapter, Dashboard, Case Creation, Entities tab | ✅ |
 | 2 | Maigret, Holehe, h8mail, theHarvester, Amass, crt.sh, SpiderFoot; RQ workers; rate limiting | ✅ |
-| 3 | Two-pass correlation (fuzzy + embeddings), confidence scoring, merge/split | ⏳ |
+| 3 | Two-pass correlation (fuzzy + embeddings), confidence scoring, merge/split | ✅ |
 | 4 | Pivot rule engine + Pivot Log | ⏳ |
 | 5 | Graph tab (Cytoscape) | ⏳ |
 | 6 | Timeline diffing + watch mode | ⏳ |
@@ -50,6 +50,40 @@ Built phase by phase; each phase is verified before the next starts.
 | 8 | Reporting / export | ⏳ |
 | 9 | GHunt, PhoneInfoga, ExifTool (disabled by default), multi-user sharing | ⏳ |
 | 10 | AI synthesis layer | ⏳ |
+
+## Correlation
+
+Correlation runs after every scan (and on demand from the Entities tab).
+
+**Pass 1 — string rules (rapidfuzz).**
+- *Merges* values that are the same identifier written differently: case, `http`/`https`/`www`
+  and trailing slashes on profile URLs, Gmail dots and `+tags`, name order and punctuation
+  (`Chan, Yan-Liang` = `Yan Liang Chan`), phone formatting, IPv6 notation. This is
+  de-duplication, not an identity judgement.
+- *Links* entities that corroborate each other across types: an email whose handle matches a
+  username, a profile's display name matching a name, an address at a target domain.
+- *Suggests* near-misses for review: `j.doe`/`j_doe`, `Jon Smith`/`John Smith`,
+  `Yan Chan`/`Yan Liang Chan`.
+
+**Pass 2 — local embeddings** (`all-MiniLM-L6-v2`, CPU, baked into the image) *suggests*
+semantically similar names and usernames the rules miss, noting whether initials line up.
+If the model isn't available, pass 2 is reported as skipped rather than quietly replaced.
+
+**Only identical identifiers merge automatically.** Everything that is a judgement about
+identity is a suggestion with a written explanation that an analyst accepts ("Same — merge")
+or dismisses ("Different — keep separate"). Analysts can also merge any two values of the same
+type and split merged values apart. Every decision is audited, and the engine never
+re-merges a pair an analyst separated or re-suggests one they dismissed. Merged values pool
+their details and sources, so no evidence is lost.
+
+**Confidence** (does this belong to the subject?) combines, with diminishing returns:
+the adapter's prior, weighted by source reliability; each additional independent tool;
+cross-field corroboration; and the share of case context tags found in the entity's own
+details. Targets and analyst-confirmed entities are 1.0. Each entity shows a plain-language
+breakdown of its score, and `field_confidence` stores the components.
+
+Explanations quote the values they compare, so `relations.match_explanation` is encrypted
+at rest like the values themselves.
 
 ## Tools
 
@@ -137,13 +171,16 @@ Open http://localhost:8000 and sign in with the bootstrap admin. Additional user
 createdb unmask_test
 TEST_DATABASE_URL=postgresql://localhost/unmask_test \
 TEST_REDIS_URL=redis://localhost:6379/15 pytest      # Redis optional: skips queue tests
+# Optional, for correlation pass 2 locally (CPU-only torch):
+# pip install torch --index-url https://download.pytorch.org/whl/cpu && pip install -r requirements-ml.txt
 ruff check . && ruff format --check .
 ```
 
 Integration tests rebuild the schema from the migrations and use fake adapters, so they need
 no network access. They cover the case gate, CSRF, login rate limiting, failure isolation,
 soft-failure detection, the circuit breaker, per-owner access control, audit logging,
-encryption at rest, every adapter's parser and completion checks (from real captured output,
+encryption at rest, correlation (synthetic near-duplicate fixtures that pin down what
+may and may not merge, scoring, idempotence, analyst overrides), every adapter's parser and completion checks (from real captured output,
 including fully blocked runs), the subprocess sandbox, and the RQ path with a real worker
 process (priority order, crash handling, no-worker warning).
 

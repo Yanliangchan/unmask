@@ -1,0 +1,30 @@
+<div class="suggestions-head">
+  <h2 class="panel-title">Suggested matches{% if suggestions %} · {{ suggestions | length }} to review{% endif %}</h2>
+  <p class="small muted">
+    Correlation: string rules{% if pass2 %} + embeddings ({{ pass2 }}){% else %} only — pass 2 unavailable: {{ pass2_reason }}{% endif %}.
+    Only identical identifiers merge automatically; everything below needs your decision.
+  </p>
+  <button class="btn btn-xs btn-ghost" type="button" hx-post="/cases/{{ case.id }}/correlate" hx-swap="none"
+          hx-disabled-elt="this">Re-run correlation</button>
+</div>
+{% if suggestions %}
+<ul class="suggestion-list" role="list">
+  {% for s in suggestions %}
+  <li class="suggestion">
+    <div class="suggestion-pair">
+      <span class="badge">{{ s.a.type }}</span>
+      <span class="mono ident" title="{{ s.a.value }}">{{ s.a.value }}</span>
+      <span aria-label="possibly the same as">≟</span>
+      <span class="mono ident" title="{{ s.b.value }}">{{ s.b.value }}</span>
+    </div>
+    <p class="small muted suggestion-why">{{ s.relation.match_explanation }}</p>
+    <div class="suggestion-actions">
+      <button class="btn btn-xs" type="button" hx-post="/cases/{{ case.id }}/suggestions/{{ s.relation.id }}/accept"
+              hx-swap="none" hx-disabled-elt="this">Same — merge</button>
+      <button class="btn btn-xs btn-ghost" type="button" hx-post="/cases/{{ case.id }}/suggestions/{{ s.relation.id }}/dismiss"
+              hx-swap="none" hx-disabled-elt="this">Different — keep separate</button>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}

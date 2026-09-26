@@ -1,25 +1,46 @@
 {% import "components/ui.html" as ui %}
+{% set explanation = entity.attributes.get('_score_explanation') or [] %}
 <div class="entity-detail">
   <section>
+    <h3 class="detail-title">Why this confidence</h3>
+    {% if explanation %}
+    <ul class="why-list small">{% for line in explanation %}<li>{{ line }}</li>{% endfor %}</ul>
+    {% else %}<p class="muted small">Not scored yet — correlation runs after each scan.</p>{% endif %}
     <h3 class="detail-title">Field confidence</h3>
-    {% if entity.field_confidence %}
+    {% set fields = entity.field_confidence | display_fields %}
+    {% if fields %}
     <dl class="kv">
-      {% for field, value in entity.field_confidence | dictsort %}
-      <div><dt>{{ field }}</dt><dd>{{ ui.confidence_bar(value, field) }}</dd></div>
+      {% for field, value in fields %}
+      <div><dt>{{ field | replace('_', ' ') }}</dt><dd>{{ ui.confidence_bar(value, field) }}</dd></div>
       {% endfor %}
     </dl>
-    {% else %}<p class="muted">No per-field scores yet.</p>{% endif %}
+    {% else %}<p class="muted small">No per-field scores.</p>{% endif %}
     <h3 class="detail-title">Source reliability</h3>
     <p>{{ ui.reliability_badge(entity.source_reliability) }} {{ SOURCE_RELIABILITY.get(entity.source_reliability) }}
       <span class="muted small">— trust in the source class, independent of identity confidence.</span></p>
   </section>
   <section>
-    <h3 class="detail-title">Relations</h3>
-    {% if relations %}
+    {% if d.merged_into %}
+    <p class="alert small">Merged into <span class="mono">{{ d.merged_into.value }}</span>.</p>
+    {% endif %}
+    {% if d.members %}
+    <h3 class="detail-title">Merged values ({{ d.members | length }})</h3>
     <ul class="relations" role="list">
-      {% for rv in relations %}
+      {% for m in d.members %}
       <li>
-        <span class="badge">{{ rv.relation.relation_type }}</span>
+        <span class="mono ident">{{ m.value }}</span> <span class="muted small">via {{ m.source_tool }}</span>
+        <button class="btn btn-xs btn-ghost" type="button" hx-post="/cases/{{ case.id }}/entities/{{ m.id }}/split"
+                hx-swap="none" hx-confirm="Split this value out? It won't be merged back automatically.">Split</button>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    <h3 class="detail-title">Relations</h3>
+    {% if d.relations %}
+    <ul class="relations" role="list">
+      {% for rv in d.relations %}
+      <li class="rel-{{ rv.relation.relation_type }}">
+        <span class="badge">{{ rv.relation.relation_type | replace('_', ' ') }}</span>
         {{ '→' if rv.direction == 'out' else '←' }}
         <span class="mono ident">{{ rv.other.value }}</span>
         <span class="muted small">via {{ rv.relation.source_tool }}</span>
@@ -29,9 +50,9 @@
     </ul>
     {% else %}<p class="muted">Not part of any relation.</p>{% endif %}
     <h3 class="detail-title">Observations</h3>
-    {% if observations %}
+    {% if d.observations %}
     <ul class="observations" role="list">
-      {% for obs, run_number in observations %}
+      {% for obs, run_number in d.observations %}
       <li><span class="mono">run #{{ run_number }}</span> · {{ obs.source_tool }} · {{ obs.observed_at | isodate }}</li>
       {% endfor %}
     </ul>
@@ -39,6 +60,6 @@
   </section>
   <section class="span-2">
     <h3 class="detail-title">Attributes</h3>
-    <pre class="json mono">{{ entity.attributes | tojson_pretty }}</pre>
+    <pre class="json mono">{{ entity.attributes | public_attributes | tojson_pretty }}</pre>
   </section>
 </div>

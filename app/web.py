@@ -107,4 +107,10 @@ templates.env.filters["timeago"] = _timeago
 templates.env.filters["isodate"] = _isodate
 templates.env.filters["confidence_tier"] = _confidence_tier
 templates.env.filters["tojson_pretty"] = lambda v: json.dumps(v, indent=2, sort_keys=True, default=str)
+templates.env.filters["display_fields"] = lambda fc: sorted(
+    (k, v) for k, v in (fc or {}).items() if not k.startswith("evidence.") and k != "prior"
+)
+templates.env.filters["public_attributes"] = lambda attrs: {
+    k: v for k, v in (attrs or {}).items() if not str(k).startswith("_")
+}
 templates.env.globals["SOURCE_RELIABILITY"] = SOURCE_RELIABILITY

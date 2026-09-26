@@ -55,6 +55,20 @@ def on_scan_failure(job, connection, exc_type, exc_value, tb) -> None:
     asyncio.run(_mark())
 
 
+def correlate_job(case_id: str) -> str:
+    from app.correlation.engine import correlate_and_commit
+
+    async def _run() -> str:
+        try:
+            async with sessionmaker()() as session:
+                return (await correlate_and_commit(session, uuid.UUID(case_id))).summary()
+        finally:
+            await dispose_engine()
+
+    _configure()
+    return asyncio.run(_run())
+
+
 def health_check_job(tool_name: str) -> str:
     from app.services.tools import run_health_check
 

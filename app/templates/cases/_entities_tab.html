@@ -1,6 +1,9 @@
+<section id="suggestions" class="suggestions" aria-label="Suggested matches"
+         hx-get="/cases/{{ case.id }}/suggestions" hx-trigger="load, scan-finished from:body, entities-changed from:body"
+         hx-swap="innerHTML"></section>
 <form class="filter-bar" id="entity-filters"
       hx-get="/cases/{{ case.id }}/entities" hx-target="#entities" hx-swap="innerHTML"
-      hx-trigger="change, input delay:250ms from:input[type=range], scan-finished from:body">
+      hx-trigger="change, input delay:250ms from:input[type=range], scan-finished from:body, entities-changed from:body">
   <label class="field inline">
     <span>Type</span>
     <select name="type">

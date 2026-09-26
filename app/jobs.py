@@ -79,6 +79,14 @@ def enqueue_scan(run_id: uuid.UUID, triggered_by: str = "manual") -> str:
     return job_id
 
 
+def enqueue_correlation(case_id: uuid.UUID) -> None:
+    from rq import Queue
+
+    Queue(QUEUE_HIGH, connection=redis_connection()).enqueue(
+        "app.worker.correlate_job", str(case_id), job_timeout=1800, result_ttl=3600
+    )
+
+
 def enqueue_health_check(tool_name: str) -> None:
     from rq import Queue
 

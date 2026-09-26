@@ -7,6 +7,8 @@
     <td class="value-cell">
       {% if e.confirmed_flag %}<span class="confirmed-mark" title="Confirmed by analyst" aria-label="Confirmed">✓</span>{% endif %}
       {% if e.is_seed %}<span class="badge badge-seed" title="Analyst-supplied target">target</span>{% endif %}
+      {% if row.merged_count %}<span class="badge" title="{{ row.merged_count }} duplicate value(s) merged into this entity">+{{ row.merged_count }} merged</span>{% endif %}
+      {% if row.suggestion_count %}<span class="badge badge-warn" title="Possible matches waiting for review">{{ row.suggestion_count }} to review</span>{% endif %}
       {% if e.attributes.get('url') %}
         <a class="mono ident" href="{{ e.attributes.url }}" target="_blank" rel="noopener noreferrer nofollow" title="{{ e.value }}">{{ e.value }}</a>
       {% else %}
@@ -26,7 +28,13 @@
               aria-pressed="{{ 'true' if e.confirmed_flag else 'false' }}" data-stop>
         {{ 'Confirmed' if e.confirmed_flag else 'Confirm' }}
       </button>
+      <button class="btn btn-xs btn-ghost" type="button" data-stop
+              hx-get="/cases/{{ case.id }}/entities/{{ e.id }}/merge" hx-target="#merge-{{ e.id }}"
+              data-reveal="#merge-row-{{ e.id }}">Merge with…</button>
     </td>
+  </tr>
+  <tr id="merge-row-{{ e.id }}" class="detail-row merge-row" hidden>
+    <td colspan="9" id="merge-{{ e.id }}"></td>
   </tr>
   <tr id="detail-{{ e.id }}" class="detail-row" hidden>
     <td colspan="9"><div class="detail-body"><p class="muted">Loading…</p></div></td>

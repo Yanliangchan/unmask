@@ -115,13 +115,17 @@ async def persist_candidates(
     created = 0
     for cand in candidates:
         value_digest = crypto.digest(cand.type, cand.value)
+        # Merged-away entities are matched too: a re-sighting is recorded on the
+        # member (keeping diffs exact) instead of resurrecting a duplicate.
         entity = await session.scalar(
-            select(Entity).where(
+            select(Entity)
+            .where(
                 Entity.case_id == run.case_id,
                 Entity.type == cand.type,
                 Entity.value_digest == value_digest,
-                Entity.merged_into_id.is_(None),
             )
+            .order_by(Entity.merged_into_id.is_not(None), Entity.first_seen)
+            .limit(1)
         )
         if entity is None:
             entity = Entity(
@@ -133,7 +137,9 @@ async def persist_candidates(
                 attributes=cand.attributes,
                 source_tool=tool,
                 confidence=max(0.0, min(1.0, cand.confidence)),
-                field_confidence=cand.field_confidence,
+                # The adapter's estimate is kept as the prior the correlation
+                # engine rescores from, so rescoring is idempotent.
+                field_confidence={**cand.field_confidence, "prior": max(0.0, min(1.0, cand.confidence))},
                 source_reliability=cand.source_reliability,
                 first_seen=now,
                 last_verified=now,
@@ -144,6 +150,10 @@ async def persist_candidates(
         else:
             entity.last_verified = now
             entity.attributes = {**(entity.attributes or {}), **cand.attributes}
+            # Keep the most reliable source class that has reported this value.
+            entity.source_reliability = min(entity.source_reliability, cand.source_reliability)
+            prior = max(float((entity.field_confidence or {}).get("prior", 0.0)), cand.confidence)
+            entity.field_confidence = {**cand.field_confidence, **(entity.field_confidence or {}), "prior": prior}
         await session.execute(
             insert(EntityObservation)
             .values(
@@ -295,6 +305,27 @@ async def execute_scan_run(run_id: uuid.UUID) -> None:
             }
         run.completed_at = datetime.now(UTC)
         await session.commit()
+
+    await _correlate_after_run(run_id, case_id)
+
+
+async def _correlate_after_run(run_id: uuid.UUID, case_id: uuid.UUID) -> None:
+    """Correlate once results are in. A correlation error is recorded, never fatal to the scan."""
+    from app.correlation.engine import correlate_and_commit
+
+    try:
+        async with sessionmaker()() as session:
+            summary = (await correlate_and_commit(session, case_id)).summary()
+    except Exception as exc:
+        log.exception("correlation failed for case %s", case_id)
+        summary = None
+        error = f"{exc.__class__.__name__}: {exc}"
+    async with sessionmaker()() as session:
+        run = await session.get(ScanRun, run_id)
+        if run is not None:
+            key, value = ("_correlation", summary) if summary else ("_correlation_error", error)
+            run.failure_details = {**(run.failure_details or {}), key: value}
+            await session.commit()
 
 
 async def fail_interrupted_runs(session: AsyncSession, older_than: timedelta | None = None) -> int:
