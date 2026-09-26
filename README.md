@@ -35,7 +35,8 @@ audit trail, time-aware diffing between scans, and an open tool-adapter architec
 
 ## Status
 
-Built phase by phase; each phase is verified before the next starts.
+Built phase by phase; each phase is verified before the next starts. **Phases 0–8 are the MVP.**
+Phase 9's case sharing already works (owner-only, from Case Settings); its extra adapters remain.
 
 | Phase | Scope | State |
 |---|---|---|
@@ -43,7 +44,7 @@ Built phase by phase; each phase is verified before the next starts.
 | 1 | `ToolAdapter` interface, Sherlock adapter, Dashboard, Case Creation, Entities tab | ✅ |
 | 2 | Maigret, Holehe, h8mail, theHarvester, Amass, crt.sh, SpiderFoot; RQ workers; rate limiting | ✅ |
 | 3 | Two-pass correlation (fuzzy + embeddings), confidence scoring, merge/split | ✅ |
-| 4 | Pivot rule engine + Pivot Log | ⏳ |
+| 4 | Pivot rule engine + Pivot Log (depth/budget limits, skipped pivots logged) | ✅ |
 | 5 | Graph tab (Cytoscape, PageRank centrality, self-hosted) | ✅ |
 | 6 | Timeline diffs, watch mode (jittered, staggered), retention purges, scheduled health checks, alerts | ✅ |
 | 7 | DuckDuckGo (Instant Answers) + Brave Search adapters, search-link and reverse-image buttons | ✅ |
