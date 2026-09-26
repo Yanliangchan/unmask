@@ -303,3 +303,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); outline
 .rel-possible_same .badge { color: var(--warn); border-color: var(--warn); }
 .rel-not_same .badge { color: var(--muted); text-decoration: line-through; }
 @media (max-width: 900px) { .suggestion { grid-template-columns: 1fr; } .suggestion-actions { grid-column: 1; grid-row: auto; } }
+
+/* Pivot log */
+.pivot-log { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.pivot { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: var(--radius); padding: .55rem .8rem; }
+.pivot.is-skipped { border-left-color: var(--warn); }
+.pivot-line { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+form.switch { margin: 0; }

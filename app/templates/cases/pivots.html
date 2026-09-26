@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block main_class %}container{% endblock %}
+{% block content %}
+<header class="case-header">
+  <div class="case-header-main">
+    <p class="breadcrumb"><a href="/">Investigations</a> / <a href="/cases/{{ case.id }}">{{ case.name }}</a> /</p>
+    <h1>Pivot log</h1>
+    <p class="muted small">Every automatic follow-up the platform started — or decided not to — and why. Read-only.</p>
+  </div>
+  <div class="case-header-actions">
+    {% include "partials/auto_pivot.html" %}
+  </div>
+</header>
+
+{% if rows %}
+<ol class="pivot-log" reversed>
+  {% for p in rows %}
+  <li class="pivot {% if p.skipped_reason %}is-skipped{% endif %}">
+    <div class="pivot-line">
+      {% if p.source_run %}<span class="mono">Scan run #{{ p.source_run }}</span>{% elif p.entity and p.entity.is_seed %}<span>Case target</span>{% else %}<span class="muted">—</span>{% endif %}
+      <span aria-hidden="true">→</span>
+      <strong>{{ p.tool_label }}</strong>
+      {% if p.skipped_reason %}
+        <span class="badge badge-warn">skipped</span>
+      {% elif p.pivot_run %}
+        <span class="badge">run #{{ p.pivot_run.run_number }} · <span class="run-{{ p.pivot_run.status }}">{{ p.pivot_run.status }}</span></span>
+      {% endif %}
+      triggered by
+      {% if p.entity %}<span class="badge">{{ p.entity.type }}</span> <span class="mono ident" title="{{ p.entity.value }}">{{ p.entity.value }}</span>{% else %}<span class="muted">a deleted entity</span>{% endif %}
+    </div>
+    <div class="small muted">
+      rule: {{ p.rule_label }}{% if p.row.confidence_at_trigger is not none %}, conf {{ '%.2f' | format(p.row.confidence_at_trigger) }}{% endif %}
+      · <time datetime="{{ p.row.created_at.isoformat() }}" title="{{ p.row.created_at | isodate }}">{{ p.row.created_at | timeago }}</time>
+      {% if p.skipped_reason %}· <span class="warn-text">{{ p.skipped_reason }}</span>{% endif %}
+    </div>
+  </li>
+  {% endfor %}
+</ol>
+{% else %}
+<div class="card empty">
+  <p>No pivots yet.</p>
+  <p class="muted small">Pivots are evaluated after every scan once its findings are correlated.</p>
+</div>
+{% endif %}
+{% endblock %}

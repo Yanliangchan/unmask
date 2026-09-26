@@ -61,6 +61,15 @@ class Settings(BaseSettings):
     spiderfoot_use_case: str = Field(default="passive", alias="UNMASK_SPIDERFOOT_USE_CASE")
     crtsh_url: str = Field(default="https://crt.sh/", alias="UNMASK_CRTSH_URL")
 
+    # Automatic pivots. Depth = how many pivot runs may chain off each other;
+    # budget = most pivots one evaluation may start. Anything over is logged
+    # as skipped, never silently dropped.
+    pivot_max_depth: int = Field(default=2, alias="UNMASK_PIVOT_MAX_DEPTH")
+    pivot_budget: int = Field(default=20, alias="UNMASK_PIVOT_BUDGET")
+    pivot_email_providers: str = Field(
+        default="gmail.com,outlook.com,yahoo.com,proton.me", alias="UNMASK_PIVOT_EMAIL_PROVIDERS"
+    )
+
     # Correlation. The model must already be on disk (the Docker image bakes it
     # in); set UNMASK_EMBEDDING_MODEL="" to turn pass 2 off.
     embedding_model: str = Field(default="sentence-transformers/all-MiniLM-L6-v2", alias="UNMASK_EMBEDDING_MODEL")

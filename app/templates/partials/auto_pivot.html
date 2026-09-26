@@ -1,0 +1,7 @@
+<form id="auto-pivot" class="switch" hx-post="/cases/{{ case.id }}/auto-pivot" hx-swap="outerHTML" hx-trigger="change">
+  <label class="switch">
+    <input type="checkbox" role="switch" {% if auto_pivot %}checked{% endif %} aria-describedby="auto-pivot-help">
+    <span>Auto-pivot</span>
+  </label>
+  <span id="auto-pivot-help" class="visually-hidden">Automatically run follow-up tools on qualifying findings</span>
+</form>

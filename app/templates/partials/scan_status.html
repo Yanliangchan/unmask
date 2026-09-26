@@ -5,7 +5,7 @@
      {% if active %}hx-get="/cases/{{ case.id }}/scan-status?was_running=1" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
   <div class="scan-banner-main">
     {% if active %}<span class="spinner" aria-hidden="true"></span>{% endif %}
-    <strong>Scan #{{ run.run_number }}</strong>
+    <strong>Scan #{{ run.run_number }}</strong>{% if run.triggered_by == 'pivot_chain' %} <span class="badge">pivot chain</span>{% elif run.triggered_by == 'watch_mode' %} <span class="badge">watch mode</span>{% endif %}
     {% if run.status == 'queued' %}
       Queued…{% if workers == 0 %} <span class="warn-text">no scan worker is running, so this scan cannot start yet.</span>{% endif %}
     {% elif run.status == 'running' %}
@@ -23,7 +23,8 @@
   </div>
   {% set notes = run.failure_details or {} %}
   {% if notes.get('_correlation') %}<p class="small muted scan-note">Correlation: {{ notes._correlation }}</p>{% endif %}
-  {% set failures = notes | dictsort | rejectattr("0", "equalto", "_correlation") | list %}
+  {% if notes.get('_pivots') %}<p class="small muted scan-note">Pivots: {{ notes._pivots }} · <a href="/cases/{{ case.id }}/pivots">Pivot log</a></p>{% endif %}
+  {% set failures = notes | dictsort | rejectattr("0", "in", ["_correlation", "_pivots"]) | list %}
   {% if failures %}
   <ul class="scan-failures" role="list">
     {% for tool, reason in failures %}

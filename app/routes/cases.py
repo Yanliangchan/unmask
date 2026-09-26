@@ -4,7 +4,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.registry import all_adapters, get_adapter
@@ -12,7 +12,8 @@ from app.audit import log_access
 from app.correlation.engine import lock_case, rescore_case
 from app.db import get_session
 from app.jobs import enqueue_health_check, enqueue_scan, uses_rq, worker_count
-from app.models import TARGET_TYPES, Entity, ScanRun, User
+from app.models import TARGET_TYPES, Entity, PivotLog, ScanRun, User
+from app.pivots.engine import auto_pivot_enabled
 from app.routes.public import render_landing
 from app.security import client_ip, current_user, current_user_optional, verify_csrf
 from app.services.cases import (
@@ -225,6 +226,10 @@ async def workspace(
             "case": case,
             "latest_run": latest,
             "workers": worker_count(),
+            "auto_pivot": auto_pivot_enabled(case),
+            "pivot_count": await session.scalar(
+                select(func.count()).select_from(PivotLog).where(PivotLog.case_id == case.id)
+            ),
             **await _entity_filter_options(session, case),
         },
     )

@@ -25,7 +25,7 @@ from app.adapters.base import AdapterError, EntityCandidate, InvalidTarget, Tool
 from app.adapters.registry import adapters_for, get_adapter
 from app.config import get_settings
 from app.db import sessionmaker
-from app.models import Entity, EntityObservation, Investigation, Relation, ScanRun, Target, ToolConfig
+from app.models import Entity, EntityObservation, Investigation, PivotLog, Relation, ScanRun, Target, ToolConfig
 from app.services.tools import record_failure, record_success, tool_configs
 from app.throttle import tool_slot
 
@@ -36,8 +36,11 @@ TRIGGER_PRIORITY = {"manual": 0, "pivot_chain": 5, "watch_mode": 10, "health_che
 
 @dataclass
 class Job:
-    target_id: uuid.UUID
+    """One tool run: against an analyst target, or against a pivot's inputs."""
+
     tool: str
+    target_id: uuid.UUID | None = None
+    pivot_id: uuid.UUID | None = None
 
 
 async def plan_jobs(session: AsyncSession, case: Investigation, only_tools: list[str] | None = None) -> list[Job]:
@@ -53,8 +56,15 @@ async def plan_jobs(session: AsyncSession, case: Investigation, only_tools: list
                 continue
             if only_tools is not None and adapter.name not in only_tools:
                 continue
-            jobs.append(Job(target.id, adapter.name))
+            jobs.append(Job(adapter.name, target_id=target.id))
     return jobs
+
+
+async def plan_run_jobs(session: AsyncSession, case: Investigation, run: ScanRun) -> list[Job]:
+    if run.triggered_by == "pivot_chain":
+        rows = (await session.scalars(select(PivotLog).where(PivotLog.scan_run_id == run.id))).all()
+        return [Job(row.triggered_tool, pivot_id=row.id) for row in rows]
+    return await plan_jobs(session, case, list(run.tools_included))
 
 
 async def create_scan_run(
@@ -63,11 +73,13 @@ async def create_scan_run(
     *,
     triggered_by: str = "manual",
     only_tools: list[str] | None = None,
+    jobs: list[Job] | None = None,
 ) -> ScanRun:
     # Serialise run numbering per case.
     await session.execute(select(Investigation.id).where(Investigation.id == case.id).with_for_update())
     last = await session.scalar(select(func.max(ScanRun.run_number)).where(ScanRun.case_id == case.id))
-    jobs = await plan_jobs(session, case, only_tools)
+    if jobs is None:
+        jobs = await plan_jobs(session, case, only_tools)
     run = ScanRun(
         case_id=case.id,
         run_number=(last or 0) + 1,
@@ -98,20 +110,17 @@ async def persist_candidates(
     session: AsyncSession,
     *,
     run: ScanRun,
-    target: Target,
+    parent: Entity | None,
     tool: str,
     candidates: list[EntityCandidate],
 ) -> int:
-    """Upsert candidates as entities, record observations and relations."""
+    """Upsert candidates as entities, record observations and link them to ``parent``.
+
+    ``parent`` is the target's seed entity for a direct scan, or the triggering
+    entity for a pivot.
+    """
     now = datetime.now(UTC)
-    seed = await session.scalar(
-        select(Entity).where(
-            Entity.case_id == run.case_id,
-            Entity.is_seed.is_(True),
-            Entity.type == target.type,
-            Entity.value_digest == target.value_digest,
-        )
-    )
+    seed = parent
     created = 0
     for cand in candidates:
         value_digest = crypto.digest(cand.type, cand.value)
@@ -217,6 +226,57 @@ async def _record_job_outcome(
         await session.commit()
 
 
+async def seed_entity(session: AsyncSession, target: Target) -> Entity | None:
+    return await session.scalar(
+        select(Entity).where(
+            Entity.case_id == target.case_id,
+            Entity.is_seed.is_(True),
+            Entity.type == target.type,
+            Entity.value_digest == target.value_digest,
+        )
+    )
+
+
+@dataclass
+class _JobInputs:
+    values: list  # list[PivotInput]-like: .value, .guessed
+    tags: list[str]
+    parent_id: uuid.UUID | None
+
+
+async def _resolve_inputs(session: AsyncSession, case_id: uuid.UUID, job: Job) -> _JobInputs:
+    from app.pivots.engine import pivot_inputs
+    from app.pivots.rules import PivotInput
+
+    if job.target_id is not None:
+        target = await session.get(Target, job.target_id)
+        assert target is not None
+        seed = await seed_entity(session, target)
+        return _JobInputs(
+            [PivotInput(target.type, target.value)], list(target.context_tags or []), seed.id if seed else None
+        )
+    row = await session.get(PivotLog, job.pivot_id)
+    assert row is not None
+    inputs, parent_id = await pivot_inputs(session, row)
+    tags = sorted({t for tg in (await session.scalars(select(Target).where(Target.case_id == case_id))).all()
+                   for t in (tg.context_tags or [])})  # fmt: skip
+    return _JobInputs(inputs, tags, parent_id)
+
+
+def _guess_confirmed(inp, candidates: list[EntityCandidate], tool: str) -> EntityCandidate:
+    """A guessed email that turned out to be registered somewhere becomes an entity."""
+    return EntityCandidate(
+        type="email",
+        value=inp.value,
+        attributes={"origin": "guessed from username", "confirmed_by": tool, "registrations": len(candidates)},
+        source_reliability="C",
+        confidence=0.45,
+        field_confidence={"registered": 0.8, "same_person": 0.45},
+        relation_type="guessed_email",
+        relation_explanation=f"guessed address; {tool} found it registered on {len(candidates)} site(s)",
+    )
+
+
 async def _run_job(
     run_id: uuid.UUID,
     case_id: uuid.UUID,
@@ -228,25 +288,38 @@ async def _run_job(
     count_against_tool = True
     try:
         async with sessionmaker()() as session:
-            target = await session.get(Target, job.target_id)
-            assert target is not None
-            target_value, tags = target.value, list(target.context_tags or [])
+            inputs = await _resolve_inputs(session, case_id, job)
         timeout = adapter.timeout_seconds or get_settings().tool_timeout_seconds
-        async with tool_slot(
-            adapter.name,
-            cfg.max_concurrent,
-            lease_seconds=timeout + 120,
-            delay_seconds=cfg.delay_between_requests_ms / 1000,
-        ):
-            raws = await adapter.run(target_value, tags)
-        candidates = [c for raw in raws for c in adapter.parse(raw)]
+        candidates: list[EntityCandidate] = []
+        errors: list[str] = []
+        for inp in inputs.values:
+            try:
+                async with tool_slot(
+                    adapter.name,
+                    cfg.max_concurrent,
+                    lease_seconds=timeout + 120,
+                    delay_seconds=cfg.delay_between_requests_ms / 1000,
+                ):
+                    raws = await adapter.run(inp.value, inputs.tags)
+            except AdapterError as exc:
+                if len(inputs.values) == 1:
+                    raise
+                errors.append(str(exc) or exc.__class__.__name__)
+                continue
+            found = [c for raw in raws for c in adapter.parse(raw)]
+            if inp.guessed and found:
+                found.append(_guess_confirmed(inp, found, adapter.name))
+            candidates.extend(found)
         async with sessionmaker()() as session:
             await _lock_case(session, case_id)
             run = await session.get(ScanRun, run_id)
-            target = await session.get(Target, job.target_id)
-            assert run is not None and target is not None
-            await persist_candidates(session, run=run, target=target, tool=adapter.name, candidates=candidates)
+            parent = await session.get(Entity, inputs.parent_id) if inputs.parent_id else None
+            assert run is not None
+            await persist_candidates(session, run=run, parent=parent, tool=adapter.name, candidates=candidates)
             await session.commit()
+        if errors:
+            # Some inputs failed: the pivot did not fully run, so say so.
+            raise AdapterError(f"{len(errors)}/{len(inputs.values)} input(s) failed: {errors[0]}")
     except InvalidTarget as exc:
         # Bad input, not a broken tool: log it but don't trip the breaker.
         error, count_against_tool = f"invalid target: {exc}", False
@@ -267,7 +340,7 @@ async def execute_scan_run(run_id: uuid.UUID) -> None:
         assert case is not None
         run.status = "running"
         run.started_at = datetime.now(UTC)
-        jobs = await plan_jobs(session, case, list(run.tools_included))
+        jobs = await plan_run_jobs(session, case, run)
         cfgs = await tool_configs(session)
         await session.commit()
         case_id = case.id
@@ -307,6 +380,30 @@ async def execute_scan_run(run_id: uuid.UUID) -> None:
         await session.commit()
 
     await _correlate_after_run(run_id, case_id)
+    await _pivot_after_run(run_id, case_id)
+
+
+async def _pivot_after_run(run_id: uuid.UUID, case_id: uuid.UUID) -> None:
+    """Start the pivot run this run's findings call for. Errors are recorded, never fatal."""
+    from app.jobs import enqueue_scan
+    from app.pivots.engine import evaluate_pivots
+
+    try:
+        async with sessionmaker()() as session:
+            outcome = await evaluate_pivots(session, case_id, run_id)
+            await session.commit()
+        if outcome.run_id is not None:
+            enqueue_scan(outcome.run_id, "pivot_chain")
+        note, key = outcome.summary(), "_pivots"
+    except Exception as exc:
+        log.exception("pivot evaluation failed for case %s", case_id)
+        note, key = f"{exc.__class__.__name__}: {exc}", "_pivots_error"
+    if note:
+        async with sessionmaker()() as session:
+            run = await session.get(ScanRun, run_id)
+            if run is not None:
+                run.failure_details = {**(run.failure_details or {}), key: note}
+                await session.commit()
 
 
 async def _correlate_after_run(run_id: uuid.UUID, case_id: uuid.UUID) -> None:

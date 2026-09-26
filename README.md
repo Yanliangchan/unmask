@@ -85,6 +85,27 @@ breakdown of its score, and `field_confidence` stores the components.
 Explanations quote the values they compare, so `relations.match_explanation` is encrypted
 at rest like the values themselves.
 
+## Pivots
+
+After each scan is correlated, pivot rules decide which findings get followed up
+automatically:
+
+| Finding | Rule | Tool |
+|---|---|---|
+| username (conf > 0.6) | guess `username@` gmail / outlook / yahoo / proton | Holehe |
+| username (conf > 0.6) | the username itself | Maigret |
+| email (conf > 0.6) | the address | h8mail |
+| email (conf > 0.6) | its domain, unless a shared provider | theHarvester |
+| domain | the domain, unless a shared provider or big platform | Amass, crt.sh, SpiderFoot |
+
+Each trigger is written to the pivot log (Pivot Log screen), and the pivots from one
+evaluation run together as a `pivot_chain` scan. The platform never runs a tool twice on the same input in a case, never pivots onto shared
+domains such as gmail.com, and caps chains by depth (`UNMASK_PIVOT_MAX_DEPTH`, default 2)
+and by pivots per evaluation (`UNMASK_PIVOT_BUDGET`, default 20). Pivots that hit a limit, or
+whose tool is disabled, unconfigured or excluded from the case, are logged as **skipped with
+the reason**. A guessed address only becomes an entity if a tool confirms it is registered.
+Auto-pivot can be switched off per case. Rules live in `app/pivots/rules.py`.
+
 ## Tools
 
 Every tool runs as a subprocess (or HTTP API) from its own virtualenv, and every adapter

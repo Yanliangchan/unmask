@@ -331,7 +331,7 @@ async def test_pass2_unavailable_is_reported_not_hidden(db):
 
 async def test_rescan_of_merged_value_does_not_resurrect_a_duplicate(db):
     from app.adapters.base import EntityCandidate
-    from app.models import ScanRun, Target
+    from app.models import ScanRun
     from app.services.scans import create_scan_run, persist_candidates
 
     case = await new_case(db)
@@ -342,9 +342,8 @@ async def test_rescan_of_merged_value_does_not_resurrect_a_duplicate(db):
     await engine.correlate_case(db, case.id)
     assert b.merged_into_id == a.id
     run: ScanRun = await create_scan_run(db, case)
-    target = await db.scalar(select(Target).where(Target.case_id == case.id))
     cand = EntityCandidate(type="account", value="https://www.github.com/yanliang/", confidence=0.4)
-    await persist_candidates(db, run=run, target=target, tool="sherlock", candidates=[cand])
+    await persist_candidates(db, run=run, parent=None, tool="sherlock", candidates=[cand])
     await db.flush()
     accounts = (await db.scalars(select(Entity).where(Entity.case_id == case.id, Entity.type == "account"))).all()
     assert len(accounts) == 2  # still just the pair, no third copy
