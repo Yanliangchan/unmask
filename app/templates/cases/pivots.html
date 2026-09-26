@@ -1,45 +1,28 @@
-{% extends "base.html" %}
-{% block main_class %}container{% endblock %}
-{% block content %}
-<header class="case-header">
-  <div class="case-header-main">
-    <p class="breadcrumb"><a href="/">Investigations</a> / <a href="/cases/{{ case.id }}">{{ case.name }}</a> /</p>
-    <h1>Pivot log</h1>
-    <p class="muted small">Every automatic follow-up the platform started — or decided not to — and why. Read-only.</p>
-  </div>
-  <div class="case-header-actions">
-    {% include "partials/auto_pivot.html" %}
-  </div>
-</header>
-
+{% extends "cases/_layout.html" %}
+{% block tab %}
+<p class="muted small">Every follow-up the platform started on its own, and every one it decided not to start, with the reason. {% if not auto_pivot %}<strong>Automatic pivots are off for this case.</strong> {% endif %}<a href="/cases/{{ case.id }}/settings#pivots">Change in settings</a>.</p>
 {% if rows %}
-<ol class="pivot-log" reversed>
-  {% for p in rows %}
-  <li class="pivot {% if p.skipped_reason %}is-skipped{% endif %}">
-    <div class="pivot-line">
-      {% if p.source_run %}<span class="mono">Scan run #{{ p.source_run }}</span>{% elif p.entity and p.entity.is_seed %}<span>Case target</span>{% else %}<span class="muted">—</span>{% endif %}
-      <span aria-hidden="true">→</span>
-      <strong>{{ p.tool_label }}</strong>
-      {% if p.skipped_reason %}
-        <span class="badge badge-warn">skipped</span>
-      {% elif p.pivot_run %}
-        <span class="badge">run #{{ p.pivot_run.run_number }} · <span class="run-{{ p.pivot_run.status }}">{{ p.pivot_run.status }}</span></span>
-      {% endif %}
-      triggered by
-      {% if p.entity %}<span class="badge">{{ p.entity.type }}</span> <span class="mono ident" title="{{ p.entity.value }}">{{ p.entity.value }}</span>{% else %}<span class="muted">a deleted entity</span>{% endif %}
-    </div>
-    <div class="small muted">
-      rule: {{ p.rule_label }}{% if p.row.confidence_at_trigger is not none %}, conf {{ '%.2f' | format(p.row.confidence_at_trigger) }}{% endif %}
-      · <time datetime="{{ p.row.created_at.isoformat() }}" title="{{ p.row.created_at | isodate }}">{{ p.row.created_at | timeago }}</time>
-      {% if p.skipped_reason %}· <span class="warn-text">{{ p.skipped_reason }}</span>{% endif %}
-    </div>
-  </li>
-  {% endfor %}
-</ol>
+<div class="table-wrap">
+<table class="table pivots">
+  <thead><tr><th>Found</th><th>Triggered by</th><th>Rule</th><th>Tool</th><th>Result</th><th class="hide-sm">When</th></tr></thead>
+  <tbody>
+    {% for p in rows %}
+    <tr class="{% if p.skipped_reason %}skipped{% endif %}">
+      <td class="nowrap">{% if p.source_run %}Scan {{ p.source_run }}{% elif p.entity and p.entity.is_seed %}Target{% else %}<span class="faint">Unknown</span>{% endif %}</td>
+      <td>{% if p.entity %}<span class="ident">{{ p.entity.value }}</span> <span class="faint small">{{ p.entity.type }}</span>{% else %}<span class="faint">Deleted entity</span>{% endif %}</td>
+      <td class="small">{{ p.rule_label }}{% if p.row.confidence_at_trigger is not none %} <span class="faint">at {{ '%.2f' | format(p.row.confidence_at_trigger) }}</span>{% endif %}</td>
+      <td class="nowrap">{{ p.tool_label }}</td>
+      <td>{% if p.skipped_reason %}<span class="why">Skipped: {{ p.skipped_reason }}</span>{% elif p.pivot_run %}Scan {{ p.pivot_run.run_number }}, {{ p.pivot_run.status }}{% endif %}</td>
+      <td class="hide-sm faint small nowrap" title="{{ p.row.created_at | isodate }}">{{ p.row.created_at | timeago }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
 {% else %}
-<div class="card empty">
-  <p>No pivots yet.</p>
-  <p class="muted small">Pivots are evaluated after every scan once its findings are correlated.</p>
+<div class="empty">
+  <h2>No pivots yet</h2>
+  <p>After each scan, findings that match a pivot rule start follow-up tools automatically. They'll be listed here.</p>
 </div>
 {% endif %}
 {% endblock %}

@@ -1,31 +1,34 @@
-<section id="suggestions" class="suggestions" aria-label="Suggested matches"
-         hx-get="/cases/{{ case.id }}/suggestions" hx-trigger="load, scan-finished from:body, entities-changed from:body"
-         hx-swap="innerHTML"></section>
-<form class="filter-bar" id="entity-filters"
+{% import "components/ui.html" as ui %}
+<div id="suggestions" hx-get="/cases/{{ case.id }}/suggestions"
+     hx-trigger="load, scan-finished from:body, entities-changed from:body" hx-swap="innerHTML"></div>
+
+<form class="toolbar" id="entity-filters" role="search"
       hx-get="/cases/{{ case.id }}/entities" hx-target="#entities" hx-swap="innerHTML"
-      hx-trigger="change, input delay:250ms from:input[type=range], scan-finished from:body, entities-changed from:body">
-  <label class="field inline">
-    <span>Type</span>
-    <select name="type">
-      <option value="">All</option>
-      {% for t in entity_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
-    </select>
-  </label>
-  <label class="field inline range-field">
-    <span>Min confidence <output class="mono" id="min-conf-out">0.00</output></span>
-    <input type="range" name="min_confidence" min="0" max="1" step="0.05" value="0" data-output="#min-conf-out">
-  </label>
-  <fieldset class="field inline tool-filter">
-    <legend>Sources</legend>
-    {% for name in tool_names %}
-    <label class="chip-check"><input type="checkbox" name="tool" value="{{ name }}"><span>{{ name }}</span></label>
-    {% endfor %}
-  </fieldset>
-  <label class="checkbox inline">
-    <input type="checkbox" name="confirmed_only">
-    <span>Confirmed only</span>
-  </label>
+      hx-trigger="input changed delay:250ms from:input[name=q], change, scan-finished from:body, entities-changed from:body">
+  <label class="visually-hidden" for="entity-q">Filter by value</label>
+  <input id="entity-q" type="search" name="q" placeholder="Filter by value" autocomplete="off">
+  <label class="visually-hidden" for="entity-type">Type</label>
+  <select id="entity-type" name="type">
+    <option value="">All types</option>
+    {% for t in entity_types %}<option value="{{ t }}">{{ t | replace('_', ' ') | capitalize }}</option>{% endfor %}
+  </select>
+  <label class="visually-hidden" for="entity-conf">Confidence</label>
+  <select id="entity-conf" name="min_confidence">
+    <option value="">Any confidence</option>
+    <option value="0.45">Medium and high</option>
+    <option value="0.75">High only</option>
+  </select>
+  <label class="visually-hidden" for="entity-tool">Source</label>
+  <select id="entity-tool" name="tool">
+    <option value="">All sources</option>
+    {% for name in tool_names %}<option value="{{ name }}">{{ name }}</option>{% endfor %}
+  </select>
+  <label class="check small"><input type="checkbox" name="confirmed_only"><span>Confirmed only</span></label>
+  <span class="spacer"></span>
+  <button class="btn btn-ghost btn-sm" type="button" hx-post="/cases/{{ case.id }}/correlate" hx-swap="none"
+          hx-disabled-elt="this" title="Re-run duplicate detection, cross-links and scoring">{{ ui.icon("refresh") }}Re-run matching</button>
 </form>
+
 <div id="entities" hx-get="/cases/{{ case.id }}/entities" hx-trigger="load" hx-swap="innerHTML">
-  <p class="muted loading">Loading entities…</p>
+  <p class="muted small">Loading…</p>
 </div>

@@ -1,4 +1,4 @@
-<!doctype html>
+{% import "components/ui.html" as ui %}<!doctype html>
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
@@ -8,8 +8,8 @@
   <meta name="robots" content="{{ seo.robots }}">
   <link rel="canonical" href="{{ seo.canonical }}">
   <meta name="application-name" content="unmask">
-  <meta name="theme-color" content="#0b0e13">
-  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#0e0f11">
+  <meta name="color-scheme" content="dark">
   <meta name="referrer" content="no-referrer">
   <meta name="htmx-config" content='{"includeIndicatorStyles": false, "defaultSwapStyle": "innerHTML"}'>
 
@@ -19,7 +19,7 @@
   <meta property="og:description" content="{{ seo.description }}">
   <meta property="og:url" content="{{ seo.canonical }}">
   <meta property="og:image" content="{{ settings.public_base_url.rstrip('/') }}/static/img/og-image.png">
-  <meta property="og:image:alt" content="unmask — OSINT investigation platform">
+  <meta property="og:image:alt" content="The unmask case workspace">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{{ seo.full_title }}">
   <meta name="twitter:description" content="{{ seo.description }}">
@@ -34,41 +34,36 @@
 </head>
 <body class="{% block body_class %}{% endblock %}" hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
   <a class="skip-link" href="#main">Skip to content</a>
-  <header class="topbar" role="banner">
-    <a class="brand" href="/" aria-label="unmask home">
-      <img src="/static/img/favicon.svg" alt="" width="22" height="22">
-      <span>unmask</span>
-    </a>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="unmask home">{{ ui.icon("logo", "icon") }}<span>unmask</span></a>
     {% if user %}
-    <nav class="topbar-nav" aria-label="Primary">
-      <a href="/" {% if request.url.path == '/' %}aria-current="page"{% endif %}>Investigations</a>
-      <a href="/cases/new" {% if request.url.path == '/cases/new' %}aria-current="page"{% endif %}>New case</a>
+    {% set path = request.url.path %}
+    <nav class="nav" aria-label="Primary">
+      <a href="/" {% if path == '/' or path.startswith('/cases/') and path != '/cases/new' %}aria-current="page"{% endif %}>Cases</a>
+      <a href="/tools" {% if path == '/tools' %}aria-current="page"{% endif %}>Tools</a>
     </nav>
-    <div class="topbar-user">
-      <span class="mono muted" title="Signed in">{{ user.email }}</span>
+    <div class="topbar-end">
+      <a class="btn btn-primary btn-sm" href="/cases/new" aria-label="New case">{{ ui.icon("plus") }}<span class="hide-xs">New case</span></a>
+      <span class="who small muted">{{ user.email }}</span>
       <form method="post" action="/logout">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <button class="btn btn-ghost btn-sm" type="submit">Log out</button>
       </form>
     </div>
     {% else %}
-    <nav class="topbar-nav topbar-nav-end" aria-label="Primary">
-      {% if request.url.path != '/login' %}<a class="btn btn-sm" href="/login">Sign in</a>{% endif %}
-    </nav>
+    <div class="nav"></div>
+    {% if request.url.path != '/login' %}<a class="btn btn-sm" href="/login">Sign in</a>{% endif %}
     {% endif %}
   </header>
 
-  <div id="toasts" class="toasts" aria-live="polite" aria-atomic="false"></div>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
 
   <main id="main" class="{% block main_class %}container{% endblock %}">
     {% block content %}{% endblock %}
   </main>
 
   {% block footer %}
-  <footer class="footer" role="contentinfo">
-    <span>unmask</span>
-    <span class="muted">Use only with documented authorization and a lawful basis.</span>
-  </footer>
+  {% if not user %}<footer class="footer">unmask is for authorized investigations with a documented lawful basis.</footer>{% endif %}
   {% endblock %}
 </body>
 </html>

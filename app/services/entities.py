@@ -19,6 +19,7 @@ class EntityFilters:
     min_confidence: float = 0.0
     tools: list[str] = field(default_factory=list)
     confirmed_only: bool = False
+    q: str = ""  # case-insensitive substring of the value
 
 
 @dataclass
@@ -76,6 +77,8 @@ async def list_entities(session: AsyncSession, case_id: uuid.UUID, filters: Enti
         if filters.confirmed_only and not e.confirmed_flag:
             continue
         if filters.tools and not (sources[e.id] & set(filters.tools)):
+            continue
+        if filters.q and filters.q.casefold() not in e.value.casefold():
             continue
         rows.append(e)
     rows.sort(key=lambda e: (not e.is_seed, -e.confidence, -e.first_seen.timestamp()))

@@ -1,25 +1,26 @@
 {% if rows %}
-<table class="data-table entities-table">
-  <caption class="visually-hidden">Entities discovered in this case. Select a row to expand details.</caption>
+<div class="table-wrap">
+<table class="table entities">
+  <caption class="visually-hidden">Entities in this case. Select a row for details.</caption>
   <thead>
     <tr>
-      <th scope="col">Value</th>
-      <th scope="col">Type</th>
-      <th scope="col">Confidence</th>
-      <th scope="col"><abbr title="Source reliability (Admiralty A–F)">Reliability</abbr></th>
-      <th scope="col">Sources</th>
-      <th scope="col" class="col-optional">Tag match</th>
-      <th scope="col" class="col-optional">First seen</th>
-      <th scope="col" class="col-optional">Last verified</th>
-      <th scope="col"><span class="visually-hidden">Actions</span></th>
+      <th class="col-confirm"><span class="visually-hidden">Confirmed</span></th>
+      <th>Value</th>
+      <th class="hide-xs">Type</th>
+      <th>Confidence</th>
+      <th class="hide-xs"><abbr title="Source reliability, A (best) to F">Rel.</abbr></th>
+      <th class="hide-sm">Sources</th>
+      <th class="hide-sm">Last seen</th>
+      <th class="col-menu"><span class="visually-hidden">Actions</span></th>
     </tr>
   </thead>
   {% for row in rows %}{% include "cases/_entity_row.html" %}{% endfor %}
 </table>
-<p class="muted small table-foot">{{ rows | length }} entit{{ 'y' if rows | length == 1 else 'ies' }}</p>
+</div>
+<p class="table-foot">{{ rows | length }} entit{{ 'y' if rows | length == 1 else 'ies' }}. Select a row for the evidence behind it.</p>
 {% else %}
-<div class="card empty">
-  <p>No entities match these filters yet.</p>
-  <p class="muted small">Results appear here as tools complete.</p>
+<div class="empty">
+  <h2>Nothing here yet</h2>
+  <p>No entities match these filters. Findings appear as tools finish.</p>
 </div>
 {% endif %}

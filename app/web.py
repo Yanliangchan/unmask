@@ -22,9 +22,8 @@ TEMPLATES_DIR = Path(__file__).parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 SITE_DESCRIPTION = (
-    "unmask is a self-hosted OSINT investigation platform: automated pivot chains, "
-    "case management with a full audit trail, time-aware diffing between scans and an "
-    "open tool-adapter architecture."
+    "unmask is a self-hosted OSINT platform that runs your research tools as a case: findings are "
+    "de-duplicated, scored, linked and compared between scans, with every automatic step logged."
 )
 
 
@@ -114,6 +113,30 @@ templates.env.filters["display_fields"] = lambda fc: sorted(
 templates.env.filters["public_attributes"] = lambda attrs: {
     k: v for k, v in (attrs or {}).items() if not str(k).startswith("_")
 }
+RUN_NOTE_LABELS = {
+    "_skipped": "skipped",
+    "_none": "no tools",
+    "_interrupted": "interrupted",
+    "_crashed": "crashed",
+    "_correlation_error": "matching",
+    "_pivots_error": "pivots",
+}
+
+
+def _run_issues(details: dict | None) -> dict:
+    """Split a run's failure_details into per-tool failures and run-level issues (notes excluded)."""
+    tools, other = [], []
+    for key, value in sorted((details or {}).items()):
+        if key in ("_correlation", "_pivots"):
+            continue
+        if key.startswith("_"):
+            other.append((RUN_NOTE_LABELS.get(key, key.lstrip("_")), value))
+        else:
+            tools.append((key, value))
+    return {"tools": tools, "other": other}
+
+
+templates.env.filters["run_issues"] = _run_issues
 templates.env.globals["SOURCE_RELIABILITY"] = SOURCE_RELIABILITY
 templates.env.globals["search_links"] = search_links
 templates.env.filters["case_tags"] = lambda case: sorted(

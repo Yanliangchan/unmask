@@ -204,7 +204,7 @@ async def test_dashboard_warns_before_purge(client, db):
     await db.execute(update(Investigation).where(Investigation.id == cid).values(retention_days=3))
     await db.commit()
     home = await client.get("/")
-    assert "purged" in home.text and "purge-soon" in home.text
+    assert "Deleted on" in home.text and "unless scanned again" in home.text
 
 
 # --- Health checks and alerts ---------------------------------------------------------

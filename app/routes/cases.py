@@ -4,7 +4,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.registry import all_adapters, get_adapter
@@ -12,10 +12,9 @@ from app.audit import log_access
 from app.correlation.engine import lock_case, rescore_case
 from app.db import get_session
 from app.jobs import enqueue_health_check, enqueue_scan, uses_rq, worker_count
-from app.models import TARGET_TYPES, Entity, PivotLog, ScanRun, User
-from app.pivots.engine import auto_pivot_enabled
+from app.models import TARGET_TYPES, Entity, ScanRun, User
 from app.routes.public import render_landing
-from app.scheduler import watch_state
+from app.routes.shell import case_shell
 from app.security import client_ip, current_user, current_user_optional, verify_csrf
 from app.services.cases import (
     CaseValidationError,
@@ -70,6 +69,22 @@ async def dashboard(
             "user": user,
             "cards": cards,
             "health": health,
+            "workers": worker_count(),
+        },
+    )
+
+
+@router.get("/tools")
+async def tools_page(
+    request: Request, session: AsyncSession = Depends(get_session), user: User = Depends(current_user)
+):
+    return render(
+        request,
+        "tools.html",
+        {
+            "seo": Seo(title="Tools", path="/tools"),
+            "user": user,
+            "health": await tool_health(session),
             "workers": worker_count(),
         },
     )
@@ -216,26 +231,21 @@ async def workspace(
     user: User = Depends(current_user),
 ):
     case = await get_case_for_user(session, case_id, user)
-    latest = case.scan_runs[-1] if case.scan_runs else None
     log_access(session, "view_case", user_id=user.id, case_id=case.id, ip=client_ip(request))
     await session.commit()
-    return render(
-        request,
-        "cases/workspace.html",
-        {
-            "seo": Seo(title=case.name, path=f"/cases/{case.id}"),
-            "user": user,
-            "case": case,
-            "latest_run": latest,
-            "workers": worker_count(),
-            "auto_pivot": auto_pivot_enabled(case),
-            "watch": watch_state(case),
-            "pivot_count": await session.scalar(
-                select(func.count()).select_from(PivotLog).where(PivotLog.case_id == case.id)
-            ),
-            **await _entity_filter_options(session, case),
-        },
-    )
+    ctx = await case_shell(session, case, user, "entities")
+    return render(request, "cases/workspace.html", {**ctx, **await _entity_filter_options(session, case)})
+
+
+@router.get("/cases/{case_id}/graph")
+async def graph_page(
+    request: Request,
+    case_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(current_user),
+):
+    case = await get_case_for_user(session, case_id, user)
+    return render(request, "cases/graph.html", await case_shell(session, case, user, "graph"))
 
 
 async def _entity_filter_options(session: AsyncSession, case) -> dict:
@@ -254,6 +264,7 @@ def _filters_from_query(request: Request) -> EntityFilters:
         min_confidence=max(0.0, min(1.0, min_conf)),
         tools=[t for t in q.getlist("tool") if t],
         confirmed_only=q.get("confirmed_only") in ("on", "true", "1"),
+        q=(q.get("q") or "").strip()[:200],
     )
 
 

@@ -211,7 +211,9 @@ async def test_circuit_breaker_disables_tool_after_three_failures(client, db):
     assert cfg.consecutive_failures == 3
     assert cfg.enabled is False and cfg.circuit_open is True
     home = await client.get("/")
-    assert "auto-disabled by the circuit breaker" in home.text
+    assert "the circuit breaker switched off" in home.text
+    tools_page = await client.get("/tools")
+    assert "auto-disabled by the circuit breaker" in tools_page.text
 
     # A disabled tool is no longer dispatched.
     r = await client.post("/cases", data=case_form(csrf, name="After breaker", tools=["fake_ok", "fake_fail"]))

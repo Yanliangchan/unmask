@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block main_class %}container wide{% endblock %}
+{% block content %}
+<header class="case-head">
+  <div class="case-head-main">
+    <p class="crumb"><a href="/">Cases</a> /</p>
+    <h1>{{ case.name }}</h1>
+    <div class="targets" aria-label="Targets">
+      {% for t in case.targets %}
+      <span><span class="t-type">{{ t.type }}</span><span class="ident">{{ t.value }}</span>{% for tag in t.context_tags %}<span class="tag">{{ tag }}</span>{% endfor %}</span>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="case-head-side">
+    <div class="case-state">
+      {% if watch.enabled %}Watching {{ watch.frequency }}{% if watch.next_run_at %}, next {{ watch.next_run_at.strftime('%-d %b') }}{% endif %}<br>{% endif %}
+      {% if not auto_pivot %}Automatic pivots off{% endif %}
+    </div>
+    <button class="btn btn-primary" type="button"
+            hx-post="/cases/{{ case.id }}/scans" hx-target="#scan-status" hx-swap="outerHTML"
+            hx-disabled-elt="this">{{ ui.icon("play") }}Run scan</button>
+  </div>
+</header>
+
+{% include "partials/scan_status.html" %}
+
+<nav class="tabs" aria-label="Case sections">
+  {% for key, label, suffix in tabs %}
+  <a href="/cases/{{ case.id }}{{ suffix }}" {% if key == tab %}aria-current="page"{% endif %}>{{ label }}
+    {%- if key == "entities" and counts.entities %}<span class="count">{{ counts.entities }}</span>{% endif %}
+    {%- if key == "pivots" and counts.pivots %}<span class="count">{{ counts.pivots }}</span>{% endif %}</a>
+  {% endfor %}
+</nav>
+
+<section aria-label="{{ tab | capitalize }}">
+  {% block tab %}{% endblock %}
+</section>
+{% endblock %}

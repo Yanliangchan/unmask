@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.audit import log_access
 from app.db import get_session
 from app.models import Investigation, User
-from app.pivots.engine import auto_pivot_enabled
+from app.routes.shell import case_shell
 from app.scheduler import FREQUENCY_DAYS, purge_date, set_watch, watch_state
 from app.security import client_ip, current_user, verify_csrf
 from app.services.cases import delete_case, get_case_for_user
@@ -56,20 +56,17 @@ async def settings_page(
     )
     owner = await session.get(User, case.owner_id) if case.owner_id else None
     error = request.query_params.get("error")
+    ctx = await case_shell(session, case, user, "settings")
     return render(
         request,
         "cases/settings.html",
         {
-            "seo": Seo(title=f"Settings · {case.name}", path=f"/cases/{case.id}/settings"),
-            "user": user,
-            "case": case,
+            **ctx,
             "owner": owner,
             "is_owner": _is_owner(case, user),
-            "watch": watch_state(case),
             "frequencies": list(FREQUENCY_DAYS),
             "purge_at": await purge_date(session, case),
             "shared": shared,
-            "auto_pivot": auto_pivot_enabled(case),
             "min_assessment": MIN_ASSESSMENT_CHARS,
             "message": MESSAGES.get(request.query_params.get("saved", "")),
             "error": error if error in ERRORS else None,

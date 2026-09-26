@@ -1,17 +1,16 @@
+{% if candidates %}
 <form class="merge-picker" hx-post="/cases/{{ case.id }}/entities/{{ entity.id }}/merge" hx-swap="none">
-  <label class="field inline grow">
-    <span>Merge <span class="mono">{{ entity.value }}</span> with</span>
-    {% if candidates %}
-    <select name="other_id" required>
-      {% for other, sim in candidates %}
-      <option value="{{ other.id }}">{{ other.value }} — {{ sim | round | int }}% similar</option>
-      {% endfor %}
-    </select>
-    {% else %}
-    <span class="muted">no other {{ entity.type }} entities in this case</span>
-    {% endif %}
-  </label>
-  {% if candidates %}<button class="btn btn-xs" type="submit">Merge</button>{% endif %}
-  <button class="btn btn-xs btn-ghost" type="button" data-hide="#merge-row-{{ entity.id }}">Cancel</button>
-  <p class="small muted merge-note">Only values of the same type can be merged. Merges are logged and can be split again.</p>
+  <label class="small" for="merge-{{ entity.id }}-other">Merge <span class="ident">{{ entity.value }}</span> with</label>
+  <select id="merge-{{ entity.id }}-other" name="other_id" required>
+    {% for other, sim in candidates %}<option value="{{ other.id }}">{{ other.value }} ({{ sim | round | int }}% similar)</option>{% endfor %}
+  </select>
+  <button class="btn btn-primary btn-sm" type="submit">Merge</button>
+  <button class="btn btn-ghost btn-sm" type="button" data-hide="#merge-row-{{ entity.id }}">Cancel</button>
+  <span class="hint">You can split them again later.</span>
 </form>
+{% else %}
+<div class="merge-picker">
+  <span class="muted small">There's no other {{ entity.type | replace('_', ' ') }} in this case to merge with.</span>
+  <button class="btn btn-ghost btn-sm" type="button" data-hide="#merge-row-{{ entity.id }}">Close</button>
+</div>
+{% endif %}

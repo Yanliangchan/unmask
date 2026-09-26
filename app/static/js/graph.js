@@ -5,7 +5,7 @@
 
   // Colour AND shape per type, so type never depends on colour alone.
   var TYPES = {
-    username: { color: "#5eb1ff", shape: "ellipse", label: "Username" },
+    username: { color: "#8fa8ff", shape: "ellipse", label: "Username" },
     email: { color: "#f0a35e", shape: "round-rectangle", label: "Email" },
     account: { color: "#9d8cff", shape: "rectangle", label: "Account" },
     registration: { color: "#c792ea", shape: "tag", label: "Registration" },
@@ -55,14 +55,14 @@
         { selector: "node[?pivot]", style: { "border-width": 2, "border-style": "dashed", "border-color": "#d7dde6" } },
         { selector: "node[?seed]", style: { "border-width": 4, "border-style": "double", "border-color": "#f2f5f9" } },
         { selector: "node[?confirmed]", style: { "border-width": 4, "border-style": "solid", "border-color": "#3fbf7f" } },
-        { selector: "node:selected", style: { "overlay-color": "#5eb1ff", "overlay-opacity": 0.25 } },
+        { selector: "node:selected", style: { "overlay-color": "#8fa8ff", "overlay-opacity": 0.25 } },
         { selector: "edge", style: {
           "width": 1.2, "line-color": "#2f3847", "curve-style": "bezier", "target-arrow-shape": "none",
           "font-size": 8, "color": "#8591a3", "text-rotation": "autorotate", "text-background-color": "#0b0e13",
           "text-background-opacity": 1, "text-background-padding": 2
         } },
         { selector: "edge[?suggested]", style: { "line-style": "dashed", "line-color": "#e0a43a", "width": 1.5 } },
-        { selector: "edge.hover, edge:selected", style: { "label": "data(label)", "line-color": "#5eb1ff", "width": 2 } },
+        { selector: "edge.hover, edge:selected", style: { "label": "data(label)", "line-color": "#8fa8ff", "width": 2 } },
         { selector: ".hidden", style: { "display": "none" } }
       ]
     };
@@ -118,7 +118,7 @@
     if (cy) cy.destroy();
     cy = window.cytoscape({
       container: container, elements: elements, style: st.sheet, wheelSensitivity: 0.3, minZoom: 0.1, maxZoom: 3,
-      layout: { name: "cose", animate: !st.reduce, nodeRepulsion: 9000, idealEdgeLength: 90, padding: 30, randomize: false, nodeDimensionsIncludeLabels: true, componentSpacing: 60 }
+      layout: { name: "cose", animate: !st.reduce, nodeRepulsion: 9000, idealEdgeLength: 90, padding: 30, randomize: false, nodeDimensionsIncludeLabels: true, componentSpacing: 110 }
     });
     // Small cases would otherwise be blown up to fill the canvas.
     cy.one("layoutstop", function () { if (cy.zoom() > 1.1) { cy.zoom(1.1); cy.center(); } });

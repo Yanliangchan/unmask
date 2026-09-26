@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.audit import log_access
 from app.db import get_session
 from app.models import ScanRun, User
+from app.routes.shell import case_shell
 from app.scheduler import set_watch, watch_state
 from app.security import client_ip, current_user, verify_csrf
 from app.services.cases import get_case_for_user
@@ -20,14 +21,7 @@ from app.web import render
 router = APIRouter()
 
 
-@router.get("/cases/{case_id}/tab/timeline")
-async def timeline_tab(
-    request: Request,
-    case_id: uuid.UUID,
-    session: AsyncSession = Depends(get_session),
-    user: User = Depends(current_user),
-):
-    case = await get_case_for_user(session, case_id, user)
+async def _timeline_context(request: Request, session: AsyncSession, case) -> dict:
     runs = list(
         (await session.scalars(select(ScanRun).where(ScanRun.case_id == case.id).order_by(ScanRun.run_number))).all()
     )
@@ -41,11 +35,30 @@ async def timeline_tab(
     diff = None
     if run_a is not None and run_b is not None and run_a.id != run_b.id:
         diff = await diff_runs(session, case.id, run_a, run_b)
-    return render(
-        request,
-        "cases/_timeline_tab.html",
-        {"case": case, "runs": runs, "run_a": run_a, "run_b": run_b, "diff": diff},
-    )
+    return {"case": case, "runs": runs, "run_a": run_a, "run_b": run_b, "diff": diff}
+
+
+@router.get("/cases/{case_id}/tab/timeline")
+async def timeline_tab(
+    request: Request,
+    case_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(current_user),
+):
+    case = await get_case_for_user(session, case_id, user)
+    return render(request, "cases/_timeline_tab.html", await _timeline_context(request, session, case))
+
+
+@router.get("/cases/{case_id}/timeline")
+async def timeline_page(
+    request: Request,
+    case_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(current_user),
+):
+    case = await get_case_for_user(session, case_id, user)
+    ctx = await case_shell(session, case, user, "timeline")
+    return render(request, "cases/timeline.html", {**ctx, **await _timeline_context(request, session, case)})
 
 
 @router.post("/cases/{case_id}/watch", dependencies=[Depends(verify_csrf)])

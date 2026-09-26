@@ -15,9 +15,10 @@ from app.db import get_session
 from app.models import Entity, PivotLog, ScanRun, User
 from app.pivots.engine import auto_pivot_enabled
 from app.pivots.rules import rule_from_text
+from app.routes.shell import case_shell
 from app.security import client_ip, current_user, verify_csrf
 from app.services.cases import get_case_for_user
-from app.web import Seo, render
+from app.web import render
 
 router = APIRouter()
 
@@ -71,17 +72,8 @@ async def pivot_log(
     case = await get_case_for_user(session, case_id, user)
     log_access(session, "view_pivot_log", user_id=user.id, case_id=case.id, ip=client_ip(request))
     await session.commit()
-    return render(
-        request,
-        "cases/pivots.html",
-        {
-            "seo": Seo(title=f"Pivot log · {case.name}", path=f"/cases/{case.id}/pivots"),
-            "user": user,
-            "case": case,
-            "rows": await pivot_rows(session, case.id),
-            "auto_pivot": auto_pivot_enabled(case),
-        },
-    )
+    ctx = await case_shell(session, case, user, "pivots")
+    return render(request, "cases/pivots.html", {**ctx, "rows": await pivot_rows(session, case.id)})
 
 
 @router.post("/cases/{case_id}/auto-pivot", dependencies=[Depends(verify_csrf)])

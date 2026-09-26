@@ -1,66 +1,70 @@
 {% import "components/ui.html" as ui %}
 {% set explanation = entity.attributes.get('_score_explanation') or [] %}
+{% set fields = entity.field_confidence | display_fields %}
 <div class="entity-detail">
-  <section>
-    <div class="detail-actions">{{ ui.search_menu(entity.type, entity.value, case | case_tags) }}</div>
-    <h3 class="detail-title">Why this confidence</h3>
+  <div>
+    <h3>Why {{ '%.2f' | format(entity.confidence) }}</h3>
     {% if explanation %}
-    <ul class="why-list small">{% for line in explanation %}<li>{{ line }}</li>{% endfor %}</ul>
-    {% else %}<p class="muted small">Not scored yet — correlation runs after each scan.</p>{% endif %}
-    <h3 class="detail-title">Field confidence</h3>
-    {% set fields = entity.field_confidence | display_fields %}
+    <ul class="why-list">{% for line in explanation %}<li>{{ line }}</li>{% endfor %}</ul>
+    {% else %}<p class="muted small">Not scored yet. Scoring runs after each scan.</p>{% endif %}
+
     {% if fields %}
+    <h3>Per field</h3>
     <dl class="kv">
       {% for field, value in fields %}
-      <div><dt>{{ field | replace('_', ' ') }}</dt><dd>{{ ui.confidence_bar(value, field) }}</dd></div>
+      <div><dt>{{ field | replace('_', ' ') | capitalize }}</dt><dd>{{ ui.confidence_bar(value, field) }}</dd></div>
       {% endfor %}
     </dl>
-    {% else %}<p class="muted small">No per-field scores.</p>{% endif %}
-    <h3 class="detail-title">Source reliability</h3>
-    <p>{{ ui.reliability_badge(entity.source_reliability) }} {{ SOURCE_RELIABILITY.get(entity.source_reliability) }}
-      <span class="muted small">— trust in the source class, independent of identity confidence.</span></p>
-  </section>
-  <section>
+    {% endif %}
+
+    <h3>Source reliability</h3>
+    <p class="small">{{ ui.reliability(entity.source_reliability) }} {{ SOURCE_RELIABILITY.get(entity.source_reliability) }}.
+      <span class="muted">How far the kind of source is trusted, separate from whether this is the subject.</span></p>
+  </div>
+
+  <div>
     {% if d.merged_into %}
-    <p class="alert small">Merged into <span class="mono">{{ d.merged_into.value }}</span>.</p>
+    <p class="alert small">Merged into <span class="ident">{{ d.merged_into.value }}</span>.</p>
     {% endif %}
     {% if d.members %}
-    <h3 class="detail-title">Merged values ({{ d.members | length }})</h3>
-    <ul class="relations" role="list">
+    <h3>Merged values</h3>
+    <ul class="plain-list">
       {% for m in d.members %}
       <li>
-        <span class="mono ident">{{ m.value }}</span> <span class="muted small">via {{ m.source_tool }}</span>
-        <button class="btn btn-xs btn-ghost" type="button" hx-post="/cases/{{ case.id }}/entities/{{ m.id }}/split"
+        <span class="ident">{{ m.value }}</span> <span class="sub">from {{ m.source_tool }}</span>
+        <button class="btn btn-ghost btn-xs" type="button" hx-post="/cases/{{ case.id }}/entities/{{ m.id }}/split"
                 hx-swap="none" hx-confirm="Split this value out? It won't be merged back automatically.">Split</button>
       </li>
       {% endfor %}
     </ul>
     {% endif %}
-    <h3 class="detail-title">Relations</h3>
+
+    <h3>Links</h3>
     {% if d.relations %}
-    <ul class="relations" role="list">
+    <ul class="plain-list">
       {% for rv in d.relations %}
-      <li class="rel-{{ rv.relation.relation_type }}">
-        <span class="badge">{{ rv.relation.relation_type | replace('_', ' ') }}</span>
-        {{ '→' if rv.direction == 'out' else '←' }}
-        <span class="mono ident">{{ rv.other.value }}</span>
-        <span class="muted small">via {{ rv.relation.source_tool }}</span>
-        {% if rv.relation.match_explanation %}<div class="small muted">{{ rv.relation.match_explanation }}</div>{% endif %}
+      {% set rt = rv.relation.relation_type %}
+      <li>
+        <span class="rel-type{% if rt == 'possible_same' %} suggested{% elif rt == 'not_same' %} rejected{% endif %}">{{ rt | replace('_', ' ') }}</span>
+        <span class="ident">{{ rv.other.value }}</span>
+        {% if rv.relation.match_explanation %}<div class="sub">{{ rv.relation.match_explanation }}</div>{% endif %}
       </li>
       {% endfor %}
     </ul>
-    {% else %}<p class="muted">Not part of any relation.</p>{% endif %}
-    <h3 class="detail-title">Observations</h3>
+    {% else %}<p class="muted small">No links to other entities.</p>{% endif %}
+
+    <h3>Seen in</h3>
     {% if d.observations %}
-    <ul class="observations" role="list">
+    <ul class="plain-list">
       {% for obs, run_number in d.observations %}
-      <li><span class="mono">run #{{ run_number }}</span> · {{ obs.source_tool }} · {{ obs.observed_at | isodate }}</li>
+      <li class="small">Scan {{ run_number }} <span class="sub">by {{ obs.source_tool }}, {{ obs.observed_at | isodate }}</span></li>
       {% endfor %}
     </ul>
-    {% else %}<p class="muted">Analyst-supplied; not yet observed by a tool.</p>{% endif %}
-  </section>
-  <section class="span-2">
-    <h3 class="detail-title">Attributes</h3>
+    {% else %}<p class="muted small">Added by you as a target. No tool has reported it yet.</p>{% endif %}
+  </div>
+
+  <details class="span-2">
+    <summary class="small muted">Raw details</summary>
     <pre class="json mono">{{ entity.attributes | public_attributes | tojson_pretty }}</pre>
-  </section>
+  </details>
 </div>

@@ -418,7 +418,7 @@ async def test_suggestions_can_be_accepted_or_dismissed(client, db):
     r = await client.post(f"/cases/{case_id}/correlate", headers={"X-CSRF-Token": csrf})
     assert r.status_code == 200
     panel = await client.get(f"/cases/{case_id}/suggestions")
-    assert "2 to review" in panel.text and "pass 2 unavailable" in panel.text
+    assert "2 possible duplicates" in panel.text and "pass 2 unavailable" in panel.text
 
     db.expire_all()
     names, handles = sorted(await relations(db, case_id, engine.POSSIBLE_SAME), key=lambda r: r.confidence)

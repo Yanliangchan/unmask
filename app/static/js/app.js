@@ -14,14 +14,14 @@
 
     function sync() {
       hidden.value = tags.join(",");
-      qsa(box, ".chip").forEach(function (c) { c.remove(); });
+      qsa(box, ".tag").forEach(function (c) { c.remove(); });
       tags.forEach(function (tag, i) {
         var chip = document.createElement("span");
-        chip.className = "chip";
+        chip.className = "tag";
         chip.textContent = tag;
         var x = document.createElement("button");
         x.type = "button";
-        x.className = "chip-x";
+        x.className = "tag-x";
         x.setAttribute("aria-label", "Remove tag " + tag);
         x.textContent = "×";
         x.addEventListener("click", function () { tags.splice(i, 1); sync(); entry.focus(); });
@@ -117,15 +117,6 @@
     if (row && (e.key === "Enter" || e.key === " ") && e.target === row) { e.preventDefault(); toggleRow(row); }
   });
 
-  // --- Tabs -----------------------------------------------------------------
-  document.addEventListener("click", function (e) {
-    var tab = e.target.closest("[data-tab]");
-    if (!tab) return;
-    qsa(tab.parentElement, "[data-tab]").forEach(function (t) { t.setAttribute("aria-selected", t === tab ? "true" : "false"); });
-    var panel = document.getElementById("tab-panel");
-    if (panel) panel.setAttribute("aria-labelledby", tab.id);
-  });
-
   // --- Range outputs ----------------------------------------------------------
   document.addEventListener("input", function (e) {
     var el = e.target;
@@ -180,7 +171,7 @@
   });
   document.addEventListener("htmx:sendError", function () { toast("Network error — is the server reachable?", "error"); });
 
-  // Timeline links jump to the entity: switch to the Entities tab, then open its row.
+  // Links to /cases/<id>#ent-<entity> (e.g. from Timeline) open that entity once the table loads.
   var pendingFocus = null;
   function focusPending() {
     if (!pendingFocus) return;
@@ -192,17 +183,45 @@
     if (row && row.getAttribute("aria-expanded") !== "true") toggleRow(row);
     pendingFocus = null;
   }
-  document.addEventListener("click", function (e) {
-    var link = e.target.closest("[data-focus-entity]");
-    if (!link) return;
-    e.preventDefault();
-    pendingFocus = link.dataset.focusEntity;
-    history.replaceState(null, "", "#ent-" + pendingFocus);
-    var tab = document.getElementById("tab-entities");
-    if (tab) tab.click();
-  });
   document.addEventListener("htmx:afterSettle", focusPending);
   if (location.hash.indexOf("#ent-") === 0) pendingFocus = location.hash.slice(5);
+
+  // --- Menus: one open at a time; close on outside click, Escape, or picking an item ------------
+  function closeMenus(except) {
+    qsa(document, "details.menu[open]").forEach(function (m) { if (m !== except) m.removeAttribute("open"); });
+  }
+  document.addEventListener("toggle", function (e) {
+    if (e.target.matches && e.target.matches("details.menu") && e.target.open) closeMenus(e.target);
+  }, true);
+  document.addEventListener("click", function (e) {
+    var menu = e.target.closest("details.menu");
+    if (!menu) { closeMenus(null); return; }
+    if (e.target.closest(".menu-list a, .menu-list button")) menu.removeAttribute("open");
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeMenus(null); });
+
+  // "Show evidence" in a row's menu opens that row's detail.
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-open-row]");
+    if (!btn) return;
+    var body = document.querySelector(btn.dataset.openRow);
+    var row = body && body.querySelector("[data-expand]");
+    if (row && row.getAttribute("aria-expanded") !== "true") toggleRow(row);
+  });
+
+  // Whole table rows that link somewhere (the case list).
+  document.addEventListener("click", function (e) {
+    var tr = e.target.closest("tr[data-href]");
+    if (!tr || e.target.closest("a, button, input, select, label, summary")) return;
+    if (e.metaKey || e.ctrlKey) { window.open(tr.dataset.href, "_blank"); return; }
+    window.location.href = tr.dataset.href;
+  });
+
+  // Plain GET forms that should apply as soon as a select changes (Timeline compare).
+  document.addEventListener("change", function (e) {
+    var form = e.target.closest && e.target.closest("form[data-autosubmit]");
+    if (form) form.submit();
+  });
 
   function init(root) {
     qsa(root, "[data-tag-input]").forEach(initTagInput);

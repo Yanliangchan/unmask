@@ -2,42 +2,40 @@
 {% set e = row.entity %}
 <tbody id="ent-{{ e.id }}" class="entity{% if e.confirmed_flag %} is-confirmed{% endif %}">
   <tr class="entity-row" data-expand="#detail-{{ e.id }}" tabindex="0" aria-expanded="false"
-      hx-get="/cases/{{ case.id }}/entities/{{ e.id }}" hx-target="#detail-{{ e.id }} .detail-body"
-      hx-trigger="expand once">
-    <td class="value-cell">
-      {% if e.confirmed_flag %}<span class="confirmed-mark" title="Confirmed by analyst" aria-label="Confirmed">✓</span>{% endif %}
-      {% if e.is_seed %}<span class="badge badge-seed" title="Analyst-supplied target">target</span>{% endif %}
-      {% if row.merged_count %}<span class="badge" title="{{ row.merged_count }} duplicate value(s) merged into this entity">+{{ row.merged_count }} merged</span>{% endif %}
-      {% if row.suggestion_count %}<span class="badge badge-warn" title="Possible matches waiting for review">{{ row.suggestion_count }} to review</span>{% endif %}
-      {% if e.attributes.get('url') %}
-        <a class="mono ident" href="{{ e.attributes.url }}" target="_blank" rel="noopener noreferrer nofollow" title="{{ e.value }}">{{ e.value }}</a>
-      {% else %}
-        <span class="mono ident" title="{{ e.value }}">{{ e.value }}</span>
-      {% endif %}
-    </td>
-    <td><span class="badge">{{ e.type }}</span></td>
-    <td>{{ ui.confidence_bar(e.confidence) }}</td>
-    <td>{{ ui.reliability_badge(e.source_reliability) }}</td>
-    <td><div class="source-list">{% for s in row.sources %}{{ ui.tool_badge(s, s in row.failed_sources) }}{% endfor %}</div></td>
-    <td class="col-optional mono">{{ '%.2f' | format(e.tag_match_score) if e.tag_match_score is not none else '—' }}</td>
-    <td class="col-optional"><time datetime="{{ e.first_seen.isoformat() }}" title="{{ e.first_seen | isodate }}">{{ e.first_seen | timeago }}</time></td>
-    <td class="col-optional"><time datetime="{{ e.last_verified.isoformat() }}" title="{{ e.last_verified | isodate }}">{{ e.last_verified | timeago }}</time></td>
-    <td class="actions">
-      <button class="btn btn-xs {% if e.confirmed_flag %}btn-accent{% else %}btn-ghost{% endif %}" type="button"
-              hx-post="/cases/{{ case.id }}/entities/{{ e.id }}/confirm" hx-target="#ent-{{ e.id }}" hx-swap="outerHTML"
-              aria-pressed="{{ 'true' if e.confirmed_flag else 'false' }}" data-stop>
-        {{ 'Confirmed' if e.confirmed_flag else 'Confirm' }}
+      hx-get="/cases/{{ case.id }}/entities/{{ e.id }}" hx-target="#detail-{{ e.id }} .detail-body" hx-trigger="expand once">
+    <td class="col-confirm">
+      <button class="confirm-toggle" type="button" data-stop aria-pressed="{{ 'true' if e.confirmed_flag else 'false' }}"
+              title="{{ 'Confirmed by you. Select to undo.' if e.confirmed_flag else 'Confirm this belongs to the subject' }}"
+              hx-post="/cases/{{ case.id }}/entities/{{ e.id }}/confirm" hx-target="#ent-{{ e.id }}" hx-swap="outerHTML">
+        {{ ui.icon("check") }}<span class="visually-hidden">{{ 'Confirmed' if e.confirmed_flag else 'Confirm' }}</span>
       </button>
-      {{ ui.search_menu(e.type, e.value, case | case_tags) }}
-      <button class="btn btn-xs btn-ghost" type="button" data-stop
-              hx-get="/cases/{{ case.id }}/entities/{{ e.id }}/merge" hx-target="#merge-{{ e.id }}"
-              data-reveal="#merge-row-{{ e.id }}">Merge with…</button>
+    </td>
+    <td class="value-cell">
+      {% if e.attributes.get('url') %}
+      <a class="ident ident-cut" href="{{ e.attributes.url }}" target="_blank" rel="noopener noreferrer nofollow" data-stop title="{{ e.value }}">{{ e.value }}</a>
+      {% else %}
+      <span class="ident ident-cut" title="{{ e.value }}">{{ e.value }}</span>
+      {% endif %}
+      <span class="flags"><span class="flag-type show-xs">{{ e.type | replace('_', ' ') }}</span>{% if e.is_seed %}<span class="flag">Target</span>{% endif %}{% if row.merged_count %}<span class="flag" title="{{ row.merged_count }} duplicate value(s) merged into this one">+{{ row.merged_count }} merged</span>{% endif %}{% if row.suggestion_count %}<span class="flag flag-review" title="Possible duplicate waiting for your review">{{ row.suggestion_count }} to review</span>{% endif %}</span>
+    </td>
+    <td class="muted hide-xs">{{ e.type | replace('_', ' ') }}</td>
+    <td>{{ ui.confidence_bar(e.confidence) }}</td>
+    <td class="hide-xs">{{ ui.reliability(e.source_reliability) }}</td>
+    <td class="hide-sm">{{ ui.sources(row.sources, row.failed_sources) }}</td>
+    <td class="hide-sm faint small nowrap"><time datetime="{{ e.last_verified.isoformat() }}" title="First seen {{ e.first_seen | isodate }}, last seen {{ e.last_verified | isodate }}">{{ e.last_verified | timeago }}</time></td>
+    <td class="col-menu">
+      <details class="menu" data-stop>
+        <summary class="btn btn-ghost btn-sm btn-icon" data-stop aria-label="Actions for {{ e.value }}">{{ ui.icon("more") }}</summary>
+        <div class="menu-list" role="menu">
+          <button type="button" role="menuitem" data-open-row="#ent-{{ e.id }}">Show evidence</button>
+          <button type="button" role="menuitem" data-stop hx-get="/cases/{{ case.id }}/entities/{{ e.id }}/merge"
+                  hx-target="#merge-{{ e.id }}" data-reveal="#merge-row-{{ e.id }}">{{ ui.icon("merge") }}Merge with…</button>
+          <div class="menu-sep"></div>
+          {{ ui.search_items(e.type, e.value, case | case_tags) }}
+        </div>
+      </details>
     </td>
   </tr>
-  <tr id="merge-row-{{ e.id }}" class="detail-row merge-row" hidden>
-    <td colspan="9" id="merge-{{ e.id }}"></td>
-  </tr>
-  <tr id="detail-{{ e.id }}" class="detail-row" hidden>
-    <td colspan="9"><div class="detail-body"><p class="muted">Loading…</p></div></td>
-  </tr>
+  <tr id="merge-row-{{ e.id }}" class="merge-row" hidden><td colspan="8" id="merge-{{ e.id }}"></td></tr>
+  <tr id="detail-{{ e.id }}" class="detail-row" hidden><td colspan="8"><div class="detail-body"><p class="muted small detail-loading">Loading…</p></div></td></tr>
 </tbody>

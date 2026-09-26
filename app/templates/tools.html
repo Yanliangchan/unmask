@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Tools</h1>
+    <p class="muted small">Each tool is checked against a known result. A tool that fails three times in a row is switched off until a check passes.</p>
+  </div>
+</div>
+<div id="tool-health">{% include "partials/tool_health.html" %}</div>
+{% endblock %}

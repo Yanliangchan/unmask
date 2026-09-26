@@ -1,30 +1,35 @@
-<div class="suggestions-head">
-  <h2 class="panel-title">Suggested matches{% if suggestions %} · {{ suggestions | length }} to review{% endif %}</h2>
-  <p class="small muted">
-    Correlation: string rules{% if pass2 %} + embeddings ({{ pass2 }}){% else %} only — pass 2 unavailable: {{ pass2_reason }}{% endif %}.
-    Only identical identifiers merge automatically; everything below needs your decision.
-  </p>
-  <button class="btn btn-xs btn-ghost" type="button" hx-post="/cases/{{ case.id }}/correlate" hx-swap="none"
-          hx-disabled-elt="this">Re-run correlation</button>
-</div>
+{% import "components/ui.html" as ui %}
 {% if suggestions %}
-<ul class="suggestion-list" role="list">
-  {% for s in suggestions %}
-  <li class="suggestion">
-    <div class="suggestion-pair">
-      <span class="badge">{{ s.a.type }}</span>
-      <span class="mono ident" title="{{ s.a.value }}">{{ s.a.value }}</span>
-      <span aria-label="possibly the same as">≟</span>
-      <span class="mono ident" title="{{ s.b.value }}">{{ s.b.value }}</span>
-    </div>
-    <p class="small muted suggestion-why">{{ s.relation.match_explanation }}</p>
-    <div class="suggestion-actions">
-      <button class="btn btn-xs" type="button" hx-post="/cases/{{ case.id }}/suggestions/{{ s.relation.id }}/accept"
-              hx-swap="none" hx-disabled-elt="this">Same — merge</button>
-      <button class="btn btn-xs btn-ghost" type="button" hx-post="/cases/{{ case.id }}/suggestions/{{ s.relation.id }}/dismiss"
-              hx-swap="none" hx-disabled-elt="this">Different — keep separate</button>
-    </div>
-  </li>
-  {% endfor %}
-</ul>
+<details class="review" open>
+  <summary>
+    <span class="dot dot-warn" aria-hidden="true"></span>
+    <span><strong>{{ suggestions | length }} possible duplicate{{ 's' if suggestions | length != 1 }}</strong> <span class="muted">· decide whether each pair is one account</span></span>
+    <span class="chev">{{ ui.icon("chevron") }}</span>
+  </summary>
+  <ul class="review-list">
+    {% for s in suggestions %}
+    <li class="review-item">
+      <div class="pair-wrap">
+      <div class="pair">
+        <span class="ident">{{ s.a.value }}</span>
+        <span class="vs">and</span>
+        <span class="ident">{{ s.b.value }}</span>
+        <span class="faint small">{{ s.a.type | replace('_', ' ') }}</span>
+      </div>
+      <p class="why">{{ s.relation.match_explanation }}</p>
+      </div>
+      <div class="acts">
+        <button class="btn btn-sm" type="button" hx-post="/cases/{{ case.id }}/suggestions/{{ s.relation.id }}/accept"
+                hx-swap="none" hx-disabled-elt="this">Same, merge</button>
+        <button class="btn btn-ghost btn-sm" type="button" hx-post="/cases/{{ case.id }}/suggestions/{{ s.relation.id }}/dismiss"
+                hx-swap="none" hx-disabled-elt="this">Different</button>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  <div class="review-foot">
+    <span>Only exact duplicates merge on their own. These need a person to decide.</span>
+    <span>{% if pass2 %}Similarity model: {{ pass2 }}{% else %}String matching only; pass 2 unavailable ({{ pass2_reason }}){% endif %}</span>
+  </div>
+</details>
 {% endif %}

@@ -106,7 +106,7 @@ async def test_pivot_chain_runs_and_is_logged(pivot_env, client, db):
     assert "Fake Email" in page.text and "username found (conf &gt; 0.6) → guessed emails" in page.text
     assert "janedoe@acme-corp.example" in page.text
     workspace = await client.get(f"/cases/{case_id}")
-    assert "Pivot log (2)" in workspace.text
+    assert 'Pivots<span class="count">2</span>' in workspace.text
 
 
 async def test_shared_mail_domains_are_never_pivoted_onto(pivot_env, client, db):

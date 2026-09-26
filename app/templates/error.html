@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 {% block main_class %}container narrow{% endblock %}
 {% block content %}
-<section class="card">
-  <h1>{{ status }}</h1>
-  <p>{{ detail }}</p>
-  <p><a href="/">Back to investigations</a></p>
+<section class="auth">
+  <p class="faint mono">{{ status }}</p>
+  <h1>{{ {404: "Not found", 403: "Not allowed", 429: "Too many requests"}.get(status, "Something went wrong") }}</h1>
+  <p class="muted mt-8">{{ detail }}</p>
+  <p><a href="/">Back to cases</a></p>
 </section>
 {% endblock %}

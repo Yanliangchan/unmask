@@ -1,38 +1,38 @@
 {% import "components/ui.html" as ui %}
 {% if run %}
 {% set active = run.status in ('queued', 'running') %}
-<div id="scan-status" class="scan-banner scan-{{ run.status }}" role="status" aria-live="polite"
+{% set notes = run.failure_details or {} %}
+{% set split = notes | run_issues %}
+{% set issues = split.tools + split.other %}
+<div id="scan-status" class="runline" role="status" aria-live="polite"
      {% if active %}hx-get="/cases/{{ case.id }}/scan-status?was_running=1" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
-  <div class="scan-banner-main">
-    {% if active %}<span class="spinner" aria-hidden="true"></span>{% endif %}
-    <strong>Scan #{{ run.run_number }}</strong>{% if run.triggered_by == 'pivot_chain' %} <span class="badge">pivot chain</span>{% elif run.triggered_by == 'watch_mode' %} <span class="badge">watch mode</span>{% endif %}
+  {{ ui.run_status(run.status) }}
+  <span>
+    Scan {{ run.run_number }}{% if run.triggered_by == 'pivot_chain' %} (automatic follow-up){% elif run.triggered_by == 'watch_mode' %} (watch mode){% endif %}
     {% if run.status == 'queued' %}
-      Queued…{% if workers == 0 %} <span class="warn-text">no scan worker is running, so this scan cannot start yet.</span>{% endif %}
+      is waiting to start{% if workers == 0 %}: <span class="text-warn">no scan worker is running, so this scan cannot start yet.</span>{% endif %}
     {% elif run.status == 'running' %}
-      Scanning… {{ run.jobs_done }}/{{ run.jobs_total }} tool run{{ 's' if run.jobs_total != 1 }} complete
-    {% elif run.status == 'completed' %}
-      completed {{ run.completed_at | timeago }} — {{ run.jobs_total }} tool run{{ 's' if run.jobs_total != 1 }}
-    {% elif run.status == 'partial' %}
-      finished with failures {{ run.completed_at | timeago }}
+      · {{ run.jobs_done }} of {{ run.jobs_total }} tool run{{ 's' if run.jobs_total != 1 }} done
     {% else %}
-      failed {{ (run.completed_at or run.created_at) | timeago }}
+      <span class="faint" title="{{ (run.completed_at or run.created_at) | isodate }}">· {{ (run.completed_at or run.created_at) | timeago }}</span>
     {% endif %}
-    {% if active and run.jobs_total %}
-    <progress max="{{ run.jobs_total }}" value="{{ run.jobs_done }}" aria-label="Scan progress"></progress>
+  </span>
+  {% if active and run.jobs_total %}<progress max="{{ run.jobs_total }}" value="{{ run.jobs_done }}" aria-label="Scan progress"></progress>{% endif %}
+  {% if issues or notes.get('_correlation') or notes.get('_pivots') %}
+  <details>
+    <summary>{% if split.tools %}{{ split.tools | length }} tool{{ 's' if split.tools | length != 1 }} failed{% if split.other %}, {{ split.other | length }} other issue{{ 's' if split.other | length != 1 }}{% endif %}{% elif split.other %}{{ split.other | length }} issue{{ 's' if split.other | length != 1 }}{% else %}Details{% endif %}</summary>
+    {% if issues %}
+    <ul class="run-issues">
+      {% for tool, reason in issues %}
+      <li><span class="tool">{{ tool }}</span><span class="why" title="{{ reason }}">{{ reason | truncate(220) }}</span></li>
+      {% endfor %}
+    </ul>
     {% endif %}
-  </div>
-  {% set notes = run.failure_details or {} %}
-  {% if notes.get('_correlation') %}<p class="small muted scan-note">Correlation: {{ notes._correlation }}</p>{% endif %}
-  {% if notes.get('_pivots') %}<p class="small muted scan-note">Pivots: {{ notes._pivots }} · <a href="/cases/{{ case.id }}/pivots">Pivot log</a></p>{% endif %}
-  {% set failures = notes | dictsort | rejectattr("0", "in", ["_correlation", "_pivots"]) | list %}
-  {% if failures %}
-  <ul class="scan-failures" role="list">
-    {% for tool, reason in failures %}
-    <li>{% if not tool.startswith('_') %}{{ ui.tool_badge(tool, true) }}{% endif %} <span class="small">{{ reason }}</span></li>
-    {% endfor %}
-  </ul>
+    {% if notes.get('_correlation') %}<p class="run-notes">Matching: {{ notes._correlation }}</p>{% endif %}
+    {% if notes.get('_pivots') %}<p class="run-notes">Pivots: {{ notes._pivots }} (<a href="/cases/{{ case.id }}/pivots">Pivot log</a>)</p>{% endif %}
+  </details>
   {% endif %}
 </div>
 {% else %}
-<div id="scan-status" class="scan-banner" role="status">No scans yet.</div>
+<div id="scan-status" class="runline" role="status">{{ ui.status_dot("off", "Not scanned yet") }}</div>
 {% endif %}

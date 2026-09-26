@@ -1,47 +1,60 @@
 {% extends "base.html" %}
-{% import "components/ui.html" as ui %}
-{% block main_class %}container wide{% endblock %}
 {% block content %}
 <div class="page-head">
-  <h1>Investigations</h1>
-  <a class="btn btn-primary" href="/cases/new">+ New Case</a>
+  <div>
+    <h1>Cases</h1>
+  </div>
 </div>
 
-<div class="dashboard">
-  <section class="case-grid-wrap" aria-label="Cases">
-    {% if cards %}
-    <ul class="case-grid" role="list">
-      {% for card in cards %}
-      <li>
-        <a class="card case-card" href="/cases/{{ card.case.id }}">
-          <div class="case-card-head">
-            <h2 class="case-name">{{ card.case.name }}</h2>
-            {% if card.new_count %}<span class="badge badge-accent">{{ card.new_count }} new</span>{% endif %}
-          </div>
-          <dl class="case-meta">
-            <div><dt>Targets</dt><dd class="mono">{{ card.target_count }}</dd></div>
-            <div><dt>Last scan</dt><dd><time datetime="{{ card.last_scan_at.isoformat() if card.last_scan_at else '' }}" title="{{ card.last_scan_at | isodate }}">{{ card.last_scan_at | timeago }}</time>{% if card.last_scan_status %} · <span class="run-status run-{{ card.last_scan_status }}">{{ card.last_scan_status }}</span>{% endif %}</dd></div>
-            <div><dt>Watch</dt><dd>{% if card.watch_active %}{{ ui.status_dot('ok', 'Active') }}{% else %}{{ ui.status_dot('off', 'Off') }}{% endif %}</dd></div>
-            {% if card.purge_soon %}<div><dt>Retention</dt><dd class="purge-soon" title="{{ card.purge_at | isodate }}">purged {{ card.purge_at | isodate }}</dd></div>{% endif %}
-          </dl>
-        </a>
-      </li>
-      {% endfor %}
-    </ul>
-    {% else %}
-    <div class="card empty">
-      <h2>No investigations yet</h2>
-      <p class="muted">Create a case with a documented authorization note to run your first scan.</p>
-      <a class="btn btn-primary" href="/cases/new">+ New Case</a>
-    </div>
-    {% endif %}
-  </section>
-
-  <aside class="side-panel" aria-labelledby="tool-health-title">
-    <h2 id="tool-health-title" class="panel-title">Tool Health</h2>
-    <div id="tool-health" hx-get="/partials/tool-health" hx-trigger="every 30s" hx-swap="innerHTML">
-      {% include "partials/tool_health.html" %}
-    </div>
-  </aside>
+{% set attention = health | rejectattr("status", "equalto", "ok") | rejectattr("status_label", "equalto", "Not configured") | list %}
+{% if workers == 0 %}
+<div class="alert alert-error tools-notice" role="alert">
+  <p><strong>No scan worker is running.</strong> Queued scans will not start until one is.</p>
 </div>
+{% elif attention %}
+<div class="alert alert-warn tools-notice">
+  <p>{{ attention | length }} of {{ health | length }} tools need attention{% if attention | selectattr("status", "equalto", "down") | list %}, including some the circuit breaker switched off{% endif %}.</p>
+  <a class="btn btn-sm" href="/tools">View tools</a>
+</div>
+{% endif %}
+
+{% if cards %}
+<div class="table-wrap">
+<table class="table cases">
+  <thead>
+    <tr>
+      <th>Case</th>
+      <th class="hide-sm">Targets</th>
+      <th>Last scan</th>
+      <th class="hide-sm">Watch</th>
+      <th class="shrink num"><span class="visually-hidden">Unreviewed</span></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for card in cards %}
+    <tr class="row-link" data-href="/cases/{{ card.case.id }}">
+      <td>
+        <a href="/cases/{{ card.case.id }}">{{ card.case.name }}</a>
+        {% if card.purge_soon %}<div class="case-row-sub text-warn" title="{{ card.purge_at | isodate }}">Deleted on {{ card.purge_at.strftime('%-d %b') }} unless scanned again</div>{% endif %}
+      </td>
+      <td class="hide-sm muted">{{ card.target_count }}</td>
+      <td>
+        {% if card.last_scan_status %}{{ ui.run_status(card.last_scan_status) }}
+        <span class="faint small" title="{{ card.last_scan_at | isodate }}">· {{ card.last_scan_at | timeago }}</span>
+        {% else %}<span class="faint">Not scanned</span>{% endif %}
+      </td>
+      <td class="hide-sm">{% if card.watch_active %}<span class="small">{{ card.case.watch_config.get('frequency', 'weekly') | capitalize }}</span>{% else %}<span class="faint small">Off</span>{% endif %}</td>
+      <td class="num">{% if card.new_count %}<span class="count count-strong" title="{{ card.new_count }} new since you last looked">{{ card.new_count }} new</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<div class="empty">
+  <h2>No cases yet</h2>
+  <p>A case holds the people or identifiers you're authorized to research, every scan run against them, and your conclusions.</p>
+  <a class="btn btn-primary" href="/cases/new">{{ ui.icon("plus") }}New case</a>
+</div>
+{% endif %}
 {% endblock %}

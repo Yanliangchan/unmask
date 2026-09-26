@@ -153,6 +153,6 @@ async def test_entity_rows_carry_the_search_menu(client, db):
     await jobs.wait_for_all()
     case_id = r.headers["location"].rsplit("/", 1)[1]
     table = await client.get(f"/cases/{case_id}/entities")
-    assert "Search ↗" in table.text
+    assert "Search the web" in table.text
     assert "%22janedoe%22+osint" in table.text  # value + context tag, URL-encoded
     assert 'rel="noopener noreferrer nofollow"' in table.text
