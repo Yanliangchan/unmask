@@ -310,3 +310,27 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); outline
 .pivot.is-skipped { border-left-color: var(--warn); }
 .pivot-line { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
 form.switch { margin: 0; }
+
+/* Graph */
+.graph-toolbar { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; align-items: center; padding: .5rem .75rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: .6rem; }
+.graph-stats { margin-left: auto; }
+.graph-wrap { position: relative; height: 70vh; min-height: 420px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-sunk); overflow: hidden; }
+.graph-canvas { position: absolute; inset: 0; }
+.graph-legend { position: absolute; left: .75rem; bottom: .75rem; max-width: 260px; background: color-mix(in srgb, var(--bg-elev) 92%, transparent); border: 1px solid var(--border); border-radius: var(--radius); padding: .5rem .7rem; z-index: 2; }
+.graph-legend ul { list-style: none; margin: 0 0 .4rem; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: .2rem .8rem; font-size: .8rem; }
+.graph-legend p { margin: 0; }
+.legend-item { display: flex; align-items: center; gap: .4rem; }
+.legend-swatch { width: .8rem; height: .8rem; display: inline-block; flex: none; }
+.shape-ellipse { border-radius: 50%; }
+.shape-round-rectangle { border-radius: 3px; }
+.shape-diamond { transform: rotate(45deg) scale(.8); }
+.shape-hexagon, .shape-round-hexagon { clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); }
+.shape-octagon { clip-path: polygon(30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%); }
+.shape-pentagon { clip-path: polygon(50% 0, 100% 38%, 82% 100%, 18% 100%, 0 38%); }
+.shape-tag { clip-path: polygon(0 0, 70% 0, 100% 50%, 70% 100%, 0 100%); }
+.shape-vee { clip-path: polygon(0 0, 50% 40%, 100% 0, 50% 100%); }
+.shape-barrel { border-radius: 30% / 50%; }
+.graph-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(520px, 90%); background: var(--bg-elev); border-left: 1px solid var(--border-strong); z-index: 3; display: flex; flex-direction: column; box-shadow: -12px 0 32px rgba(0,0,0,.35); }
+.graph-panel-head { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding: .6rem .8rem; border-bottom: 1px solid var(--border); font-family: var(--mono); overflow-wrap: anywhere; }
+.graph-panel-body { overflow: auto; padding: .25rem .8rem 1rem; }
+.graph-panel-body .entity-detail { grid-template-columns: 1fr; }

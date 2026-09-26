@@ -1,0 +1,26 @@
+<section class="graph-tab" data-graph="/cases/{{ case.id }}/graph.json" data-case="{{ case.id }}" aria-label="Relationship graph">
+  <div class="graph-toolbar" role="toolbar" aria-label="Graph filters">
+    <label class="checkbox inline"><input type="checkbox" data-graph-filter="confirmed"><span>Show only confirmed</span></label>
+    <label class="checkbox inline"><input type="checkbox" data-graph-filter="pivot"><span>Pivot-chain entities only</span></label>
+    <label class="checkbox inline"><input type="checkbox" data-graph-filter="suggested" checked><span>Show suggested matches</span></label>
+    <button class="btn btn-xs btn-ghost" type="button" data-graph-reset>Reset view</button>
+    <span class="muted small graph-stats" data-graph-stats aria-live="polite"></span>
+  </div>
+  <div class="graph-wrap">
+    <div class="graph-canvas" id="cy" role="img" aria-label="Entities as nodes (size = centrality, colour and shape = type) connected by their relations. The same data is listed in the Entities tab."></div>
+    <aside class="graph-legend" aria-label="Legend">
+      <h3 class="detail-title">Entity types</h3>
+      <ul data-graph-legend role="list"></ul>
+      <p class="small muted">Size = centrality · thick green ring = confirmed · double ring = target · dashed ring = found or used by a pivot · dashed amber line = suggested match</p>
+    </aside>
+    <aside class="graph-panel" data-graph-panel hidden aria-label="Selected entity">
+      <div class="graph-panel-head">
+        <strong data-graph-panel-title></strong>
+        <button class="btn btn-xs btn-ghost" type="button" data-graph-panel-close aria-label="Close details">&times;</button>
+      </div>
+      <div id="graph-panel-body" class="graph-panel-body"></div>
+    </aside>
+  </div>
+  <noscript><p class="muted">The graph needs JavaScript. The Entities tab shows the same data.</p></noscript>
+</section>
+<script src="/static/js/graph.js"></script>

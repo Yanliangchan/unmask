@@ -27,8 +27,12 @@ STATIC_DIR = Path(__file__).parent / "static"
 CSP = "; ".join(
     [
         "default-src 'self'",
-        "script-src 'self' https://cdn.jsdelivr.net",  # Cytoscape (graph tab)
-        "style-src 'self'",
+        # Every script (htmx, Cytoscape) is self-hosted: analysts' browsers make
+        # no third-party requests while working a case.
+        "script-src 'self'",
+        # The hash allows exactly the one fixed <style> block Cytoscape 3.30.4
+        # injects for its container; re-check it when upgrading Cytoscape.
+        "style-src 'self' 'sha256-pgvDUBa4IjFA2yuSJ2cqcyxmNYJMborsd0ORcRv9vw8='",
         # Dynamic widths (confidence bars) only; no inline <style> blocks.
         "style-src-attr 'unsafe-inline'",
         "font-src 'self'",

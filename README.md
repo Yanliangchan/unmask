@@ -44,7 +44,7 @@ Built phase by phase; each phase is verified before the next starts.
 | 2 | Maigret, Holehe, h8mail, theHarvester, Amass, crt.sh, SpiderFoot; RQ workers; rate limiting | ✅ |
 | 3 | Two-pass correlation (fuzzy + embeddings), confidence scoring, merge/split | ✅ |
 | 4 | Pivot rule engine + Pivot Log | ⏳ |
-| 5 | Graph tab (Cytoscape) | ⏳ |
+| 5 | Graph tab (Cytoscape, PageRank centrality, self-hosted) | ✅ |
 | 6 | Timeline diffing + watch mode | ⏳ |
 | 7 | DuckDuckGo + Brave adapters, search-link buttons | ⏳ |
 | 8 | Reporting / export | ⏳ |
@@ -129,7 +129,7 @@ structure without probing a real person).
 ## Architecture
 
 ```
-FastAPI (async) ── Jinja2 + htmx ── Cytoscape.js (graph tab only)
+FastAPI (async) ── Jinja2 + htmx ── Cytoscape.js (graph tab only; both self-hosted, no CDN)
    │
    ├── app/adapters/     ToolAdapter contract + one module per tool (subprocess / API only)
    ├── app/services/     cases, scan orchestration, entities, tool health

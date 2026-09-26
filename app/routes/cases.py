@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +26,7 @@ from app.services.cases import (
     parse_tags,
 )
 from app.services.entities import EntityFilters, entity_detail, list_entities
+from app.services.graph import case_graph
 from app.services.scans import create_scan_run
 from app.services.tools import run_health_check, tool_configs, tool_health
 from app.web import Seo, render
@@ -370,6 +371,19 @@ async def case_tab(
         return render(
             request, "cases/_entities_tab.html", {"case": case, **await _entity_filter_options(session, case)}
         )
-    if tab not in ("graph", "timeline"):
+    if tab == "graph":
+        return render(request, "cases/_graph_tab.html", {"case": case})
+    if tab != "timeline":
         raise HTTPException(status_code=404)
     return render(request, "cases/_tab_placeholder.html", {"case": case, "tab": tab})
+
+
+@router.get("/cases/{case_id}/graph.json")
+async def graph_json(
+    request: Request,
+    case_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(current_user),
+):
+    case = await get_case_for_user(session, case_id, user)
+    return JSONResponse(await case_graph(session, case.id))

@@ -20,7 +20,8 @@ unmask aggregates personal data, so the deployment itself is a high-value target
 - Local-only post-login redirects.
 
 ## HTTP hardening
-- Strict CSP (no inline scripts), `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`
+- Strict CSP (no inline scripts; every script self-hosted, so analysts' browsers make no
+  third-party requests; the one inline style Cytoscape injects is allowed by hash), `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`
   (outbound links never leak case URLs), HSTS in production, `no-store` on private pages.
 
 ## Third-party tools
