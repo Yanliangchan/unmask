@@ -1,0 +1,9 @@
+<div class="card empty">
+  {% if tab == 'graph' %}
+  <h2>Graph</h2>
+  <p class="muted">The relationship graph is not available yet. Entities and their relations are listed in the Entities tab.</p>
+  {% else %}
+  <h2>Timeline</h2>
+  <p class="muted">Scan-to-scan comparison is not available yet. {{ case.scan_runs | length }} scan run(s) are recorded for this case.</p>
+  {% endif %}
+</div>

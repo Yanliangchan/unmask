@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ seo.full_title }}</title>
+  <meta name="description" content="{{ seo.description }}">
+  <meta name="robots" content="{{ seo.robots }}">
+  <link rel="canonical" href="{{ seo.canonical }}">
+  <meta name="application-name" content="unmask">
+  <meta name="theme-color" content="#0b0e13">
+  <meta name="color-scheme" content="dark light">
+  <meta name="referrer" content="no-referrer">
+  <meta name="htmx-config" content='{"includeIndicatorStyles": false, "defaultSwapStyle": "innerHTML"}'>
+
+  <meta property="og:site_name" content="unmask">
+  <meta property="og:type" content="{{ seo.og_type }}">
+  <meta property="og:title" content="{{ seo.full_title }}">
+  <meta property="og:description" content="{{ seo.description }}">
+  <meta property="og:url" content="{{ seo.canonical }}">
+  <meta property="og:image" content="{{ settings.public_base_url.rstrip('/') }}/static/img/og-image.png">
+  <meta property="og:image:alt" content="unmask — OSINT investigation platform">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ seo.full_title }}">
+  <meta name="twitter:description" content="{{ seo.description }}">
+
+  <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="stylesheet" href="/static/css/app.css">
+  {{ seo.json_ld_markup }}
+  <script src="/static/js/htmx.min.js" defer></script>
+  <script src="/static/js/app.js" defer></script>
+  {% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}" hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="topbar" role="banner">
+    <a class="brand" href="/" aria-label="unmask home">
+      <img src="/static/img/favicon.svg" alt="" width="22" height="22">
+      <span>unmask</span>
+    </a>
+    {% if user %}
+    <nav class="topbar-nav" aria-label="Primary">
+      <a href="/" {% if request.url.path == '/' %}aria-current="page"{% endif %}>Investigations</a>
+      <a href="/cases/new" {% if request.url.path == '/cases/new' %}aria-current="page"{% endif %}>New case</a>
+    </nav>
+    <div class="topbar-user">
+      <span class="mono muted" title="Signed in">{{ user.email }}</span>
+      <form method="post" action="/logout">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn btn-ghost btn-sm" type="submit">Log out</button>
+      </form>
+    </div>
+    {% else %}
+    <nav class="topbar-nav topbar-nav-end" aria-label="Primary">
+      {% if request.url.path != '/login' %}<a class="btn btn-sm" href="/login">Sign in</a>{% endif %}
+    </nav>
+    {% endif %}
+  </header>
+
+  <div id="toasts" class="toasts" aria-live="polite" aria-atomic="false"></div>
+
+  <main id="main" class="{% block main_class %}container{% endblock %}">
+    {% block content %}{% endblock %}
+  </main>
+
+  {% block footer %}
+  <footer class="footer" role="contentinfo">
+    <span>unmask</span>
+    <span class="muted">Use only with documented authorization and a lawful basis.</span>
+  </footer>
+  {% endblock %}
+</body>
+</html>

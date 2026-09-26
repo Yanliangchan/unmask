@@ -1,0 +1,28 @@
+<form class="filter-bar" id="entity-filters"
+      hx-get="/cases/{{ case.id }}/entities" hx-target="#entities" hx-swap="innerHTML"
+      hx-trigger="change, input delay:250ms from:input[type=range], scan-finished from:body">
+  <label class="field inline">
+    <span>Type</span>
+    <select name="type">
+      <option value="">All</option>
+      {% for t in entity_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+    </select>
+  </label>
+  <label class="field inline range-field">
+    <span>Min confidence <output class="mono" id="min-conf-out">0.00</output></span>
+    <input type="range" name="min_confidence" min="0" max="1" step="0.05" value="0" data-output="#min-conf-out">
+  </label>
+  <fieldset class="field inline tool-filter">
+    <legend>Sources</legend>
+    {% for name in tool_names %}
+    <label class="chip-check"><input type="checkbox" name="tool" value="{{ name }}"><span>{{ name }}</span></label>
+    {% endfor %}
+  </fieldset>
+  <label class="checkbox inline">
+    <input type="checkbox" name="confirmed_only">
+    <span>Confirmed only</span>
+  </label>
+</form>
+<div id="entities" hx-get="/cases/{{ case.id }}/entities" hx-trigger="load" hx-swap="innerHTML">
+  <p class="muted loading">Loading entities…</p>
+</div>

@@ -1,0 +1,20 @@
+{% import "components/ui.html" as ui %}
+{% set down = health | selectattr("status", "equalto", "down") | list %}
+{% if down %}
+<p class="alert alert-error" role="alert">
+  {{ down | length }} tool{{ 's' if down | length > 1 }} auto-disabled by the circuit breaker.
+</p>
+{% endif %}
+<ul class="tool-health" role="list">
+  {% for t in health %}
+  <li class="tool-health-row" title="{{ t.detail }}">
+    {{ ui.status_dot(t.status, t.label) }}
+    <span class="muted small">{{ t.status_label }}</span>
+    <button class="btn btn-ghost btn-xs" type="button"
+            hx-post="/tools/{{ t.name }}/health-check" hx-target="#tool-health" hx-swap="innerHTML"
+            hx-disabled-elt="this" aria-label="Run health check for {{ t.label }}">Check</button>
+  </li>
+  {% else %}
+  <li class="muted">No tools registered.</li>
+  {% endfor %}
+</ul>

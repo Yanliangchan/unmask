@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block body_class %}landing{% endblock %}
+{% block content %}
+<section class="hero" aria-labelledby="hero-title">
+  <p class="eyebrow mono">self-hosted · open adapters · audit-first</p>
+  <h1 id="hero-title">OSINT investigations that show their work.</h1>
+  <p class="lede">
+    unmask orchestrates open-source intelligence tools into repeatable investigations:
+    automated pivot chains, case management with a full audit trail, and diffs between
+    scans so you see what changed — not just what exists.
+  </p>
+  <p class="hero-cta">
+    <a class="btn btn-primary" href="/login">Sign in</a>
+    <a class="btn btn-ghost" href="#features">How it works</a>
+  </p>
+</section>
+
+<section id="features" class="features" aria-labelledby="features-title">
+  <h2 id="features-title">Built for analysts, not dashboards</h2>
+  <div class="feature-grid">
+    <article class="feature">
+      <h3>Automated pivot chains</h3>
+      <p>A username surfaces an email, the email triggers breach and domain lookups. Every automatic step is written to a pivot log you can read line by line.</p>
+    </article>
+    <article class="feature">
+      <h3>Case management &amp; audit trail</h3>
+      <p>Each case requires a written authorization note and a lawful-basis confirmation before a single lookup runs. Every view, merge and export is logged.</p>
+    </article>
+    <article class="feature">
+      <h3>Time-aware diffing</h3>
+      <p>Scans are versioned. Compare any two runs to see new, changed and vanished findings — and whether a disappearance is real or a tool that failed.</p>
+    </article>
+    <article class="feature">
+      <h3>Explainable correlation</h3>
+      <p>Confidence is scored per field and every merge carries a plain-language explanation. Source reliability is rated separately from identity confidence.</p>
+    </article>
+    <article class="feature">
+      <h3>Honest failures</h3>
+      <p>Bot walls and soft-200 pages are detected by content signature, so a blocked tool never masquerades as "nothing found". Failing tools trip a circuit breaker.</p>
+    </article>
+    <article class="feature">
+      <h3>Open adapter architecture</h3>
+      <p>Every tool plugs in through one small interface and runs as an isolated subprocess or API call. Add a source without touching the core.</p>
+    </article>
+  </div>
+</section>
+
+<section class="principles" aria-labelledby="principles-title">
+  <h2 id="principles-title">Principles</h2>
+  <ul class="principle-list">
+    <li><strong>Encryption at rest.</strong> Emails, phone numbers and breach data are encrypted before they reach the database, with keys held outside it.</li>
+    <li><strong>Humans conclude.</strong> Reports cannot be exported without a written analyst assessment — the platform presents evidence, a person states the finding.</li>
+    <li><strong>Nothing invisible.</strong> Every scan failure, automatic pivot and manual override is recorded and shown.</li>
+  </ul>
+</section>
+{% endblock %}

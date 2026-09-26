@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block main_class %}container wide{% endblock %}
+{% block content %}
+<header class="case-header">
+  <div class="case-header-main">
+    <p class="breadcrumb"><a href="/">Investigations</a> /</p>
+    <h1>{{ case.name }}</h1>
+    <details class="auth-note">
+      <summary>Authorization note</summary>
+      <p class="pre">{{ case.authorization_note }}</p>
+      <p class="muted small">Lawful basis confirmed {{ case.lawful_basis_confirmed_at | isodate }}</p>
+    </details>
+    <ul class="target-list" role="list" aria-label="Targets">
+      {% for t in case.targets %}
+      <li><span class="badge">{{ t.type }}</span> <span class="mono">{{ t.value }}</span>
+        {% for tag in t.context_tags %}<span class="chip">{{ tag }}</span>{% endfor %}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  <div class="case-header-actions">
+    <label class="switch" title="Watch mode arrives in a later release">
+      <input type="checkbox" role="switch" disabled {% if case.watch_config.get('enabled') %}checked{% endif %}>
+      <span>Watch mode</span>
+    </label>
+    <button class="btn btn-primary" type="button"
+            hx-post="/cases/{{ case.id }}/scans" hx-target="#scan-status" hx-swap="outerHTML"
+            hx-disabled-elt="this">Run New Scan</button>
+  </div>
+</header>
+
+{% with run = latest_run %}{% include "partials/scan_status.html" %}{% endwith %}
+
+<nav class="tabs" role="tablist" aria-label="Case views">
+  <button role="tab" class="tab" aria-selected="true" aria-controls="tab-panel" id="tab-entities"
+          hx-get="/cases/{{ case.id }}/tab/entities" hx-target="#tab-panel" data-tab>Entities</button>
+  <button role="tab" class="tab" aria-selected="false" aria-controls="tab-panel" id="tab-graph"
+          hx-get="/cases/{{ case.id }}/tab/graph" hx-target="#tab-panel" data-tab>Graph</button>
+  <button role="tab" class="tab" aria-selected="false" aria-controls="tab-panel" id="tab-timeline"
+          hx-get="/cases/{{ case.id }}/tab/timeline" hx-target="#tab-panel" data-tab>Timeline</button>
+</nav>
+
+<section id="tab-panel" role="tabpanel" aria-labelledby="tab-entities">
+  {% include "cases/_entities_tab.html" %}
+</section>
+{% endblock %}

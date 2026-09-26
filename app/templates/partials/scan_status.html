@@ -1,0 +1,34 @@
+{% import "components/ui.html" as ui %}
+{% if run %}
+{% set active = run.status in ('queued', 'running') %}
+<div id="scan-status" class="scan-banner scan-{{ run.status }}" role="status" aria-live="polite"
+     {% if active %}hx-get="/cases/{{ case.id }}/scan-status?was_running=1" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+  <div class="scan-banner-main">
+    {% if active %}<span class="spinner" aria-hidden="true"></span>{% endif %}
+    <strong>Scan #{{ run.run_number }}</strong>
+    {% if run.status == 'queued' %}
+      Queued…
+    {% elif run.status == 'running' %}
+      Scanning… {{ run.jobs_done }}/{{ run.jobs_total }} tool run{{ 's' if run.jobs_total != 1 }} complete
+    {% elif run.status == 'completed' %}
+      completed {{ run.completed_at | timeago }} — {{ run.jobs_total }} tool run{{ 's' if run.jobs_total != 1 }}
+    {% elif run.status == 'partial' %}
+      finished with failures {{ run.completed_at | timeago }}
+    {% else %}
+      failed {{ (run.completed_at or run.created_at) | timeago }}
+    {% endif %}
+    {% if active and run.jobs_total %}
+    <progress max="{{ run.jobs_total }}" value="{{ run.jobs_done }}" aria-label="Scan progress"></progress>
+    {% endif %}
+  </div>
+  {% if run.failure_details %}
+  <ul class="scan-failures" role="list">
+    {% for tool, reason in run.failure_details | dictsort %}
+    <li>{% if not tool.startswith('_') %}{{ ui.tool_badge(tool, true) }}{% endif %} <span class="small">{{ reason }}</span></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% else %}
+<div id="scan-status" class="scan-banner" role="status">No scans yet.</div>
+{% endif %}

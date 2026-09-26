@@ -1,0 +1,29 @@
+[project]
+name = "unmask"
+version = "0.1.0"
+description = "Self-hosted OSINT orchestration platform: pivot chains, audited case management, time-aware diffing and open tool adapters."
+requires-python = ">=3.11"
+readme = "README.md"
+license = { text = "Proprietary" }
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC"]
+ignore = [
+  "B008",  # FastAPI's Depends()/Form() defaults
+  "S101",  # asserts are used for internal invariants
+  "S603",  # subprocess calls are deliberate and never use a shell
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "B"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["tests"]

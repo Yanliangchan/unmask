@@ -1,0 +1,44 @@
+{% import "components/ui.html" as ui %}
+<div class="entity-detail">
+  <section>
+    <h3 class="detail-title">Field confidence</h3>
+    {% if entity.field_confidence %}
+    <dl class="kv">
+      {% for field, value in entity.field_confidence | dictsort %}
+      <div><dt>{{ field }}</dt><dd>{{ ui.confidence_bar(value, field) }}</dd></div>
+      {% endfor %}
+    </dl>
+    {% else %}<p class="muted">No per-field scores yet.</p>{% endif %}
+    <h3 class="detail-title">Source reliability</h3>
+    <p>{{ ui.reliability_badge(entity.source_reliability) }} {{ SOURCE_RELIABILITY.get(entity.source_reliability) }}
+      <span class="muted small">— trust in the source class, independent of identity confidence.</span></p>
+  </section>
+  <section>
+    <h3 class="detail-title">Relations</h3>
+    {% if relations %}
+    <ul class="relations" role="list">
+      {% for rv in relations %}
+      <li>
+        <span class="badge">{{ rv.relation.relation_type }}</span>
+        {{ '→' if rv.direction == 'out' else '←' }}
+        <span class="mono ident">{{ rv.other.value }}</span>
+        <span class="muted small">via {{ rv.relation.source_tool }}</span>
+        {% if rv.relation.match_explanation %}<div class="small muted">{{ rv.relation.match_explanation }}</div>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted">Not part of any relation.</p>{% endif %}
+    <h3 class="detail-title">Observations</h3>
+    {% if observations %}
+    <ul class="observations" role="list">
+      {% for obs, run_number in observations %}
+      <li><span class="mono">run #{{ run_number }}</span> · {{ obs.source_tool }} · {{ obs.observed_at | isodate }}</li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted">Analyst-supplied; not yet observed by a tool.</p>{% endif %}
+  </section>
+  <section class="span-2">
+    <h3 class="detail-title">Attributes</h3>
+    <pre class="json mono">{{ entity.attributes | tojson_pretty }}</pre>
+  </section>
+</div>

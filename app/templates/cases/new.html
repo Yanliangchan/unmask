@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block main_class %}container narrow-wide{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>New case</h1>
+</div>
+
+{% if errors %}
+<div class="alert alert-error" role="alert">
+  <strong>The case was not created:</strong>
+  <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<form method="post" action="/cases" class="form case-form" id="case-form" data-require-gate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+  <fieldset class="card section">
+    <legend>1 · Case details</legend>
+    <label class="field">
+      <span>Case name</span>
+      <input type="text" name="name" value="{{ form.name or '' }}" maxlength="200" required>
+    </label>
+    <label class="field">
+      <span>Authorization note <span class="req" aria-hidden="true">*</span></span>
+      <textarea name="authorization_note" rows="4" required data-gate
+        placeholder="Who authorized this investigation, for what purpose, and any reference (engagement ID, ticket, written consent).">{{ form.authorization_note or '' }}</textarea>
+      <small class="muted">Stored with the case and shown on every report.</small>
+    </label>
+    <label class="checkbox gate-check">
+      <input type="checkbox" name="lawful_basis_confirmed" required data-gate>
+      <span>
+        I confirm I have a documented lawful basis and authorization for this investigation,
+        that its scope is limited to that purpose, and that collected personal data will be
+        handled and retained according to applicable law and policy.
+      </span>
+    </label>
+    <label class="field">
+      <span>Notes <span class="muted">(optional)</span></span>
+      <textarea name="notes" rows="2">{{ form.notes or '' }}</textarea>
+    </label>
+  </fieldset>
+
+  <fieldset class="card section">
+    <legend>2 · Targets</legend>
+    <div id="target-rows" class="target-rows">
+      {% for t in form.targets %}
+      <div class="target-row">
+        <label class="field grow">
+          <span>Value</span>
+          <input type="text" name="target_value" value="{{ t.value }}" class="mono" autocomplete="off" spellcheck="false">
+        </label>
+        <label class="field">
+          <span>Type</span>
+          <select name="target_type">
+            {% for value, label in target_types %}
+            <option value="{{ value }}" {% if value == t.type %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <div class="field grow">
+          <span id="tags-label-{{ loop.index }}">Context tags</span>
+          <div class="tag-input" data-tag-input>
+            <input type="hidden" name="target_tags" value="{{ t.tags }}">
+            <input type="text" class="tag-entry" aria-labelledby="tags-label-{{ loop.index }}" placeholder="e.g. singapore, fintech">
+          </div>
+        </div>
+        <button type="button" class="btn btn-ghost btn-xs remove-target" data-remove-target aria-label="Remove target">&times;</button>
+      </div>
+      {% endfor %}
+    </div>
+    <button type="button" class="link-btn" data-add-target>+ Add another target</button>
+  </fieldset>
+
+  <fieldset class="card section">
+    <legend>3 · Tools</legend>
+    <details class="accordion">
+      <summary>All enabled tools <span class="muted">— expand to exclude tools from this case</span></summary>
+      <ul class="tool-picks" role="list">
+        {% for t in tools %}
+        <li>
+          <label class="checkbox">
+            <input type="checkbox" name="tools" value="{{ t.name }}"
+              {% if not t.enabled %}disabled{% elif (t.checked if t.checked is defined else True) %}checked{% endif %}>
+            <span>
+              <strong>{{ t.label }}</strong>
+              <span class="muted small">accepts {{ t.input_types | join(', ') }}{% if not t.enabled %} · currently disabled{% endif %}</span>
+              <br><span class="small muted">{{ t.description }}</span>
+            </span>
+          </label>
+        </li>
+        {% endfor %}
+      </ul>
+    </details>
+  </fieldset>
+
+  <div class="form-actions">
+    <p class="muted small" data-gate-hint>Add an authorization note and confirm lawful basis to continue.</p>
+    <button class="btn btn-primary" type="submit" data-gated-submit disabled>Create Case &amp; Run Scan</button>
+  </div>
+</form>
+
+<template id="target-row-template">
+  <div class="target-row">
+    <label class="field grow">
+      <span>Value</span>
+      <input type="text" name="target_value" class="mono" autocomplete="off" spellcheck="false">
+    </label>
+    <label class="field">
+      <span>Type</span>
+      <select name="target_type">
+        {% for value, label in target_types %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    <div class="field grow">
+      <span>Context tags</span>
+      <div class="tag-input" data-tag-input>
+        <input type="hidden" name="target_tags" value="">
+        <input type="text" class="tag-entry" aria-label="Context tags" placeholder="e.g. singapore, fintech">
+      </div>
+    </div>
+    <button type="button" class="btn btn-ghost btn-xs remove-target" data-remove-target aria-label="Remove target">&times;</button>
+  </div>
+</template>
+{% endblock %}

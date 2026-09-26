@@ -1,0 +1,3 @@
+# Third-party OSINT tools. Installed into an isolated virtualenv (/opt/tools)
+# and only ever invoked as subprocesses — never imported by the app.
+sherlock-project==0.16.2
