@@ -106,6 +106,10 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     _configure()
     asyncio.run(_startup())
+    if get_settings().scheduler_enabled:
+        from app.scheduler import start_worker_thread
+
+        start_worker_thread()
     conn = redis_connection()
     queues = [Queue(name, connection=conn) for name in QUEUES_BY_PRIORITY]
     Worker(queues, connection=conn, name=None).work(with_scheduler=False)

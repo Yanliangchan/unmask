@@ -165,6 +165,30 @@
   });
   document.addEventListener("htmx:sendError", function () { toast("Network error — is the server reachable?", "error"); });
 
+  // Timeline links jump to the entity: switch to the Entities tab, then open its row.
+  var pendingFocus = null;
+  function focusPending() {
+    if (!pendingFocus) return;
+    var body = document.getElementById("ent-" + pendingFocus);
+    if (!body) return;
+    var row = body.querySelector("[data-expand]");
+    body.classList.add("is-focused");
+    body.scrollIntoView({ block: "center" });
+    if (row && row.getAttribute("aria-expanded") !== "true") toggleRow(row);
+    pendingFocus = null;
+  }
+  document.addEventListener("click", function (e) {
+    var link = e.target.closest("[data-focus-entity]");
+    if (!link) return;
+    e.preventDefault();
+    pendingFocus = link.dataset.focusEntity;
+    history.replaceState(null, "", "#ent-" + pendingFocus);
+    var tab = document.getElementById("tab-entities");
+    if (tab) tab.click();
+  });
+  document.addEventListener("htmx:afterSettle", focusPending);
+  if (location.hash.indexOf("#ent-") === 0) pendingFocus = location.hash.slice(5);
+
   function init(root) {
     qsa(root, "[data-tag-input]").forEach(initTagInput);
     qsa(root, "[data-require-gate]").forEach(function (f) {

@@ -1,0 +1,9 @@
+<form id="watch-toggle" class="switch" hx-post="/cases/{{ case.id }}/watch" hx-swap="outerHTML" hx-trigger="change">
+  <label class="switch">
+    <input type="checkbox" role="switch" {% if watch.enabled %}checked{% endif %}>
+    <span>Watch mode</span>
+  </label>
+  {% if watch.enabled and watch.next_run_at %}
+  <span class="small muted" title="{{ watch.next_run_at | isodate }}">{{ watch.frequency }} · next {{ watch.next_run_at | isodate }}</span>
+  {% endif %}
+</form>

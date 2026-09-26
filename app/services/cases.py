@@ -149,6 +149,13 @@ class CaseCard:
     last_scan_at: datetime | None
     last_scan_status: str | None
     new_count: int
+    purge_at: datetime | None = None
+
+    @property
+    def purge_soon(self) -> bool:
+        from app.scheduler import PURGE_WARNING_DAYS
+
+        return self.purge_at is not None and (self.purge_at - datetime.now(UTC)).days < PURGE_WARNING_DAYS
 
     @property
     def watch_active(self) -> bool:
@@ -190,6 +197,8 @@ async def list_cases_for_user(session: AsyncSession, user: User) -> list[CaseCar
         )
     ).all()
     new_counts = dict(new_rows)
+    from app.scheduler import purge_date
+
     cards = []
     for c in cases:
         run = last_runs.get(c.id)
@@ -200,6 +209,7 @@ async def list_cases_for_user(session: AsyncSession, user: User) -> list[CaseCar
                 last_scan_at=(run.completed_at or run.started_at or run.created_at) if run else None,
                 last_scan_status=run.status if run else None,
                 new_count=new_counts.get(c.id, 0),
+                purge_at=await purge_date(session, c),
             )
         )
     return cards
@@ -209,3 +219,24 @@ async def mark_reviewed(session: AsyncSession, case: Investigation) -> None:
     latest = max((r.run_number for r in case.scan_runs if r.status in ("completed", "partial", "failed")), default=0)
     if latest > case.last_reviewed_run_number:
         case.last_reviewed_run_number = latest
+
+
+async def delete_case(session: AsyncSession, case_id: uuid.UUID, *, user_id: uuid.UUID | None, action: str, **detail):
+    """Delete a case and everything in it, keeping its audit trail readable.
+
+    access_log.case_id is nulled by the delete, so the case id is first copied
+    into each audit row's detail; then the final audit row is written.
+    """
+    from sqlalchemy import delete, text, update
+
+    from app.models import AccessLog
+
+    await session.execute(
+        update(AccessLog)
+        .where(AccessLog.case_id == case_id)
+        .values(detail=AccessLog.detail.op("||")(text("jsonb_build_object('case_id', CAST(:cid AS text))")))
+        .execution_options(synchronize_session=False),
+        {"cid": str(case_id)},
+    )
+    session.add(AccessLog(case_id=None, user_id=user_id, action=action, detail={"case_id": str(case_id), **detail}))
+    await session.execute(delete(Investigation).where(Investigation.id == case_id))

@@ -45,7 +45,7 @@ Built phase by phase; each phase is verified before the next starts.
 | 3 | Two-pass correlation (fuzzy + embeddings), confidence scoring, merge/split | ✅ |
 | 4 | Pivot rule engine + Pivot Log | ⏳ |
 | 5 | Graph tab (Cytoscape, PageRank centrality, self-hosted) | ✅ |
-| 6 | Timeline diffing + watch mode | ⏳ |
+| 6 | Timeline diffs, watch mode (jittered, staggered), retention purges, scheduled health checks, alerts | ✅ |
 | 7 | DuckDuckGo + Brave adapters, search-link buttons | ⏳ |
 | 8 | Reporting / export | ⏳ |
 | 9 | GHunt, PhoneInfoga, ExifTool (disabled by default), multi-user sharing | ⏳ |
@@ -105,6 +105,29 @@ and by pivots per evaluation (`UNMASK_PIVOT_BUDGET`, default 20). Pivots that hi
 whose tool is disabled, unconfigured or excluded from the case, are logged as **skipped with
 the reason**. A guessed address only becomes an entity if a tool confirms it is registered.
 Auto-pivot can be switched off per case. Rules live in `app/pivots/rules.py`.
+
+## Timeline, watch mode and retention
+
+**Timeline** compares any two scan runs (by default the latest two analyst or watch-mode
+runs): *new*, *changed* (a tool reported different details) and *no longer found*. A value
+that "disappeared" because its tool failed or didn't run is labelled *not a real
+disappearance*, with the reason, instead of being reported as gone.
+
+**Watch mode** re-scans a case weekly or monthly. Each case's next run is jittered (±10%,
+at most 12 hours) and each scheduler tick starts at most `UNMASK_WATCH_MAX_PER_TICK` scans,
+chosen at random, so watched cases never hit the tools in one synchronized burst. Watch scans
+use the lowest-priority queue.
+
+**Retention** is enforced, not just stored: a case with no new scans for `retention_days`
+is deleted with everything in it, unless it is marked permanently active. Viewing a case
+does not extend its retention. The dashboard warns during the last week. Audit rows about a
+purged case keep its id.
+
+**Scheduler.** One loop handles watch scans, purges and daily tool health checks
+(`UNMASK_HEALTHCHECK_HOURS`). With RQ it runs inside the worker behind a Redis lock, so extra
+workers never double-run it, and no separate cron service is needed. Set
+`UNMASK_ALERT_WEBHOOK_URL` (Slack/Discord/Teams-compatible) to be alerted when a circuit
+breaker trips or cases are purged. Alerts contain tool names and counts only, never case data.
 
 ## Tools
 

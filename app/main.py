@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from datetime import timedelta
@@ -14,7 +15,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.config import get_settings
 from app.crypto import cipher
 from app.db import dispose_engine, sessionmaker
-from app.routes import auth, cases, correlation, pivots, public
+from app.routes import auth, cases, correlation, pivots, public, watch
 from app.security import LoginRequired, ensure_admin_user
 from app.services.scans import fail_interrupted_runs
 from app.services.tools import sync_tool_config
@@ -61,7 +62,15 @@ async def lifespan(app: FastAPI):
             interrupted = await fail_interrupted_runs(session)
         if interrupted:
             log.warning("marked %d interrupted scan run(s) as failed", interrupted)
+    scheduler = None
+    if settings.scheduler_enabled and settings.queue_backend != "rq":
+        # With RQ the worker runs the scheduler; inline, the web process does.
+        from app.scheduler import run_forever
+
+        scheduler = asyncio.create_task(run_forever(), name="unmask-scheduler")
     yield
+    if scheduler is not None:
+        scheduler.cancel()
     await dispose_engine()
 
 
@@ -117,6 +126,7 @@ def create_app() -> FastAPI:
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
     app.include_router(public.router)
     app.include_router(auth.router)
+    app.include_router(watch.router)  # before cases: /tab/timeline is more specific
     app.include_router(cases.router)
     app.include_router(correlation.router)
     app.include_router(pivots.router)

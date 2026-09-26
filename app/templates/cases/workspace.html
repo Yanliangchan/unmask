@@ -20,10 +20,7 @@
   <div class="case-header-actions">
     <a class="btn btn-ghost btn-sm" href="/cases/{{ case.id }}/pivots">Pivot log{% if pivot_count %} ({{ pivot_count }}){% endif %}</a>
     {% with auto_pivot = auto_pivot %}{% include "partials/auto_pivot.html" %}{% endwith %}
-    <label class="switch" title="Watch mode arrives in a later release">
-      <input type="checkbox" role="switch" disabled {% if case.watch_config.get('enabled') %}checked{% endif %}>
-      <span>Watch mode</span>
-    </label>
+    {% include "partials/watch_toggle.html" %}
     <button class="btn btn-primary" type="button"
             hx-post="/cases/{{ case.id }}/scans" hx-target="#scan-status" hx-swap="outerHTML"
             hx-disabled-elt="this">Run New Scan</button>

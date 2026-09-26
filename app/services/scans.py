@@ -204,6 +204,7 @@ async def persist_candidates(
 async def _record_job_outcome(
     run_id: uuid.UUID, case_id: uuid.UUID, tool: str, error: str | None, count_against_tool: bool
 ) -> None:
+    tripped = 0
     async with sessionmaker()() as session:
         await _lock_case(session, case_id)
         run = await session.get(ScanRun, run_id, with_for_update=True)
@@ -223,7 +224,12 @@ async def _record_job_outcome(
             run.failure_details = details
             if cfg is not None and count_against_tool and record_failure(cfg, error):
                 log.warning("circuit breaker opened for %s: %s", tool, error)
+                tripped = cfg.consecutive_failures
         await session.commit()
+    if tripped:
+        from app.alerts import send_alert
+
+        await send_alert(f"circuit breaker opened: {tool} disabled after {tripped} consecutive failures")
 
 
 async def seed_entity(session: AsyncSession, target: Target) -> Entity | None:

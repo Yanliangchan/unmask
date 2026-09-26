@@ -70,6 +70,16 @@ class Settings(BaseSettings):
         default="gmail.com,outlook.com,yahoo.com,proton.me", alias="UNMASK_PIVOT_EMAIL_PROVIDERS"
     )
 
+    # Scheduler: watch mode, retention purges and periodic health checks.
+    # Runs in the RQ worker (or in the web process with UNMASK_QUEUE=inline).
+    scheduler_enabled: bool = Field(default=True, alias="UNMASK_SCHEDULER")
+    scheduler_interval_seconds: int = Field(default=300, alias="UNMASK_SCHEDULER_INTERVAL")
+    # At most this many watch scans start per tick; the rest wait for later
+    # ticks, so due cases never fire as one burst.
+    watch_max_per_tick: int = Field(default=3, alias="UNMASK_WATCH_MAX_PER_TICK")
+    healthcheck_interval_hours: int = Field(default=24, alias="UNMASK_HEALTHCHECK_HOURS")
+    alert_webhook_url: str = Field(default="", alias="UNMASK_ALERT_WEBHOOK_URL")
+
     # Correlation. The model must already be on disk (the Docker image bakes it
     # in); set UNMASK_EMBEDDING_MODEL="" to turn pass 2 off.
     embedding_model: str = Field(default="sentence-transformers/all-MiniLM-L6-v2", alias="UNMASK_EMBEDDING_MODEL")

@@ -22,6 +22,7 @@
             <div><dt>Targets</dt><dd class="mono">{{ card.target_count }}</dd></div>
             <div><dt>Last scan</dt><dd><time datetime="{{ card.last_scan_at.isoformat() if card.last_scan_at else '' }}" title="{{ card.last_scan_at | isodate }}">{{ card.last_scan_at | timeago }}</time>{% if card.last_scan_status %} · <span class="run-status run-{{ card.last_scan_status }}">{{ card.last_scan_status }}</span>{% endif %}</dd></div>
             <div><dt>Watch</dt><dd>{% if card.watch_active %}{{ ui.status_dot('ok', 'Active') }}{% else %}{{ ui.status_dot('off', 'Off') }}{% endif %}</dd></div>
+            {% if card.purge_soon %}<div><dt>Retention</dt><dd class="purge-soon" title="{{ card.purge_at | isodate }}">purged {{ card.purge_at | isodate }}</dd></div>{% endif %}
           </dl>
         </a>
       </li>

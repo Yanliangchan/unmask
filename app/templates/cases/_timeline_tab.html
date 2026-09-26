@@ -1,0 +1,52 @@
+{% import "components/ui.html" as ui %}
+<section class="timeline-tab" aria-label="Timeline">
+  {% if runs | length < 2 %}
+  <div class="card empty">
+    <p>Run another scan to compare results over time.</p>
+    <p class="muted small">{{ runs | length }} scan run(s) so far. Watch mode can repeat scans automatically.</p>
+  </div>
+  {% else %}
+  <form class="filter-bar timeline-pick" hx-get="/cases/{{ case.id }}/tab/timeline" hx-target="#tab-panel" hx-trigger="change">
+    <label class="field inline"><span>Compare scan run</span>
+      <select name="a">
+        {% for r in runs %}<option value="{{ r.run_number }}" {% if run_a and r.id == run_a.id %}selected{% endif %}>#{{ r.run_number }} · {{ r.triggered_by | replace('_', ' ') }} · {{ (r.completed_at or r.created_at) | isodate }}</option>{% endfor %}
+      </select>
+    </label>
+    <span aria-hidden="true">→</span>
+    <label class="field inline"><span class="visually-hidden">with scan run</span>
+      <select name="b">
+        {% for r in runs %}<option value="{{ r.run_number }}" {% if run_b and r.id == run_b.id %}selected{% endif %}>#{{ r.run_number }} · {{ r.triggered_by | replace('_', ' ') }} · {{ (r.completed_at or r.created_at) | isodate }}</option>{% endfor %}
+      </select>
+    </label>
+    <span class="muted small">Pivot-chain runs cover different tools; compare them with care.</span>
+  </form>
+
+  {% if not diff %}
+  <p class="muted">Pick two different runs.</p>
+  {% else %}
+  {% if diff.run_b.tools_failed %}
+  <p class="alert small">Run #{{ diff.run_b.run_number }} had failures ({{ diff.run_b.tools_failed | join(', ') }}); disappearances they explain are labelled below.</p>
+  {% endif %}
+  <div class="timeline-cols">
+    {% for title, items, kind in [("New entities", diff.new, "new"), ("Changed", diff.changed, "changed"), ("No longer found", diff.gone, "gone")] %}
+    <section class="timeline-col timeline-{{ kind }}" aria-labelledby="tl-{{ kind }}">
+      <h3 id="tl-{{ kind }}" class="panel-title">{{ title }} <span class="badge">{{ items | length }}</span></h3>
+      {% if items %}
+      <ul role="list">
+        {% for item in items %}
+        <li class="timeline-item{% if not item.real %} is-explained{% endif %}">
+          <a href="/cases/{{ case.id }}#ent-{{ item.entity.id }}" data-focus-entity="{{ item.entity.id }}">
+            <span class="badge">{{ item.entity.type }}</span>
+            <span class="mono ident" title="{{ item.entity.value }}">{{ item.entity.value }}</span>
+          </a>
+          <div class="small muted">{{ item.tools | join(', ') }}{% if item.note %} · <span class="{% if not item.real %}warn-text{% endif %}">{{ item.note }}</span>{% endif %}</div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="muted small">None.</p>{% endif %}
+    </section>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endif %}
+</section>

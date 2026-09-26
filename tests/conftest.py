@@ -29,6 +29,8 @@ os.environ["REDIS_URL"] = "redis://127.0.0.1:1/0"
 # Optional real Redis for the RQ integration tests.
 TEST_REDIS = os.environ.get("TEST_REDIS_URL")
 os.environ["PUBLIC_BASE_URL"] = "https://unmask.example"
+# Tests drive the scheduler explicitly.
+os.environ["UNMASK_SCHEDULER"] = "false"
 
 # Freeze settings now, so tests that patch os.environ can't leak into them.
 from app.config import get_settings  # noqa: E402

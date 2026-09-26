@@ -15,6 +15,7 @@ from app.jobs import enqueue_health_check, enqueue_scan, uses_rq, worker_count
 from app.models import TARGET_TYPES, Entity, PivotLog, ScanRun, User
 from app.pivots.engine import auto_pivot_enabled
 from app.routes.public import render_landing
+from app.scheduler import watch_state
 from app.security import client_ip, current_user, current_user_optional, verify_csrf
 from app.services.cases import (
     CaseValidationError,
@@ -228,6 +229,7 @@ async def workspace(
             "latest_run": latest,
             "workers": worker_count(),
             "auto_pivot": auto_pivot_enabled(case),
+            "watch": watch_state(case),
             "pivot_count": await session.scalar(
                 select(func.count()).select_from(PivotLog).where(PivotLog.case_id == case.id)
             ),
@@ -371,11 +373,9 @@ async def case_tab(
         return render(
             request, "cases/_entities_tab.html", {"case": case, **await _entity_filter_options(session, case)}
         )
-    if tab == "graph":
-        return render(request, "cases/_graph_tab.html", {"case": case})
-    if tab != "timeline":
+    if tab != "graph":
         raise HTTPException(status_code=404)
-    return render(request, "cases/_tab_placeholder.html", {"case": case, "tab": tab})
+    return render(request, "cases/_graph_tab.html", {"case": case})
 
 
 @router.get("/cases/{case_id}/graph.json")
