@@ -133,6 +133,21 @@
       var out = document.querySelector(el.dataset.output);
       if (out) out.textContent = Number(el.value).toFixed(2);
     }
+    if (el.dataset && el.dataset.outputInt) {
+      var outInt = document.querySelector(el.dataset.outputInt);
+      if (outInt) outInt.textContent = String(parseInt(el.value, 10));
+    }
+  });
+
+  // --- Confirmations for destructive plain forms -------------------------------
+  document.addEventListener("submit", function (e) {
+    var form = e.target;
+    if (form.dataset && form.dataset.confirm && !window.confirm(form.dataset.confirm)) e.preventDefault();
+  });
+
+  // --- Print button (report view) -----------------------------------------------
+  document.addEventListener("click", function (e) {
+    if (e.target.closest("[data-print]")) window.print();
   });
 
   // --- Toasts for failed htmx requests ---------------------------------------

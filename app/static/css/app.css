@@ -362,3 +362,16 @@ form.switch { margin: 0; }
 .search-menu-note { margin: .4rem .8rem .1rem; font-size: .72rem; color: var(--muted); max-width: 240px; }
 .detail-actions { display: flex; justify-content: flex-end; }
 .graph-panel .detail-actions .search-menu-list { left: 0; right: auto; }
+
+/* Settings */
+.settings { display: grid; gap: 1rem; }
+.settings h2 { margin: 0; }
+.inline-form { flex-direction: row; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; }
+.export-row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
+.share-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+.share-list li { display: flex; align-items: center; gap: .75rem; }
+.share-list form { margin: 0; }
+.danger-zone { border-color: color-mix(in srgb, var(--bad) 55%, transparent); }
+.btn-danger { background: color-mix(in srgb, var(--bad) 18%, transparent); border-color: var(--bad); color: var(--bad); }
+.btn-danger:hover { background: var(--bad); color: #fff; }
+.settings .range-field input { width: 100%; max-width: 480px; }

@@ -47,7 +47,7 @@ Built phase by phase; each phase is verified before the next starts.
 | 5 | Graph tab (Cytoscape, PageRank centrality, self-hosted) | ✅ |
 | 6 | Timeline diffs, watch mode (jittered, staggered), retention purges, scheduled health checks, alerts | ✅ |
 | 7 | DuckDuckGo (Instant Answers) + Brave Search adapters, search-link and reverse-image buttons | ✅ |
-| 8 | Reporting / export | ⏳ |
+| 8 | Case Settings screen, report export (Markdown + print-ready PDF) gated on a written analyst assessment | ✅ |
 | 9 | GHunt, PhoneInfoga, ExifTool (disabled by default), multi-user sharing | ⏳ |
 | 10 | AI synthesis layer | ⏳ |
 
@@ -128,6 +128,28 @@ purged case keep its id.
 workers never double-run it, and no separate cron service is needed. Set
 `UNMASK_ALERT_WEBHOOK_URL` (Slack/Discord/Teams-compatible) to be alerted when a circuit
 breaker trips or cases are purged. Alerts contain tool names and counts only, never case data.
+
+## Reports and case settings
+
+**Case Settings** (from the case header) holds watch mode, automatic pivots, retention,
+sharing, the analyst assessment, report export and deletion. Sharing and deletion are
+owner-only. Deletion needs the case name typed out, and every change is audited.
+
+**Reports** can't be exported until the case has a human-written **analyst assessment**. The
+report presents evidence; the assessment is the conclusion. A report contains:
+- the assessment and the authorization note
+- the targets
+- entities grouped by confidence tier, with source reliability, sources and merges
+- the number of unreviewed suggestions
+- contradictions between sources (e.g. accounts reporting different locations)
+- the scan timeline with the latest diff
+- pivot counts
+- coverage gaps (tools whose latest run failed)
+- a method section
+
+Export is a Markdown download or a print-ready view ("Save as PDF" in the browser), which
+renders names in any script correctly. Every export is audited. Reports are generated on
+demand and never stored.
 
 ## Tools
 

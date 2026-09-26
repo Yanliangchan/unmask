@@ -44,7 +44,12 @@ unmask aggregates personal data, so the deployment itself is a high-value target
 
 ## Audit
 - `access_log` records logins (including failures and lockouts), case creation and views,
-  scans, entity confirmations and health checks. Rows keep their data if the case is deleted.
+  scans, confirmations, merges, splits, suggestion decisions, pivot and watch settings,
+  sharing, analyst assessments, report exports, deletions and retention purges.
+- When a case is deleted (by its owner or by retention), its id is first copied into every
+  audit row about it, so the trail stays readable after the case is gone.
+- Reports are generated on demand and never stored; Markdown values are escaped so tool
+  output can't inject links or formatting.
 
 ## Reporting a vulnerability
 Please report security issues privately to the maintainer rather than opening a public issue.

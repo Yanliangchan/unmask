@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block main_class %}container narrow-wide{% endblock %}
+{% block content %}
+<header class="case-header">
+  <div class="case-header-main">
+    <p class="breadcrumb"><a href="/">Investigations</a> / <a href="/cases/{{ case.id }}">{{ case.name }}</a> /</p>
+    <h1>Case settings</h1>
+    <p class="muted small">Owner: {{ owner.email if owner else '—' }} · created {{ case.created_at | isodate }}</p>
+  </div>
+</header>
+
+{% if message %}<p class="alert small" role="status">{{ message }}</p>{% endif %}
+{% if error %}<p class="alert alert-error" role="alert">{{ errors[error] }}</p>{% endif %}
+
+<div class="settings">
+  <section class="card section" id="report" aria-labelledby="report-title">
+    <h2 id="report-title">Report</h2>
+    <p class="muted small">
+      The report presents the evidence; the conclusion is yours. Export stays locked until the
+      assessment below is written (at least {{ min_assessment }} characters).
+    </p>
+    <form method="post" action="/cases/{{ case.id }}/settings/assessment" class="form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="field">
+        <span>Analyst assessment <span class="req" aria-hidden="true">*</span></span>
+        <textarea name="analyst_assessment" rows="7" data-min="{{ min_assessment }}"
+          placeholder="Your conclusion in your own words: what the evidence supports, how strongly, what remains uncertain, and what was ruled out.">{{ case.analyst_assessment or '' }}</textarea>
+        <small class="muted">{% if case.analyst_assessment_updated_at %}Last saved {{ case.analyst_assessment_updated_at | isodate }}.{% else %}Not written yet.{% endif %}</small>
+      </label>
+      <div class="form-actions"><button class="btn" type="submit">Save assessment</button></div>
+    </form>
+    {% set ready = (case.analyst_assessment or '') | trim | length >= min_assessment %}
+    <div class="export-row">
+      {% if ready %}
+      <a class="btn btn-primary" href="/cases/{{ case.id }}/report" target="_blank" rel="noopener">View / print as PDF</a>
+      <a class="btn" href="/cases/{{ case.id }}/report.md">Download Markdown</a>
+      {% else %}
+      <button class="btn btn-primary" type="button" disabled>View / print as PDF</button>
+      <button class="btn" type="button" disabled>Download Markdown</button>
+      <span class="muted small">Write the assessment to enable export.</span>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="card section" aria-labelledby="watch-title">
+    <h2 id="watch-title">Watch mode</h2>
+    <form method="post" action="/cases/{{ case.id }}/settings/watch" class="form inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="checkbox inline"><input type="checkbox" name="enabled" {% if watch.enabled %}checked{% endif %}><span>Re-scan automatically</span></label>
+      <label class="field inline"><span>Frequency</span>
+        <select name="frequency">{% for f in frequencies %}<option value="{{ f }}" {% if f == watch.frequency %}selected{% endif %}>{{ f }}</option>{% endfor %}</select>
+      </label>
+      <button class="btn btn-sm" type="submit">Save</button>
+    </form>
+    <p class="small muted">
+      {% if watch.enabled and watch.next_run_at %}Next scheduled run: {{ watch.next_run_at | isodate }} (randomised so watched cases never scan at the same moment).
+      {% else %}Watch mode is off.{% endif %}
+      Repeated automated lookups of one person are themselves detectable; scan only as often as the investigation needs.
+    </p>
+  </section>
+
+  <section class="card section" aria-labelledby="pivot-title">
+    <h2 id="pivot-title">Automatic pivots</h2>
+    <form method="post" action="/cases/{{ case.id }}/settings/pivot" class="form inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="checkbox inline"><input type="checkbox" name="auto_pivot" {% if auto_pivot %}checked{% endif %}><span>Follow up qualifying findings automatically</span></label>
+      <button class="btn btn-sm" type="submit">Save</button>
+    </form>
+    <p class="small muted">Every pivot, and every pivot skipped, is listed in the <a href="/cases/{{ case.id }}/pivots">Pivot log</a>.</p>
+  </section>
+
+  <section class="card section" aria-labelledby="retention-title">
+    <h2 id="retention-title">Retention</h2>
+    <form method="post" action="/cases/{{ case.id }}/settings/retention" class="form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="field range-field">
+        <span>Keep for <output class="mono" id="retention-out">{{ case.retention_days }}</output> days after the last scan</span>
+        <input type="range" name="retention_days" min="7" max="730" step="1" value="{{ case.retention_days }}" data-output-int="#retention-out">
+      </label>
+      <label class="checkbox"><input type="checkbox" name="permanently_active" {% if case.permanently_active %}checked{% endif %}>
+        <span>Mark as permanently active (never purge automatically)</span></label>
+      <div class="form-actions"><button class="btn btn-sm" type="submit">Save</button></div>
+    </form>
+    <p class="small muted">
+      {% if purge_at %}This case and everything in it will be deleted on <strong>{{ purge_at | isodate }}</strong> unless it is scanned again. Viewing it does not extend this.
+      {% else %}Permanently active: not purged automatically.{% endif %}
+    </p>
+  </section>
+
+  <section class="card section" aria-labelledby="sharing-title">
+    <h2 id="sharing-title">Sharing</h2>
+    {% if shared %}
+    <ul class="share-list" role="list">
+      {% for u in shared %}
+      <li>
+        <span class="mono">{{ u.email }}</span>
+        {% if is_owner %}
+        <form method="post" action="/cases/{{ case.id }}/settings/unshare">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="user_id" value="{{ u.id }}">
+          <button class="btn btn-xs btn-ghost" type="submit">Remove</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="muted small">Not shared with anyone.</p>{% endif %}
+    {% if is_owner %}
+    <form method="post" action="/cases/{{ case.id }}/settings/share" class="form inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="field inline grow"><span>Share with</span><input type="email" name="email" placeholder="colleague@example.com" required></label>
+      <button class="btn btn-sm" type="submit">Share</button>
+    </form>
+    <p class="small muted">People you share with can view and work the case; only you can share or delete it. They need an account first.</p>
+    {% endif %}
+  </section>
+
+  {% if is_owner %}
+  <section class="card section danger-zone" aria-labelledby="danger-title">
+    <h2 id="danger-title">Danger zone</h2>
+    <p class="small">Deleting removes the case, its targets, entities, scans and pivots permanently. The audit log keeps a record that it existed.</p>
+    <form method="post" action="/cases/{{ case.id }}/delete" class="form inline-form"
+          data-confirm="Delete this case permanently? This cannot be undone.">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="field inline grow"><span>Type the case name to confirm</span><input type="text" name="confirm_name" autocomplete="off" required></label>
+      <button class="btn btn-danger btn-sm" type="submit">Delete case</button>
+    </form>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

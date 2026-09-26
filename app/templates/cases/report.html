@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block head %}<link rel="stylesheet" href="/static/css/report.css">{% endblock %}
+{% block body_class %}report-page{% endblock %}
+{% block main_class %}container report{% endblock %}
+{% block footer %}{% endblock %}
+{% block content %}
+{% set c = r.case %}
+<div class="report-actions no-print">
+  <a class="btn btn-ghost btn-sm" href="/cases/{{ c.id }}/settings">← Back to settings</a>
+  <button class="btn btn-primary btn-sm" type="button" data-print>Print / save as PDF</button>
+  <a class="btn btn-sm" href="/cases/{{ c.id }}/report.md">Download Markdown</a>
+</div>
+
+<article class="report-doc">
+  <header>
+    <p class="report-kicker">unmask · case report · confidential</p>
+    <h1>{{ c.name }}</h1>
+    <p class="report-meta">Generated {{ r.generated_at | isodate }} by {{ r.generated_by }} · case <span class="mono">{{ c.id }}</span></p>
+    <p class="report-disclaimer">
+      This report presents correlated open-source findings. Confidence scores estimate whether a finding relates to
+      the subject; they are not conclusions. The conclusion is the analyst assessment below, written by a person.
+    </p>
+  </header>
+
+  <section>
+    <h2>Analyst assessment</h2>
+    <div class="assessment">{{ c.analyst_assessment }}</div>
+    <p class="small muted">Last updated {{ c.analyst_assessment_updated_at | isodate }}.</p>
+  </section>
+
+  <section>
+    <h2>Authorization</h2>
+    <p class="pre">{{ c.authorization_note }}</p>
+    <p class="small muted">Lawful basis confirmed {{ c.lawful_basis_confirmed_at | isodate }}.</p>
+  </section>
+
+  <section>
+    <h2>Targets</h2>
+    <table class="report-table">
+      <thead><tr><th>Type</th><th>Value</th><th>Context tags</th></tr></thead>
+      <tbody>
+        {% for t in c.targets %}<tr><td>{{ t.type }}</td><td class="mono">{{ t.value }}</td><td>{{ (t.context_tags or []) | join(', ') or '—' }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Findings</h2>
+    <p>{{ r.entity_count }} entities after de-duplication; {{ r.pending_suggestions }} suggested match(es) not yet reviewed by an analyst.</p>
+    {% for label, rows in r.tiers %}
+    <h3>{{ label }} ({{ rows | length }})</h3>
+    {% if rows %}
+    <table class="report-table">
+      <thead><tr><th>Value</th><th>Type</th><th>Confidence</th><th>Reliability</th><th>Sources</th><th>Notes</th></tr></thead>
+      <tbody>
+        {% for row in rows %}{% set e = row.entity %}
+        <tr>
+          <td class="mono wrap">{{ e.value }}</td>
+          <td>{{ e.type }}</td>
+          <td class="num">{{ '%.2f' | format(e.confidence) }}</td>
+          <td title="{{ r.reliability_scale.get(e.source_reliability) }}">{{ e.source_reliability }}</td>
+          <td>{{ row.sources | join(', ') }}</td>
+          <td>{% if e.is_seed %}target{% endif %}{% if e.confirmed_flag %}{% if e.is_seed %}; {% endif %}confirmed by analyst{% endif %}{% if row.merged %}{% if e.is_seed or e.confirmed_flag %}; {% endif %}{{ row.merged }} duplicate(s) merged{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="muted">None.</p>{% endif %}
+    {% endfor %}
+  </section>
+
+  <section>
+    <h2>Contradictions between sources</h2>
+    {% if r.contradictions %}
+    <ul>{% for x in r.contradictions %}<li><strong>{{ x.title }}:</strong> {{ x.detail }}</li>{% endfor %}</ul>
+    <p class="small muted">Flagged automatically by comparing profile fields; review before relying on either value.</p>
+    {% else %}<p>None flagged.</p>{% endif %}
+  </section>
+
+  <section>
+    <h2>Scan timeline</h2>
+    <table class="report-table">
+      <thead><tr><th>Run</th><th>Trigger</th><th>Status</th><th>Started</th><th>Tools</th><th>Failed</th></tr></thead>
+      <tbody>
+        {% for run in r.runs %}
+        <tr><td>#{{ run.run_number }}</td><td>{{ run.triggered_by | replace('_', ' ') }}</td><td>{{ run.status }}</td>
+          <td>{{ run.started_at | isodate }}</td><td>{{ run.tools_included | join(', ') or '—' }}</td><td>{{ run.tools_failed | join(', ') or '—' }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if r.diff_summary %}<p>Latest comparison: {{ r.diff_summary }}.</p>{% endif %}
+    <p>Automatic pivots: {{ r.pivots_run }} run, {{ r.pivots_skipped }} skipped.</p>
+  </section>
+
+  <section>
+    <h2>Coverage gaps</h2>
+    {% if r.coverage_gaps %}<ul>{% for g in r.coverage_gaps %}<li>{{ g }}</li>{% endfor %}</ul>
+    {% else %}<p>None: every tool's latest run completed.</p>{% endif %}
+  </section>
+
+  <section>
+    <h2>Method</h2>
+    <ul>
+      <li><strong>Source reliability</strong> rates the class of source (Admiralty scale), independently of identity confidence:
+        {% for k, v in r.reliability_scale.items() %}{{ k }} = {{ v | lower }}{% if not loop.last %}; {% endif %}{% endfor %}.</li>
+      <li><strong>Confidence</strong> combines the source's prior, independent corroborating sources, cross-field links and
+        context-tag matches. Only identical identifiers are merged automatically; identity matches are reviewed by an analyst.</li>
+      <li>Tools whose output could not be verified as a complete run are reported as failures, never as "nothing found".</li>
+    </ul>
+  </section>
+</article>
+{% endblock %}
