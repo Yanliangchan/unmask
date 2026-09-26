@@ -28,7 +28,18 @@ unmask aggregates personal data, so the deployment itself is a high-value target
 - Installed into a root-owned virtualenv the app user cannot modify.
 - Run with a scrubbed environment, a temporary working directory, no shell, `--` before
   user-supplied values, input validation, and a timeout.
-- Planned (Phase 2): tool execution in a dedicated worker service with restricted egress.
+- One virtualenv per tool; Amass is verified against its published SHA-256 checksum.
+- API keys reach tools through a 0600 config file in the throwaway working directory, never
+  on the command line (where other processes could read them).
+- Tools run on a dedicated worker service, separate from the web tier. Restricting that
+  service's egress to the tools' data sources is recommended where the platform allows it.
+
+## Data minimisation
+- h8mail breach results never store cleartext passwords or hashes: only that a credential
+  was exposed, its kind, and a 12-character keyed HMAC fingerprint for spotting reuse
+  (keyed, so it cannot be brute-forced back to the password from a database dump).
+- Holehe always runs with `--no-password-recovery`, so lookups never send the subject a
+  password-reset email or SMS.
 
 ## Audit
 - `access_log` records logins (including failures and lockouts), case creation and views,

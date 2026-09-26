@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
@@ -12,30 +13,41 @@ class Base(DeclarativeBase):
     pass
 
 
-_engine: AsyncEngine | None = None
-_sessionmaker: async_sessionmaker[AsyncSession] | None = None
+# asyncpg connections are bound to the event loop that opened them. The web
+# app runs one loop, but each RQ job runs its own (asyncio.run), so engines are
+# kept per loop.
+_engines: dict[int, tuple[AsyncEngine, async_sessionmaker[AsyncSession]]] = {}
+
+
+def _current() -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
+    try:
+        key = id(asyncio.get_running_loop())
+    except RuntimeError:
+        key = 0
+    pair = _engines.get(key)
+    if pair is None:
+        engine = create_async_engine(get_settings().database_url, pool_pre_ping=True)
+        pair = _engines[key] = (engine, async_sessionmaker(engine, expire_on_commit=False))
+    return pair
 
 
 def get_engine() -> AsyncEngine:
-    global _engine, _sessionmaker
-    if _engine is None:
-        _engine = create_async_engine(get_settings().database_url, pool_pre_ping=True)
-        _sessionmaker = async_sessionmaker(_engine, expire_on_commit=False)
-    return _engine
+    return _current()[0]
 
 
 def sessionmaker() -> async_sessionmaker[AsyncSession]:
-    get_engine()
-    assert _sessionmaker is not None
-    return _sessionmaker
+    return _current()[1]
 
 
 async def dispose_engine() -> None:
-    global _engine, _sessionmaker
-    if _engine is not None:
-        await _engine.dispose()
-    _engine = None
-    _sessionmaker = None
+    """Dispose the current loop's engine."""
+    try:
+        key = id(asyncio.get_running_loop())
+    except RuntimeError:
+        key = 0
+    pair = _engines.pop(key, None)
+    if pair is not None:
+        await pair[0].dispose()
 
 
 async def get_session() -> AsyncIterator[AsyncSession]:

@@ -16,9 +16,9 @@ from app.adapters.base import (
     ToolAdapter,
     resolve_binary,
     run_tool_subprocess,
+    strip_ansi,
 )
 
-_ANSI = re.compile(r"\x1b\[[0-9;]*m|\x1b\]8;;.*?\x1b\\")
 _LINE = re.compile(r"^\[(?P<mark>[+\-])\](?:\s*\[\d+\s*ms\])?\s+(?P<site>[^:]+):\s*(?P<rest>.*)$")
 _START = re.compile(r"^\[\*\] Checking username (?P<username>\S+) on:")
 _DONE = re.compile(r"^\[\*\] Search completed with (?P<count>\d+) results")
@@ -29,6 +29,12 @@ _USERNAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._\-]{0,63}$")
 MAX_ERROR_RATIO = 0.5
 # Sites that must report the health-check username as present.
 HEALTH_SIGNATURE_SITES = {"GitHub", "GitLab"}
+
+
+def validate_username(username: str) -> None:
+    """Usernames are passed to CLIs; refuse anything that could parse as a flag."""
+    if not _USERNAME.match(username):
+        raise InvalidTarget("usernames may only contain letters, digits, '.', '_' and '-'")
 
 
 @dataclass
@@ -47,7 +53,7 @@ class SherlockReport:
 
 def parse_output(stdout: str) -> SherlockReport:
     """Parse ``sherlock --print-all --no-color`` output, validating its signature."""
-    lines = [_ANSI.sub("", ln).strip() for ln in stdout.splitlines()]
+    lines = [ln.strip() for ln in strip_ansi(stdout).splitlines()]
     report: SherlockReport | None = None
     for line in lines:
         if report is None:
@@ -101,8 +107,7 @@ class SherlockAdapter(ToolAdapter):
     site_timeout_seconds = 15
 
     def build_argv(self, username: str, sites: list[str] | None = None) -> list[str]:
-        if not _USERNAME.match(username):
-            raise InvalidTarget("usernames may only contain letters, digits, '.', '_' and '-'")
+        validate_username(username)
         argv = [
             resolve_binary("sherlock"),
             "--print-all",

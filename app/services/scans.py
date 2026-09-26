@@ -14,7 +14,7 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select, text
 from sqlalchemy.dialects.postgresql import insert
@@ -23,9 +23,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import crypto
 from app.adapters.base import AdapterError, EntityCandidate, InvalidTarget, ToolAdapter
 from app.adapters.registry import adapters_for, get_adapter
+from app.config import get_settings
 from app.db import sessionmaker
 from app.models import Entity, EntityObservation, Investigation, Relation, ScanRun, Target, ToolConfig
 from app.services.tools import record_failure, record_success, tool_configs
+from app.throttle import tool_slot
 
 log = logging.getLogger(__name__)
 
@@ -45,7 +47,7 @@ async def plan_jobs(session: AsyncSession, case: Investigation, only_tools: list
     for target in targets:
         for adapter in adapters_for(target.type):
             cfg = cfgs.get(adapter.name)
-            if cfg is None or not cfg.enabled:
+            if cfg is None or not cfg.enabled or adapter.configured() is not None:
                 continue
             if adapter.name in (case.disabled_tools or []):
                 continue
@@ -210,8 +212,7 @@ async def _run_job(
     case_id: uuid.UUID,
     job: Job,
     adapter: ToolAdapter,
-    limiter: asyncio.Semaphore,
-    delay_s: float,
+    cfg: ToolConfig,
 ) -> None:
     error: str | None = None
     count_against_tool = True
@@ -220,10 +221,14 @@ async def _run_job(
             target = await session.get(Target, job.target_id)
             assert target is not None
             target_value, tags = target.value, list(target.context_tags or [])
-        async with limiter:
+        timeout = adapter.timeout_seconds or get_settings().tool_timeout_seconds
+        async with tool_slot(
+            adapter.name,
+            cfg.max_concurrent,
+            lease_seconds=timeout + 120,
+            delay_seconds=cfg.delay_between_requests_ms / 1000,
+        ):
             raws = await adapter.run(target_value, tags)
-            if delay_s:
-                await asyncio.sleep(delay_s)
         candidates = [c for raw in raws for c in adapter.parse(raw)]
         async with sessionmaker()() as session:
             await _lock_case(session, case_id)
@@ -257,14 +262,12 @@ async def execute_scan_run(run_id: uuid.UUID) -> None:
         await session.commit()
         case_id = case.id
 
-    limiters = {name: asyncio.Semaphore(max(1, cfg.max_concurrent)) for name, cfg in cfgs.items()}
     tasks = []
     for job in jobs:
         adapter = get_adapter(job.tool)
         if adapter is None:
             continue
-        delay = cfgs[job.tool].delay_between_requests_ms / 1000
-        tasks.append(_run_job(run_id, case_id, job, adapter, limiters[job.tool], delay))
+        tasks.append(_run_job(run_id, case_id, job, adapter, cfgs[job.tool]))
     await asyncio.gather(*tasks)
 
     async with sessionmaker()() as session:
@@ -274,7 +277,8 @@ async def execute_scan_run(run_id: uuid.UUID) -> None:
         if run.jobs_done < run.jobs_total:
             details = dict(run.failure_details or {})
             details["_skipped"] = (
-                f"{run.jobs_total - run.jobs_done} job(s) skipped: tool disabled after the scan was queued"
+                f"{run.jobs_total - run.jobs_done} job(s) skipped: "
+                "tool disabled or unconfigured after the scan was queued"
             )
             run.failure_details = details
             run.jobs_done = run.jobs_total
@@ -293,13 +297,24 @@ async def execute_scan_run(run_id: uuid.UUID) -> None:
         await session.commit()
 
 
-async def fail_interrupted_runs(session: AsyncSession) -> int:
-    """Runs left queued/running by a restart are marked failed, not left hanging."""
-    runs = (await session.scalars(select(ScanRun).where(ScanRun.status.in_(("queued", "running"))))).all()
+async def fail_interrupted_runs(session: AsyncSession, older_than: timedelta | None = None) -> int:
+    """Mark runs a dead process left queued/running as failed, never leave them hanging.
+
+    With the inline backend every unfinished run died with the process
+    (``older_than=None``). With RQ, runs are only reaped once they have been
+    unfinished for longer than the job timeout.
+    """
+    stmt = select(ScanRun).where(ScanRun.status.in_(("queued", "running")))
+    if older_than is not None:
+        stmt = stmt.where(ScanRun.created_at < datetime.now(UTC) - older_than)
+    runs = (await session.scalars(stmt)).all()
     for run in runs:
         run.status = "failed"
         run.completed_at = datetime.now(UTC)
-        run.failure_details = {**(run.failure_details or {}), "_interrupted": "scan interrupted by a restart"}
+        run.failure_details = {
+            **(run.failure_details or {}),
+            "_interrupted": "scan interrupted (worker restarted or timed out)",
+        }
     await session.commit()
     return len(runs)
 

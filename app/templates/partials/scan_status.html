@@ -7,7 +7,7 @@
     {% if active %}<span class="spinner" aria-hidden="true"></span>{% endif %}
     <strong>Scan #{{ run.run_number }}</strong>
     {% if run.status == 'queued' %}
-      Queued…
+      Queued…{% if workers == 0 %} <span class="warn-text">no scan worker is running, so this scan cannot start yet.</span>{% endif %}
     {% elif run.status == 'running' %}
       Scanning… {{ run.jobs_done }}/{{ run.jobs_total }} tool run{{ 's' if run.jobs_total != 1 }} complete
     {% elif run.status == 'completed' %}

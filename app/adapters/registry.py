@@ -1,7 +1,14 @@
 from __future__ import annotations
 
+from app.adapters.amass import AmassAdapter
 from app.adapters.base import ToolAdapter
+from app.adapters.crtsh import CrtShAdapter
+from app.adapters.h8mail import H8mailAdapter
+from app.adapters.holehe import HoleheAdapter
+from app.adapters.maigret import MaigretAdapter
 from app.adapters.sherlock import SherlockAdapter
+from app.adapters.spiderfoot import SpiderFootAdapter
+from app.adapters.theharvester import TheHarvesterAdapter
 
 _ADAPTERS: dict[str, ToolAdapter] = {}
 
@@ -26,4 +33,16 @@ def adapters_for(target_type: str) -> list[ToolAdapter]:
     return [a for a in all_adapters() if target_type in a.input_types]
 
 
-register(SherlockAdapter())
+CORE_ADAPTERS: tuple[type[ToolAdapter], ...] = (
+    SherlockAdapter,
+    MaigretAdapter,
+    HoleheAdapter,
+    H8mailAdapter,
+    TheHarvesterAdapter,
+    CrtShAdapter,
+    AmassAdapter,
+    SpiderFootAdapter,
+)
+
+for _cls in CORE_ADAPTERS:
+    register(_cls())

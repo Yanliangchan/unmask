@@ -41,7 +41,7 @@ Built phase by phase; each phase is verified before the next starts.
 |---|---|---|
 | 0 | Scaffold, full schema + migrations, auth, Railway deploy config | ✅ |
 | 1 | `ToolAdapter` interface, Sherlock adapter, Dashboard, Case Creation, Entities tab | ✅ |
-| 2 | Maigret, Holehe, h8mail, theHarvester, Amass, crt.sh, SpiderFoot; RQ workers; rate limiting | ⏳ |
+| 2 | Maigret, Holehe, h8mail, theHarvester, Amass, crt.sh, SpiderFoot; RQ workers; rate limiting | ✅ |
 | 3 | Two-pass correlation (fuzzy + embeddings), confidence scoring, merge/split | ⏳ |
 | 4 | Pivot rule engine + Pivot Log | ⏳ |
 | 5 | Graph tab (Cytoscape) | ⏳ |
@@ -51,8 +51,25 @@ Built phase by phase; each phase is verified before the next starts.
 | 9 | GHunt, PhoneInfoga, ExifTool (disabled by default), multi-user sharing | ⏳ |
 | 10 | AI synthesis layer | ⏳ |
 
-The circuit breaker and manual tool health checks are already live, since the schema and
-orchestrator needed them anyway.
+## Tools
+
+Every tool runs as a subprocess (or HTTP API) from its own virtualenv, and every adapter
+carries a completion check for the way that tool fails silently.
+
+| Tool | Input | Licence | Source reliability | How a silent failure is caught |
+|---|---|---|---|---|
+| Sherlock | username | MIT | C | start/completion banner, result count, >50% of sites erroring; health check needs a known account on GitHub *and* GitLab |
+| Maigret | username | MIT | C | completion line, ndjson count must match, >50% of sites erroring |
+| Holehe | email | GPL-3.0 | B | "N websites checked" footer, >50% rate-limited. Always run with `--no-password-recovery` so the subject is never sent a reset flow |
+| h8mail | email | BSD-3 | B (HIBP) – D (dump aggregators) | refuses to run without a breach API key; source errors with no findings = failure. Stores only that a credential leaked plus a fingerprint, never the password or hash |
+| theHarvester | domain | GPL-2.0 | C | compares sources searched with exceptions logged (it writes a clean empty report even when every source failed) |
+| crt.sh | domain | API | B | non-JSON 200 responses (error and bot-check pages) are failures |
+| Amass | domain | Apache-2.0 | C | completion message, >50% of queried data sources failing |
+| SpiderFoot | domain, IP | MIT | C/D | final "Scan completed with status FINISHED" (it exits 0 and prints `[]` on failed scans) |
+
+Tools are pinned in `scripts/install-tools.sh`, which is also the tool manifest. Health checks
+run each tool against a known-good target (or a reserved address that proves the run's
+structure without probing a real person).
 
 ## Architecture
 
@@ -64,7 +81,10 @@ FastAPI (async) ── Jinja2 + htmx ── Cytoscape.js (graph tab only)
    ├── app/models.py     full schema (SQLAlchemy 2.0), encrypted column types
    ├── app/crypto.py     Fernet encryption + HMAC blind index, key rotation
    └── migrations/       Alembic
-PostgreSQL ── case data          Redis ── login rate limiting (RQ queue from Phase 2)
+   ├── app/jobs.py       dispatch: inline asyncio tasks (dev) or RQ priority queues
+   ├── app/worker.py     RQ worker entrypoint
+   └── app/throttle.py   per-tool concurrency limits shared by all workers (Redis leases)
+PostgreSQL ── case data     Redis ── scan queues, tool slots, login rate limiting
 ```
 
 **Scan flow.** Creating a case writes the investigation, its targets (plus a seed entity per
@@ -74,8 +94,13 @@ target type)*. Jobs run concurrently within each tool's `max_concurrent` /
 recorded in `entity_observations` (which powers diffing), and each discovery is linked to its
 target with a `relation` carrying a plain-language `match_explanation`.
 
-In Phases 0–1 scans run in-process, so the web service runs a single Uvicorn worker. Phase 2
-moves them to RQ worker services with priority queues (manual scans preempt watch-mode).
+**Queues.** With `UNMASK_QUEUE=rq` (the Docker default) scans go to Redis and run on worker
+services. Workers drain `unmask-high` (manual scans) before `unmask-default` (pivot chains)
+and `unmask-low` (watch mode, health checks), so an analyst's scan never waits behind
+background work. `tool_config.max_concurrent` is enforced across all workers with expiring
+Redis leases. A run that dies with its worker is marked failed, never left "running". If no
+worker is up, the dashboard and case page say so. `UNMASK_QUEUE=inline` runs scans inside
+the web process for simple local development.
 
 ### Schema
 
@@ -91,14 +116,17 @@ falls back to memory).
 ```bash
 python -m venv .venv && . .venv/bin/activate
 pip install -r requirements-dev.txt
-pip install -r requirements-tools.txt      # sherlock etc. (or install into a separate venv
-                                           # and point UNMASK_TOOLS_BIN at its bin/)
+TOOLS_DIR=$PWD/.tools sh scripts/install-tools.sh   # one venv per tool, binaries in .tools/bin
+export UNMASK_TOOLS_BIN=$PWD/.tools/bin
 cp .env.example .env
 python -m app.cli gen-keys                 # paste the output into .env
 # set DATABASE_URL and UNMASK_ADMIN_EMAIL / UNMASK_ADMIN_PASSWORD in .env
 alembic upgrade head
 uvicorn app.main:app --reload
 ```
+
+Scans run inline by default. To use the queue locally, set `UNMASK_QUEUE=rq` and start a
+worker alongside the web app with `python -m app.worker`.
 
 Open http://localhost:8000 and sign in with the bootstrap admin. Additional users:
 `python -m app.cli create-user someone@example.com`.
@@ -107,14 +135,17 @@ Open http://localhost:8000 and sign in with the bootstrap admin. Additional user
 
 ```bash
 createdb unmask_test
-TEST_DATABASE_URL=postgresql://localhost/unmask_test pytest
+TEST_DATABASE_URL=postgresql://localhost/unmask_test \
+TEST_REDIS_URL=redis://localhost:6379/15 pytest      # Redis optional: skips queue tests
 ruff check . && ruff format --check .
 ```
 
 Integration tests rebuild the schema from the migrations and use fake adapters, so they need
 no network access. They cover the case gate, CSRF, login rate limiting, failure isolation,
-soft-failure detection, the circuit breaker, per-owner access control, audit logging and
-encryption at rest.
+soft-failure detection, the circuit breaker, per-owner access control, audit logging,
+encryption at rest, every adapter's parser and completion checks (from real captured output,
+including fully blocked runs), the subprocess sandbox, and the RQ path with a real worker
+process (priority order, crash handling, no-worker warning).
 
 ### Tool health
 
@@ -130,10 +161,15 @@ nothing.
 ## Deploying to Railway
 
 1. **Create a project** and add the **PostgreSQL** and **Redis** plugins.
-2. **Add a service from this GitHub repo.** Railway picks up `railway.toml` and builds the
-   `Dockerfile`; each push to the default branch redeploys. Migrations run on start and
+2. **Add a web service from this GitHub repo.** Railway picks up `railway.toml` and builds
+   the `Dockerfile`; each push to the default branch redeploys. Migrations run on start and
    `/healthz` is the health check.
-3. **Set variables on the web service** (not on the database):
+3. **Add a worker service from the same repo.** In its settings set the config-as-code path
+   to `railway.worker.toml` (no HTTP health check) and add `UNMASK_ROLE=worker`. Give it the
+   same variables as the web service. Start with one worker: each runs several tools at once,
+   and tool limits are shared, so add workers only when queued scans wait too long for your
+   plan's CPU and memory.
+4. **Set variables on both app services** (not on the database):
 
    | Variable | Value |
    |---|---|
@@ -142,9 +178,10 @@ nothing.
    | `SECRET_KEY`, `UNMASK_DATA_KEYS`, `UNMASK_INDEX_KEY` | from `python -m app.cli gen-keys` — see [Key management](#key-management) |
    | `UNMASK_ADMIN_EMAIL`, `UNMASK_ADMIN_PASSWORD` | bootstrap admin; remove after first login |
    | `PUBLIC_BASE_URL` | your public URL, e.g. `https://unmask.example.com` (canonical URLs, sitemap, Open Graph) |
+   | `UNMASK_H8MAIL_KEYS` | optional breach API keys, e.g. `hibp=…` — h8mail stays "Not configured" without one |
 
-4. **Generate a domain** under the service's networking settings.
-5. **Backups.** The database holds irreplaceable case data. Enable Railway's Postgres
+5. **Generate a domain** for the web service.
+6. **Backups.** The database holds irreplaceable case data. Enable Railway's Postgres
    backups (or a scheduled `pg_dump` to object storage) and test a restore before relying on it.
 
 `UNMASK_ENV=production` (set in the image) refuses to start with a weak `SECRET_KEY`, missing

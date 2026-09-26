@@ -71,13 +71,19 @@ def health_of(cfg: ToolConfig) -> ToolHealth:
         )
     if not cfg.enabled:
         return ToolHealth(cfg.tool_name, label, "off", "Disabled", "Disabled by configuration")
-    if cfg.consecutive_failures > 0 or cfg.last_health_ok is False:
+    missing = adapter.configured() if adapter else None
+    if missing:
+        return ToolHealth(cfg.tool_name, label, "off", "Not configured", missing)
+    if cfg.last_health_ok is False:
+        reason = (cfg.last_failure_reason or "").removeprefix("health check: ")
+        return ToolHealth(cfg.tool_name, label, "degraded", "Degraded", f"Health check failed: {reason}")
+    if cfg.consecutive_failures > 0:
         return ToolHealth(
             cfg.tool_name,
             label,
             "degraded",
             "Degraded",
-            f"{cfg.consecutive_failures} recent failure(s): {cfg.last_failure_reason or 'health check failed'}",
+            f"{cfg.consecutive_failures} consecutive failure(s): {cfg.last_failure_reason}",
         )
     return ToolHealth(cfg.tool_name, label, "ok", "Healthy", "No recent failures")
 

@@ -1,0 +1,9 @@
+# Config for the scan worker service (same repo and image as the web service).
+# In Railway: worker service > Settings > Config-as-code > path "railway.worker.toml",
+# and set UNMASK_ROLE=worker on that service.
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+restartPolicyType = "ALWAYS"

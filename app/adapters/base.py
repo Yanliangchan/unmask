@@ -14,7 +14,9 @@ missing the adapter raises ``SignatureMismatch`` instead of returning ``[]``.
 from __future__ import annotations
 
 import asyncio
+import glob
 import os
+import re
 import shutil
 import tempfile
 from abc import ABC, abstractmethod
@@ -74,6 +76,16 @@ class ToolAdapter(ABC):
     enabled_by_default: ClassVar[bool] = True
     # A target whose results are known, used by the health check.
     health_check_target: ClassVar[str | None] = None
+    # Upper bound for one run of this tool (None = UNMASK_TOOL_TIMEOUT).
+    timeout_seconds: ClassVar[int | None] = None
+
+    def configured(self) -> str | None:
+        """Return why the tool can't run yet (e.g. a missing API key), or None.
+
+        Unconfigured tools are skipped at dispatch and shown as such in the
+        health panel. They must never run and report "nothing found".
+        """
+        return None
 
     @abstractmethod
     async def run(self, target_value: str, context_tags: list[str]) -> list[RawResult]: ...
@@ -108,6 +120,8 @@ class ProcessResult:
     returncode: int
     stdout: str
     stderr: str
+    # Files the tool wrote into its working directory, by relative path.
+    files: dict[str, str] = field(default_factory=dict)
 
 
 def resolve_binary(name: str) -> str:
@@ -122,14 +136,43 @@ def resolve_binary(name: str) -> str:
     return found
 
 
-async def run_tool_subprocess(argv: list[str], *, timeout: float | None = None) -> ProcessResult:  # noqa: ASYNC109
+def _write_inputs(workdir: str, files_in: dict[str, str]) -> None:
+    for rel, content in files_in.items():
+        path = os.path.join(workdir, rel)
+        # 0600 and O_EXCL: config files may hold API keys.
+        with open(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as fh:
+            fh.write(content)
+
+
+def _collect_outputs(workdir: str, patterns: list[str]) -> dict[str, str]:
+    files: dict[str, str] = {}
+    for pattern in patterns:
+        for path in sorted(glob.glob(os.path.join(workdir, pattern), recursive=True)):
+            if os.path.isfile(path) and not os.path.islink(path):
+                with open(path, "rb") as fh:
+                    files[os.path.relpath(path, workdir)] = fh.read(_MAX_OUTPUT_BYTES).decode("utf-8", "replace")
+    return files
+
+
+async def run_tool_subprocess(
+    argv: list[str],
+    *,
+    timeout: float | None = None,  # noqa: ASYNC109 — also bounds process cleanup
+    files_in: dict[str, str] | None = None,
+    collect: list[str] | None = None,
+) -> ProcessResult:
     """Run a third-party tool with a scrubbed environment in a throwaway cwd.
 
     The child never inherits DATABASE_URL, encryption keys or the session
     secret. No shell is involved, so target values cannot inject commands.
+
+    ``files_in`` are written into the working directory before the run (e.g. a
+    config file holding API keys, which keeps them out of the process list);
+    files matching the ``collect`` globs are read back afterwards.
     """
     timeout = timeout or get_settings().tool_timeout_seconds
     with tempfile.TemporaryDirectory(prefix="unmask-tool-") as workdir:
+        await asyncio.to_thread(_write_inputs, workdir, files_in or {})
         env = {
             "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
             "HOME": workdir,
@@ -157,8 +200,42 @@ async def run_tool_subprocess(argv: list[str], *, timeout: float | None = None) 
             proc.kill()
             await proc.wait()
             raise AdapterError(f"{os.path.basename(argv[0])} timed out after {timeout:.0f}s") from exc
+        files = await asyncio.to_thread(_collect_outputs, workdir, collect or [])
     return ProcessResult(
         returncode=proc.returncode or 0,
         stdout=stdout[:_MAX_OUTPUT_BYTES].decode("utf-8", "replace"),
         stderr=stderr[:_MAX_OUTPUT_BYTES].decode("utf-8", "replace"),
+        files=files,
     )
+
+
+# Colour codes, OSC-8 hyperlinks and carriage returns (progress bars).
+ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]|\x1b\]8;;.*?\x1b\\|\r")
+
+
+def strip_ansi(text: str) -> str:
+    return ANSI_RE.sub("", text)
+
+
+# --- Input validation -------------------------------------------------------
+# Target values end up on tool command lines; anything that could parse as an
+# option or carry shell/URL metacharacters is refused outright.
+
+_EMAIL_RE = re.compile(
+    r"^[A-Za-z0-9._%+\-]{1,64}@[A-Za-z0-9](?:[A-Za-z0-9\-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9\-]{1,63})+$"
+)
+_DOMAIN_RE = re.compile(r"^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9\-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$")
+
+
+def validate_email(value: str) -> str:
+    value = value.strip()
+    if value.startswith("-") or not _EMAIL_RE.match(value):
+        raise InvalidTarget(f"'{value}' is not a plain email address")
+    return value
+
+
+def validate_domain(value: str) -> str:
+    value = value.strip().lower().rstrip(".")
+    if value.startswith("-") or not _DOMAIN_RE.match(value):
+        raise InvalidTarget(f"'{value}' is not a plain domain name")
+    return value

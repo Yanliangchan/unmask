@@ -26,7 +26,14 @@ os.environ["UNMASK_ADMIN_EMAIL"] = "admin@example.com"
 os.environ["UNMASK_ADMIN_PASSWORD"] = "correct-horse-battery"
 # Unreachable on purpose: the login limiter falls back to memory.
 os.environ["REDIS_URL"] = "redis://127.0.0.1:1/0"
+# Optional real Redis for the RQ integration tests.
+TEST_REDIS = os.environ.get("TEST_REDIS_URL")
 os.environ["PUBLIC_BASE_URL"] = "https://unmask.example"
+
+# Freeze settings now, so tests that patch os.environ can't leak into them.
+from app.config import get_settings  # noqa: E402
+
+get_settings()
 
 requires_db = pytest.mark.skipif(not TEST_DB, reason="TEST_DATABASE_URL not set")
 
@@ -47,7 +54,8 @@ async def app(migrated_db):
     from app.main import app as fastapi_app
     from tests.fakes import FakeFailingAdapter, FakeUsernameAdapter
 
-    registry.unregister("sherlock")
+    for adapter in registry.all_adapters():
+        registry.unregister(adapter.name)
     registry.register(FakeUsernameAdapter())
     registry.register(FakeFailingAdapter())
     async with fastapi_app.router.lifespan_context(fastapi_app):
@@ -84,3 +92,18 @@ async def login(client, email="admin@example.com", password="correct-horse-batte
     assert resp.status_code == 303, resp.text
     home = await client.get("/")
     return csrf_from(home.text)
+
+
+def case_form_data(csrf, **overrides):
+    data = {
+        "csrf_token": csrf,
+        "name": "Test case",
+        "authorization_note": "Written consent from subject, ref T-1",
+        "lawful_basis_confirmed": "on",
+        "target_value": "janedoe",
+        "target_type": "username",
+        "target_tags": "london, fintech",
+        "tools": ["fake_ok", "fake_fail"],
+    }
+    data.update(overrides)
+    return {k: v for k, v in data.items() if v is not None}

@@ -7,10 +7,10 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.adapters.registry import all_adapters
+from app.adapters.registry import all_adapters, get_adapter
 from app.audit import log_access
 from app.db import get_session
-from app.jobs import enqueue_scan
+from app.jobs import enqueue_health_check, enqueue_scan, uses_rq, worker_count
 from app.models import TARGET_TYPES, Entity, ScanRun, User
 from app.routes.public import render_landing
 from app.security import client_ip, current_user, current_user_optional, verify_csrf
@@ -61,7 +61,13 @@ async def dashboard(
     return render(
         request,
         "dashboard.html",
-        {"seo": Seo(title="Investigations", path="/"), "user": user, "cards": cards, "health": health},
+        {
+            "seo": Seo(title="Investigations", path="/"),
+            "user": user,
+            "cards": cards,
+            "health": health,
+            "workers": worker_count(),
+        },
     )
 
 
@@ -69,7 +75,11 @@ async def dashboard(
 async def tool_health_partial(
     request: Request, session: AsyncSession = Depends(get_session), user: User = Depends(current_user)
 ):
-    return render(request, "partials/tool_health.html", {"health": await tool_health(session), "user": user})
+    return render(
+        request,
+        "partials/tool_health.html",
+        {"health": await tool_health(session), "user": user, "workers": worker_count()},
+    )
 
 
 @router.post("/tools/{tool_name}/health-check", dependencies=[Depends(verify_csrf)])
@@ -79,13 +89,22 @@ async def tool_health_check(
     session: AsyncSession = Depends(get_session),
     user: User = Depends(current_user),
 ):
-    try:
+    if get_adapter(tool_name) is None:
+        raise HTTPException(status_code=404, detail="Unknown tool")
+    notice = None
+    if uses_rq():
+        # Health checks can take minutes; run them on a worker, not in the request.
+        enqueue_health_check(tool_name)
+        notice = f"Health check for {tool_name} queued — the panel refreshes when it finishes."
+    else:
         await run_health_check(session, tool_name)
-    except KeyError:
-        raise HTTPException(status_code=404, detail="Unknown tool") from None
     log_access(session, "tool_health_check", user_id=user.id, ip=client_ip(request), tool=tool_name)
     await session.commit()
-    return render(request, "partials/tool_health.html", {"health": await tool_health(session), "user": user})
+    return render(
+        request,
+        "partials/tool_health.html",
+        {"health": await tool_health(session), "user": user, "notice": notice, "workers": worker_count()},
+    )
 
 
 # --- Case creation ------------------------------------------------------------
@@ -99,7 +118,9 @@ async def _tool_choices(session: AsyncSession) -> list[dict]:
             "label": a.label,
             "description": a.description,
             "input_types": a.input_types,
-            "enabled": bool(cfgs.get(a.name) and cfgs[a.name].enabled),
+            "enabled": bool(cfgs.get(a.name) and cfgs[a.name].enabled) and a.configured() is None,
+            "unavailable_reason": a.configured()
+            or (None if cfgs.get(a.name) and cfgs[a.name].enabled else "currently disabled"),
         }
         for a in all_adapters()
     ]
@@ -176,7 +197,7 @@ async def create_case_submit(
     log_access(session, "create_case", user_id=user.id, case_id=case.id, ip=ip, targets=len(targets))
     log_access(session, "run_scan", user_id=user.id, case_id=case.id, ip=ip, run_number=run.run_number)
     await session.commit()
-    enqueue_scan(run.id)
+    enqueue_scan(run.id, run.triggered_by)
     return RedirectResponse(f"/cases/{case.id}", status_code=303)
 
 
@@ -202,6 +223,7 @@ async def workspace(
             "user": user,
             "case": case,
             "latest_run": latest,
+            "workers": worker_count(),
             **await _entity_filter_options(session, case),
         },
     )
@@ -306,9 +328,9 @@ async def run_scan(
             session, "run_scan", user_id=user.id, case_id=case.id, ip=client_ip(request), run_number=run.run_number
         )
         await session.commit()
-        enqueue_scan(run.id)
+        enqueue_scan(run.id, run.triggered_by)
     if _is_htmx(request):
-        return render(request, "partials/scan_status.html", {"case": case, "run": run})
+        return render(request, "partials/scan_status.html", {"case": case, "run": run, "workers": worker_count()})
     return RedirectResponse(f"/cases/{case.id}", status_code=303)
 
 
@@ -323,7 +345,7 @@ async def scan_status(
     run = await session.scalar(
         select(ScanRun).where(ScanRun.case_id == case.id).order_by(ScanRun.run_number.desc()).limit(1)
     )
-    response = render(request, "partials/scan_status.html", {"case": case, "run": run})
+    response = render(request, "partials/scan_status.html", {"case": case, "run": run, "workers": worker_count()})
     if run is not None and run.status not in ("queued", "running") and request.query_params.get("was_running"):
         # Tell the page to refresh the entity table now that results are in.
         response.headers["HX-Trigger"] = "scan-finished"

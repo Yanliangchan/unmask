@@ -7,23 +7,8 @@ from sqlalchemy.exc import IntegrityError
 from app import jobs
 from app.models import AccessLog, Entity, Investigation, Relation, ScanRun, ToolConfig, User
 from app.security import hash_password
+from tests.conftest import case_form_data as case_form
 from tests.conftest import csrf_from, login
-
-
-def case_form(csrf, **overrides):
-    data = {
-        "csrf_token": csrf,
-        "name": "Test case",
-        "authorization_note": "Written consent from subject, ref T-1",
-        "lawful_basis_confirmed": "on",
-        "target_value": "janedoe",
-        "target_type": "username",
-        "target_tags": "london, fintech",
-        "tools": ["fake_ok", "fake_fail"],
-    }
-    data.update(overrides)
-    return {k: v for k, v in data.items() if v is not None}
-
 
 # --- Public surface & SEO -------------------------------------------------------
 

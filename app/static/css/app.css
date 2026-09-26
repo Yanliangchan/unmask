@@ -192,7 +192,12 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent); outline
 .run-failed { color: var(--bad); }
 .side-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: .9rem; position: sticky; top: 4rem; }
 .tool-health { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; }
-.tool-health-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: .5rem; }
+.tool-health-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: .1rem .5rem; }
+.tool-health-detail {
+  grid-column: 1 / -1; margin: 0 0 .35rem 1rem; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.warn-text { color: var(--warn); }
 
 /* Case workspace */
 .case-header { display: flex; justify-content: space-between; gap: 1.5rem; align-items: flex-start; flex-wrap: wrap; margin-bottom: 1rem; }

@@ -1,5 +1,9 @@
 {% import "components/ui.html" as ui %}
 {% set down = health | selectattr("status", "equalto", "down") | list %}
+{% if workers == 0 %}
+<p class="alert alert-error" role="alert">No scan worker is running — queued scans will not start.</p>
+{% endif %}
+{% if notice %}<p class="alert small" role="status">{{ notice }}</p>{% endif %}
 {% if down %}
 <p class="alert alert-error" role="alert">
   {{ down | length }} tool{{ 's' if down | length > 1 }} auto-disabled by the circuit breaker.
@@ -13,6 +17,7 @@
     <button class="btn btn-ghost btn-xs" type="button"
             hx-post="/tools/{{ t.name }}/health-check" hx-target="#tool-health" hx-swap="innerHTML"
             hx-disabled-elt="this" aria-label="Run health check for {{ t.label }}">Check</button>
+    {% if t.status != 'ok' %}<p class="tool-health-detail small muted" title="{{ t.detail }}">{{ t.detail }}</p>{% endif %}
   </li>
   {% else %}
   <li class="muted">No tools registered.</li>

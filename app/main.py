@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from datetime import timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -48,7 +49,12 @@ async def lifespan(app: FastAPI):
     async with sessionmaker()() as session:
         await sync_tool_config(session)
         await ensure_admin_user(session)
-        interrupted = await fail_interrupted_runs(session)
+        if settings.queue_backend == "rq":
+            # Workers own running scans; only reap ones far past the job timeout.
+            grace = timedelta(seconds=settings.scan_job_timeout_seconds + 600)
+            interrupted = await fail_interrupted_runs(session, older_than=grace)
+        else:
+            interrupted = await fail_interrupted_runs(session)
         if interrupted:
             log.warning("marked %d interrupted scan run(s) as failed", interrupted)
     yield

@@ -44,6 +44,22 @@ class Settings(BaseSettings):
 
     tools_bin_dir: str = Field(default="", alias="UNMASK_TOOLS_BIN")
     tool_timeout_seconds: int = Field(default=300, alias="UNMASK_TOOL_TIMEOUT")
+    # "inline" runs scans inside the web process (dev, tests); "rq" hands them
+    # to worker services through Redis.
+    queue_backend: str = Field(default="inline", alias="UNMASK_QUEUE")
+    # Wall-clock cap for one scan run on a worker.
+    scan_job_timeout_seconds: int = Field(default=2 * 60 * 60, alias="UNMASK_SCAN_JOB_TIMEOUT")
+
+    # Per-tool settings. API keys are written to a 0600 config file inside the
+    # tool's throwaway working directory, never passed on the command line.
+    maigret_top_sites: int = Field(default=500, alias="UNMASK_MAIGRET_TOP_SITES")
+    # h8mail keys as comma-separated name=value pairs, e.g. "hibp=...,snusbase_token=..."
+    h8mail_keys: str = Field(default="", alias="UNMASK_H8MAIL_KEYS")
+    harvester_sources: str = Field(
+        default="crtsh,hackertarget,rapiddns,otx,certspotter,urlscan", alias="UNMASK_HARVESTER_SOURCES"
+    )
+    spiderfoot_use_case: str = Field(default="passive", alias="UNMASK_SPIDERFOOT_USE_CASE")
+    crtsh_url: str = Field(default="https://crt.sh/", alias="UNMASK_CRTSH_URL")
 
     @field_validator("database_url")
     @classmethod

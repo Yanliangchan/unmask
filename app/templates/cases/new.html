@@ -84,7 +84,7 @@
               {% if not t.enabled %}disabled{% elif (t.checked if t.checked is defined else True) %}checked{% endif %}>
             <span>
               <strong>{{ t.label }}</strong>
-              <span class="muted small">accepts {{ t.input_types | join(', ') }}{% if not t.enabled %} · currently disabled{% endif %}</span>
+              <span class="muted small">accepts {{ t.input_types | join(', ') }}{% if not t.enabled %} · {{ t.unavailable_reason or 'currently disabled' }}{% endif %}</span>
               <br><span class="small muted">{{ t.description }}</span>
             </span>
           </label>
