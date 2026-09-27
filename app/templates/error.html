@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% block main_class %}container narrow{% endblock %}
 {% block content %}
+{% set default_details = {404: "This page doesn't exist, or you don't have access to it.", 403: "You don't have permission to do that.", 429: "Too many requests. Wait a minute and try again."} %}
 <section class="auth">
   <p class="faint mono">{{ status }}</p>
   <h1>{{ {404: "Not found", 403: "Not allowed", 429: "Too many requests"}.get(status, "Something went wrong") }}</h1>
-  <p class="muted mt-8">{{ detail }}</p>
-  <p><a href="/">Back to cases</a></p>
+  <p class="muted mt-8">{{ default_details.get(status, detail) if detail in ("Not Found", "Forbidden", "Too Many Requests", None) else detail }}</p>
+  <p><a href="/">Go to the home page</a></p>
 </section>
 {% endblock %}

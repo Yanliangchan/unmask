@@ -200,7 +200,7 @@ class Entity(Base):
     case_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("investigations.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    scan_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scan_runs.id", ondelete="SET NULL"))
+    scan_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scan_runs.id", ondelete="SET NULL"), index=True)
     type: Mapped[str] = mapped_column(String(32), nullable=False)
     value: Mapped[str] = mapped_column(EncryptedText, nullable=False)
     value_digest: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -218,7 +218,7 @@ class Entity(Base):
     last_verified: Mapped[datetime] = _now()
     confirmed_flag: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     is_seed: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
-    merged_into_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("entities.id", ondelete="SET NULL"))
+    merged_into_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("entities.id", ondelete="SET NULL"), index=True)
 
     observations: Mapped[list[EntityObservation]] = relationship(
         back_populates="entity", cascade="all, delete-orphan", order_by="EntityObservation.observed_at"
@@ -275,9 +275,11 @@ class PivotLog(Base):
     case_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("investigations.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    scan_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scan_runs.id", ondelete="SET NULL"))
+    scan_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scan_runs.id", ondelete="SET NULL"), index=True)
     job_id: Mapped[str | None] = mapped_column(Text)
-    triggering_entity_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("entities.id", ondelete="SET NULL"))
+    triggering_entity_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("entities.id", ondelete="SET NULL"), index=True
+    )
     triggered_tool: Mapped[str] = mapped_column(Text, nullable=False)
     rule_matched: Mapped[str] = mapped_column(Text, nullable=False)
     confidence_at_trigger: Mapped[float | None] = mapped_column(Float)
@@ -307,7 +309,7 @@ class AccessLog(Base):
     id: Mapped[uuid.UUID] = _uuid_pk()
     # SET NULL so the audit trail survives case deletion.
     case_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("investigations.id", ondelete="SET NULL"), index=True)
-    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     action: Mapped[str] = mapped_column(Text, nullable=False)
     detail: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     ip: Mapped[str | None] = mapped_column(String(64))

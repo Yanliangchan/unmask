@@ -12,10 +12,12 @@
     </div>
   </div>
   <div class="case-head-side">
+    {% if watch.enabled or not auto_pivot %}
     <div class="case-state">
       {% if watch.enabled %}Watching {{ watch.frequency }}{% if watch.next_run_at %}, next {{ watch.next_run_at.strftime('%-d %b') }}{% endif %}<br>{% endif %}
       {% if not auto_pivot %}Automatic pivots off{% endif %}
     </div>
+    {% endif %}
     <button class="btn btn-primary" type="button"
             hx-post="/cases/{{ case.id }}/scans" hx-target="#scan-status" hx-swap="outerHTML"
             hx-disabled-elt="this">{{ ui.icon("play") }}Run scan</button>

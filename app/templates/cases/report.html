@@ -1,19 +1,20 @@
 {% extends "base.html" %}
-{% block head %}<link rel="stylesheet" href="/static/css/report.css">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ static_url('css/report.css') }}">{% endblock %}
 {% block body_class %}report-page{% endblock %}
 {% block main_class %}container report{% endblock %}
 {% block footer %}{% endblock %}
 {% block content %}
 {% set c = r.case %}
 <div class="report-actions no-print">
-  <a class="btn btn-ghost btn-sm" href="/cases/{{ c.id }}/settings">← Back to settings</a>
-  <button class="btn btn-primary btn-sm" type="button" data-print>Print / save as PDF</button>
+  <a class="btn btn-ghost btn-sm" href="/cases/{{ c.id }}/settings">Back to settings</a>
+  <span class="spacer"></span>
   <a class="btn btn-sm" href="/cases/{{ c.id }}/report.md">Download Markdown</a>
+  <button class="btn btn-primary btn-sm" type="button" data-print>Print or save as PDF</button>
 </div>
 
 <article class="report-doc">
   <header>
-    <p class="report-kicker">unmask · case report · confidential</p>
+    <p class="report-kicker">Case report · Confidential</p>
     <h1>{{ c.name }}</h1>
     <p class="report-meta">Generated {{ r.generated_at | isodate }} by {{ r.generated_by }} · case <span class="mono">{{ c.id }}</span></p>
     <p class="report-disclaimer">
@@ -36,12 +37,12 @@
 
   <section>
     <h2>Targets</h2>
-    <table class="report-table">
+    <div class="report-scroll"><table class="report-table">
       <thead><tr><th>Type</th><th>Value</th><th>Context tags</th></tr></thead>
       <tbody>
         {% for t in c.targets %}<tr><td>{{ t.type }}</td><td class="mono">{{ t.value }}</td><td>{{ (t.context_tags or []) | join(', ') or '—' }}</td></tr>{% endfor %}
       </tbody>
-    </table>
+    </table></div>
   </section>
 
   <section>
@@ -50,7 +51,7 @@
     {% for label, rows in r.tiers %}
     <h3>{{ label }} ({{ rows | length }})</h3>
     {% if rows %}
-    <table class="report-table">
+    <div class="report-scroll"><table class="report-table">
       <thead><tr><th>Value</th><th>Type</th><th>Confidence</th><th>Reliability</th><th>Sources</th><th>Notes</th></tr></thead>
       <tbody>
         {% for row in rows %}{% set e = row.entity %}
@@ -64,7 +65,7 @@
         </tr>
         {% endfor %}
       </tbody>
-    </table>
+    </table></div>
     {% else %}<p class="muted">None.</p>{% endif %}
     {% endfor %}
   </section>
@@ -79,7 +80,7 @@
 
   <section>
     <h2>Scan timeline</h2>
-    <table class="report-table">
+    <div class="report-scroll"><table class="report-table">
       <thead><tr><th>Run</th><th>Trigger</th><th>Status</th><th>Started</th><th>Tools</th><th>Failed</th></tr></thead>
       <tbody>
         {% for run in r.runs %}
@@ -87,7 +88,7 @@
           <td>{{ run.started_at | isodate }}</td><td>{{ run.tools_included | join(', ') or '—' }}</td><td>{{ run.tools_failed | join(', ') or '—' }}</td></tr>
         {% endfor %}
       </tbody>
-    </table>
+    </table></div>
     {% if r.diff_summary %}<p>Latest comparison: {{ r.diff_summary }}.</p>{% endif %}
     <p>Automatic pivots: {{ r.pivots_run }} run, {{ r.pivots_skipped }} skipped.</p>
   </section>

@@ -7,9 +7,10 @@ from datetime import timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.exceptions import HTTPException
 from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException
+from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES, GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import get_settings
@@ -101,6 +102,13 @@ def create_app() -> FastAPI:
         if settings.is_production:
             h.setdefault("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
         path = request.url.path
+        if path.startswith("/static/") and response.status_code == 200:
+            # Templates link static files with a content hash (?v=...), so a
+            # changed file always gets a new URL and old ones never go stale.
+            if "v" in request.query_params:
+                h.setdefault("Cache-Control", "public, max-age=31536000, immutable")
+            else:
+                h.setdefault("Cache-Control", "public, max-age=3600")
         public = path in ("/", "/robots.txt", "/sitemap.xml", "/site.webmanifest") or path.startswith("/static/")
         if not public or request.session.get("user_id"):
             h.setdefault("X-Robots-Tag", "noindex, nofollow, noarchive")
@@ -124,7 +132,14 @@ def create_app() -> FastAPI:
             status_code=exc.status_code,
         )
 
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+    # Compress static text only. HTML pages carry CSRF tokens next to user input,
+    # so they stay uncompressed (BREACH).
+    static = GZipMiddleware(
+        StaticFiles(directory=str(STATIC_DIR)),
+        minimum_size=1024,
+        exclude_content_types=(*DEFAULT_EXCLUDED_CONTENT_TYPES, "image/png", "image/webp", "image/jpeg"),
+    )
+    app.mount("/static", static, name="static")
     app.include_router(public.router)
     app.include_router(auth.router)
     app.include_router(watch.router)  # before cases: /tab/timeline is more specific

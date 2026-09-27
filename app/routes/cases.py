@@ -65,7 +65,7 @@ async def dashboard(
         request,
         "dashboard.html",
         {
-            "seo": Seo(title="Investigations", path="/"),
+            "seo": Seo(title="Cases", path="/"),
             "user": user,
             "cards": cards,
             "health": health,

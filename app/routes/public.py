@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from sqlalchemy import text
@@ -9,18 +11,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.db import get_session
-from app.web import SITE_DESCRIPTION, Seo, render
+from app.web import SITE_DESCRIPTION, TEMPLATES_DIR, Seo, render
 
 router = APIRouter()
 
 # Paths that may appear in search results. Everything else is private.
 PUBLIC_PATHS = ["/"]
+LANDING_TEMPLATE = TEMPLATES_DIR / "public" / "landing.html"
 
 
 def landing_seo() -> Seo:
     base = get_settings().public_base_url.rstrip("/")
     return Seo(
-        title="unmask — self-hosted OSINT investigation platform",
+        title="unmask: self-hosted OSINT investigation platform",
         description=SITE_DESCRIPTION,
         path="/",
         indexable=True,
@@ -34,13 +37,15 @@ def landing_seo() -> Seo:
                 "description": SITE_DESCRIPTION,
                 "url": base + "/",
                 "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
+                "screenshot": base + "/static/img/screenshot-case.png",
+                "image": base + "/static/img/og-image.png",
                 "featureList": [
-                    "Automated pivot chains with a visible pivot log",
-                    "Case management with a full audit trail",
-                    "Time-aware diffing between scan runs",
-                    "Open tool-adapter plugin architecture",
-                    "Per-field confidence and source reliability ratings",
-                    "Encryption at rest for sensitive identifiers",
+                    "Runs Sherlock, Maigret, Holehe, theHarvester, crt.sh, Amass and SpiderFoot as one case",
+                    "De-duplicated findings with per-field confidence and source reliability",
+                    "Automatic follow-up lookups, each one logged",
+                    "Scan-to-scan comparison with watch mode",
+                    "Tool failures reported instead of shown as empty results",
+                    "Self-hosted, with identifiers encrypted at rest",
                 ],
             },
             {
@@ -78,8 +83,9 @@ async def robots() -> str:
 @router.get("/sitemap.xml", include_in_schema=False)
 async def sitemap() -> Response:
     base = get_settings().public_base_url.rstrip("/")
+    lastmod = datetime.fromtimestamp(LANDING_TEMPLATE.stat().st_mtime, UTC).date().isoformat()
     urls = "".join(
-        f"<url><loc>{base}{path}</loc><changefreq>monthly</changefreq><priority>1.0</priority></url>"
+        f"<url><loc>{base}{path}</loc><lastmod>{lastmod}</lastmod><changefreq>monthly</changefreq></url>"
         for path in PUBLIC_PATHS
     )
     xml = (
@@ -98,9 +104,13 @@ async def manifest() -> JSONResponse:
             "description": SITE_DESCRIPTION,
             "start_url": "/",
             "display": "standalone",
-            "background_color": "#0b0e13",
-            "theme_color": "#0b0e13",
-            "icons": [{"src": "/static/img/favicon.svg", "sizes": "any", "type": "image/svg+xml"}],
+            "background_color": "#0e0f11",
+            "theme_color": "#0e0f11",
+            "icons": [
+                {"src": "/static/img/favicon.svg", "sizes": "any", "type": "image/svg+xml"},
+                {"src": "/static/img/icon-192.png", "sizes": "192x192", "type": "image/png"},
+                {"src": "/static/img/icon-512.png", "sizes": "512x512", "type": "image/png"},
+            ],
         },
         media_type="application/manifest+json",
     )

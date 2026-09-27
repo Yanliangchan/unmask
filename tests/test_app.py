@@ -38,6 +38,43 @@ async def test_robots_and_sitemap(client):
     assert "/cases" not in sitemap
 
 
+async def test_share_cards_and_icons(client):
+    r = await client.get("/")
+    for tag in (
+        'property="og:image:width" content="1200"',
+        'name="twitter:image"',
+        'rel="apple-touch-icon"',
+        "<title>unmask: self-hosted OSINT investigation platform</title>",
+    ):
+        assert tag in r.text
+    manifest = (await client.get("/site.webmanifest")).json()
+    assert {i["sizes"] for i in manifest["icons"]} >= {"192x192", "512x512"}
+    assert "<lastmod>" in (await client.get("/sitemap.xml")).text
+
+
+async def test_static_files_are_versioned_cached_and_compressed(client):
+    import re
+
+    page = (await client.get("/")).text
+    css = re.search(r'href="(/static/css/app\.css\?v=[0-9a-f]{10})"', page).group(1)
+    r = await client.get(css, headers={"accept-encoding": "gzip"})
+    assert r.status_code == 200
+    assert r.headers["cache-control"] == "public, max-age=31536000, immutable"
+    assert r.headers["content-encoding"] == "gzip"
+    # Unversioned URLs get a short cache; images are not re-compressed.
+    png = await client.get("/static/img/og-image.png", headers={"accept-encoding": "gzip"})
+    assert png.headers["cache-control"] == "public, max-age=3600"
+    assert "content-encoding" not in png.headers
+    # HTML carries CSRF tokens, so it is never compressed (BREACH).
+    assert "content-encoding" not in (await client.get("/", headers={"accept-encoding": "gzip"})).headers
+
+
+async def test_unknown_pages_get_the_styled_error_page(client):
+    r = await client.get("/no-such-page", headers={"accept": "text/html"})
+    assert r.status_code == 404
+    assert "<h1>Not found</h1>" in r.text
+
+
 async def test_security_headers(client):
     r = await client.get("/")
     assert r.headers["x-frame-options"] == "DENY"

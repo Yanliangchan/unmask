@@ -1,26 +1,43 @@
-/* Report view: readable on screen, clean black-on-white when printed / saved as PDF. */
-.report { max-width: 980px; }
-.report-actions { display: flex; gap: .6rem; margin-bottom: 1rem; }
-.report-doc { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem 2.25rem; }
-.report-doc section { margin-top: 1.6rem; }
-.report-doc h2 { font-size: 1.15rem; border-bottom: 1px solid var(--border); padding-bottom: .3rem; }
-.report-doc h3 { font-size: .95rem; margin-top: 1rem; }
-.report-kicker { font-family: var(--mono); font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0; }
-.report-meta { color: var(--muted); font-size: .85rem; }
-.report-disclaimer { border-left: 3px solid var(--accent); padding: .5rem .8rem; background: var(--bg-sunk); font-size: .9rem; }
-.assessment { white-space: pre-wrap; border-left: 3px solid var(--ok); padding: .6rem .9rem; background: var(--bg-sunk); }
-.report-table { width: 100%; border-collapse: collapse; font-size: .82rem; margin: .4rem 0 .8rem; }
-.report-table th, .report-table td { text-align: left; padding: .3rem .45rem; border-bottom: 1px solid var(--border); vertical-align: top; }
-.report-table th { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+/* Report view: shown as the printed page it becomes, so what you see is what you export. */
+.report { max-width: 900px; }
+.report-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
+.report-actions .spacer { flex: 1; }
+
+.report-doc {
+  --bg: #fff; --surface: #fff; --bg-sunk: #f5f6f7; --border: #e2e4e8; --text: #1d1f23; --text-strong: #0b0c0e;
+  --muted: #5c626b; --faint: #868c95; --ok: #1f7a4d; --accent: #3d5bd9;
+  color-scheme: light; background: var(--bg); color: var(--text);
+  border-radius: 6px; padding: 48px 56px; box-shadow: 0 20px 60px rgba(0, 0, 0, .45);
+  font-size: 14px; line-height: 1.6;
+}
+.report-doc h1 { color: var(--text-strong); font-size: 26px; margin: 4px 0 2px; }
+.report-doc h2 { color: var(--text-strong); font-size: 17px; margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.report-doc h3 { color: var(--text-strong); font-size: 14px; margin: 16px 0 4px; }
+.report-doc section { margin-top: 32px; }
+.report-kicker { font-size: 12px; color: var(--muted); margin: 0; }
+.report-meta { color: var(--muted); font-size: 13px; margin: 0; }
+.report-disclaimer { margin: 20px 0 0; padding: 12px 14px; background: var(--bg-sunk); border-radius: 4px; font-size: 13px; color: var(--muted); }
+.assessment { white-space: pre-wrap; padding: 12px 14px; border-left: 3px solid var(--text-strong); background: var(--bg-sunk); }
+
+.report-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.report-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 4px 0 12px; }
+.report-table th, .report-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.report-table th { font-size: 12px; font-weight: 600; color: var(--muted); }
 .report-table .num { text-align: right; font-family: var(--mono); }
-.report-table .wrap { overflow-wrap: anywhere; max-width: 340px; }
+.report-table .wrap { overflow-wrap: anywhere; min-width: 180px; max-width: 320px; }
+
+@media (max-width: 700px) {
+  .report-doc { padding: 24px 18px; border-radius: 4px; }
+  .report-table { min-width: 560px; }
+}
 
 @media print {
-  :root { --bg: #fff; --surface: #fff; --bg-sunk: #f4f5f7; --border: #d0d4da; --text: #111; --text-strong: #000; --muted: #555; color-scheme: light; }
   body { background: #fff; color: #111; font-size: 10.5pt; }
   .topbar, .no-print, .skip-link, .toasts { display: none !important; }
   .container { padding: 0; max-width: none; }
-  .report-doc { border: 0; padding: 0; }
+  .report-doc { padding: 0; box-shadow: none; border-radius: 0; font-size: 10.5pt; }
+  .report-scroll { overflow: visible; }
+  .report-table { min-width: 0; }
   .report-doc section { break-inside: auto; }
   .report-table tr, .report-doc h2, .report-doc h3 { break-inside: avoid; break-after: avoid-page; }
   a { color: inherit; text-decoration: none; }

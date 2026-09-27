@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +20,7 @@ from app.search_links import search_links
 from app.security import csrf_token
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
+STATIC_DIR = Path(__file__).parent / "static"
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
@@ -61,6 +64,24 @@ class Seo:
         ]
         # Safe: json.dumps output with every "<" escaped cannot close the script tag.
         return Markup("\n".join(blocks))  # noqa: S704
+
+
+@lru_cache(maxsize=256)
+def _static_digest(path: str, mtime_ns: int) -> str:
+    return hashlib.sha256((STATIC_DIR / path).read_bytes()).hexdigest()[:10]
+
+
+def static_url(path: str) -> str:
+    """URL for a static file with a content hash, so browsers can cache it for a year.
+
+    The mtime is part of the cache key, so an edited file gets a new hash
+    without restarting the server.
+    """
+    try:
+        digest = _static_digest(path, (STATIC_DIR / path).stat().st_mtime_ns)
+    except OSError:
+        return f"/static/{path}"
+    return f"/static/{path}?v={digest}"
 
 
 def render(request: Request, template: str, context: dict[str, Any] | None = None, *, status_code: int = 200):
@@ -139,6 +160,7 @@ def _run_issues(details: dict | None) -> dict:
 templates.env.filters["run_issues"] = _run_issues
 templates.env.globals["SOURCE_RELIABILITY"] = SOURCE_RELIABILITY
 templates.env.globals["search_links"] = search_links
+templates.env.globals["static_url"] = static_url
 templates.env.filters["case_tags"] = lambda case: sorted(
     {t for target in (case.targets or []) for t in (target.context_tags or [])}
 )

@@ -23,13 +23,15 @@
 
   var cy = null;
   var scriptPromise = null;
+  var current = document.currentScript;
+  var cytoscapeSrc = (current && current.dataset.cytoscape) || "/static/js/vendor/cytoscape.min.js";
 
   function loadCytoscape() {
     if (window.cytoscape) return Promise.resolve();
     if (!scriptPromise) {
       scriptPromise = new Promise(function (resolve, reject) {
         var s = document.createElement("script");
-        s.src = "/static/js/vendor/cytoscape.min.js";
+        s.src = cytoscapeSrc;
         s.onload = resolve;
         s.onerror = function () { reject(new Error("could not load the graph library")); };
         document.head.appendChild(s);

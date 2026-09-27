@@ -77,7 +77,7 @@ async def test_markdown_report_contents(client, db):
     assert {"analyst_assessment", "export_report"} <= actions
 
     html = await client.get(f"/cases/{case_id}/report")
-    assert html.status_code == 200 and "Print / save as PDF" in html.text
+    assert html.status_code == 200 and "Print or save as PDF" in html.text
     assert "noindex" in html.headers["x-robots-tag"]
 
 

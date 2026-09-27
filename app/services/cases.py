@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 
 from fastapi import HTTPException
 from sqlalchemy import any_, func, literal, or_, select
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -176,13 +176,18 @@ async def list_cases_for_user(session: AsyncSession, user: User) -> list[CaseCar
             )
         ).all()
     )
-    last_runs: dict[uuid.UUID, ScanRun] = {}
-    for run in (
-        await session.scalars(
-            select(ScanRun).where(ScanRun.case_id.in_(ids)).order_by(ScanRun.case_id, ScanRun.run_number.desc())
-        )
-    ).all():
-        last_runs.setdefault(run.case_id, run)
+    # Only the latest run per case (Postgres DISTINCT ON), not every run ever made.
+    last_runs: dict[uuid.UUID, ScanRun] = {
+        run.case_id: run
+        for run in (
+            await session.scalars(
+                select(ScanRun)
+                .where(ScanRun.case_id.in_(ids))
+                .order_by(ScanRun.case_id, ScanRun.run_number.desc())
+                .ext(distinct_on(ScanRun.case_id))
+            )
+        ).all()
+    }
     new_rows = (
         await session.execute(
             select(Entity.case_id, func.count())
@@ -197,7 +202,9 @@ async def list_cases_for_user(session: AsyncSession, user: User) -> list[CaseCar
         )
     ).all()
     new_counts = dict(new_rows)
-    from app.scheduler import purge_date
+    from app.scheduler import last_scan_times, purge_date_from
+
+    last_scans = await last_scan_times(session, ids)
 
     cards = []
     for c in cases:
@@ -209,7 +216,7 @@ async def list_cases_for_user(session: AsyncSession, user: User) -> list[CaseCar
                 last_scan_at=(run.completed_at or run.started_at or run.created_at) if run else None,
                 last_scan_status=run.status if run else None,
                 new_count=new_counts.get(c.id, 0),
-                purge_at=await purge_date(session, c),
+                purge_at=purge_date_from(c, last_scans.get(c.id)),
             )
         )
     return cards

@@ -14,8 +14,12 @@
 </section>
 
 <figure class="shot">
-  <img src="/static/img/screenshot-case.png" width="1440" height="900" loading="lazy"
-       alt="A case in unmask: findings listed with confidence, source reliability and the tools that reported them.">
+  <picture>
+    <source type="image/webp" sizes="(max-width: 1100px) 100vw, 1032px"
+            srcset="{{ static_url('img/screenshot-case-720.webp') }} 720w, {{ static_url('img/screenshot-case.webp') }} 1440w">
+    <img src="{{ static_url('img/screenshot-case.png') }}" width="1440" height="900" decoding="async"
+         alt="A case in unmask: findings listed with confidence, source reliability and the tools that reported them.">
+  </picture>
 </figure>
 
 <section class="facts" aria-label="How it works">

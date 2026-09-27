@@ -86,10 +86,10 @@
   <div class="body">
     <form method="post" action="/cases/{{ case.id }}/settings/retention" class="form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <label class="field">
-        <span>Keep for <output id="retention-out">{{ case.retention_days }}</output> days after the last scan</span>
-        <input class="range" type="range" name="retention_days" min="7" max="730" step="1" value="{{ case.retention_days }}" data-output-int="#retention-out">
-      </label>
+      <div class="field">
+        <label for="retention-days">Keep for <output id="retention-out" for="retention-days">{{ case.retention_days }}</output> days after the last scan</label>
+        <input class="range" type="range" id="retention-days" name="retention_days" min="7" max="730" step="1" value="{{ case.retention_days }}" data-output-int="#retention-out">
+      </div>
       <label class="check"><input type="checkbox" name="permanently_active" {% if case.permanently_active %}checked{% endif %}><span>Keep permanently (never delete automatically)</span></label>
       <div class="inline-form">
         <button class="btn btn-sm" type="submit">Save</button>

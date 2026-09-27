@@ -16,6 +16,7 @@ import asyncio
 import logging
 import random
 import threading
+import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
@@ -72,6 +73,22 @@ async def last_activity(session: AsyncSession, case: Investigation) -> datetime:
     return max(t for t in (case.created_at, last_scan) if t is not None)
 
 
+async def last_scan_times(session: AsyncSession, case_ids: list[uuid.UUID] | None = None) -> dict[uuid.UUID, datetime]:
+    """Latest scan creation time per case, in one query (for lists of cases)."""
+    stmt = select(ScanRun.case_id, func.max(ScanRun.created_at)).group_by(ScanRun.case_id)
+    if case_ids is not None:
+        stmt = stmt.where(ScanRun.case_id.in_(case_ids))
+    return dict((await session.execute(stmt)).all())
+
+
+def purge_date_from(case: Investigation, last_scan: datetime | None) -> datetime | None:
+    """Retention deadline given the case's latest scan time (see ``last_activity``)."""
+    if case.permanently_active:
+        return None
+    start = max(t for t in (case.created_at, last_scan) if t is not None)
+    return start + timedelta(days=case.retention_days)
+
+
 async def purge_date(session: AsyncSession, case: Investigation) -> datetime | None:
     if case.permanently_active:
         return None
@@ -121,8 +138,9 @@ async def _purge_expired(session: AsyncSession, now: datetime) -> int:
     from app.services.cases import delete_case
 
     purged = 0
+    last_scans = await last_scan_times(session)
     for case in (await session.scalars(select(Investigation))).all():
-        when = await purge_date(session, case)
+        when = purge_date_from(case, last_scans.get(case.id))
         if when is None or when > now:
             continue
         active = await session.scalar(
