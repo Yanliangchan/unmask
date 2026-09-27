@@ -2,6 +2,9 @@
 # One image, two roles: UNMASK_ROLE=web (default) or UNMASK_ROLE=worker.
 set -e
 
+# Fails with a readable list of missing variables, and waits for Postgres.
+python -m app.cli preflight
+
 if [ "${UNMASK_ROLE:-web}" = "worker" ]; then
   exec python -m app.worker
 fi

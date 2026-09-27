@@ -293,3 +293,21 @@ async def test_confirm_toggle_is_audited(client, db):
     assert r.status_code == 200 and "Confirmed" in r.text
     actions = (await db.scalars(select(AccessLog.action).where(AccessLog.case_id == case_id))).all()
     assert {"create_case", "run_scan", "confirm_entity"} <= set(actions)
+
+
+def test_preflight_names_missing_production_variables(monkeypatch):
+    from app import cli
+    from app.config import get_settings
+
+    monkeypatch.setenv("UNMASK_ENV", "production")
+    monkeypatch.setenv("UNMASK_QUEUE", "rq")
+    monkeypatch.delenv("UNMASK_DATA_KEYS", raising=False)
+    monkeypatch.delenv("SECRET_KEY", raising=False)
+    get_settings.cache_clear()
+    try:
+        problems = cli.config_problems(env={})
+    finally:
+        get_settings.cache_clear()
+    text = " ".join(problems)
+    assert "DATABASE_URL is not set" in text and "REDIS_URL is not set" in text
+    assert "UNMASK_DATA_KEYS is not set" in text and "SECRET_KEY" in text
