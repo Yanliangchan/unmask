@@ -16,7 +16,7 @@ from app.models import Entity, EntityObservation, Relation, ScanRun
 WEAK_CONFIDENCE = 0.3
 # Plain-language match strength: Likely / Possible / Unlikely.
 LIKELY, POSSIBLE = 0.7, 0.45
-SHOW_MODES = ("best", "all", "confirmed", "dismissed")
+SHOW_MODES = ("best", "undecided", "all", "confirmed", "dismissed")
 
 
 def hidden_reason(e: Entity) -> str | None:
@@ -109,8 +109,10 @@ async def list_entities_view(session: AsyncSession, case_id: uuid.UUID, filters:
         if filters.show == "dismissed":
             if reason != "dismissed":
                 continue
-        elif reason == "dismissed" or (filters.show == "best" and reason):
+        elif reason == "dismissed" or (filters.show in ("best", "undecided") and reason):
             hidden[reason] += 1
+            continue
+        if filters.show == "undecided" and (e.confirmed_flag or e.is_seed):
             continue
         if filters.show == "confirmed" and not (e.confirmed_flag or e.is_seed):
             continue

@@ -1,10 +1,13 @@
 {% import "components/ui.html" as ui %}
-<div class="graph-tab" data-graph="/cases/{{ case.id }}/graph.json" data-case="{{ case.id }}">
+<div class="graph-tab" data-graph="/cases/{{ case.id }}/graph.json" data-case="{{ case.id }}" data-case-name="{{ case.name }}">
   <div class="graph-toolbar" role="toolbar" aria-label="Graph filters">
     <label class="check"><input type="checkbox" data-graph-filter="confirmed"><span>Confirmed only</span></label>
     <label class="check"><input type="checkbox" data-graph-filter="pivot"><span>Found by pivots</span></label>
     <label class="check"><input type="checkbox" data-graph-filter="suggested" checked><span>Possible duplicates</span></label>
+    <label class="check" title="Select a node to show only it and its direct links; select more nodes to expand"><input type="checkbox" data-graph-focus><span>Focus mode</span></label>
+    <button class="btn btn-sm" type="button" data-graph-unfocus hidden>Show everything</button>
     <button class="btn btn-ghost btn-sm" type="button" data-graph-reset>Reset view</button>
+    <button class="btn btn-ghost btn-sm" type="button" data-graph-png>{{ ui.icon("download") }}PNG</button>
     <span class="graph-stats" data-graph-stats aria-live="polite"></span>
   </div>
   <div class="graph-wrap">

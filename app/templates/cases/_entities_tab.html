@@ -7,6 +7,10 @@
 <div id="suggestions" hx-get="/cases/{{ case.id }}/suggestions"
      hx-trigger="load, scan-finished from:body, results-updated from:body, entities-changed from:body" hx-swap="innerHTML"></div>
 
+<details class="menu views-menu">
+  <summary class="btn btn-sm">Views{{ ui.icon("chevron", "icon") }}</summary>
+  <div id="views-menu">{% include "cases/_views_menu.html" %}</div>
+</details>
 <form class="toolbar" id="entity-filters" role="search"
       hx-get="/cases/{{ case.id }}/entities" hx-target="#entities" hx-swap="innerHTML"
       hx-trigger="input changed delay:250ms from:input[name=q], change, scan-finished from:body, results-updated from:body, entities-changed from:body">
@@ -20,6 +24,7 @@
   <label class="visually-hidden" for="entity-show">Show</label>
   <select id="entity-show" name="show">
     <option value="best">Best findings</option>
+    <option value="undecided">Undecided</option>
     <option value="all">All findings</option>
     <option value="confirmed">Confirmed</option>
     <option value="dismissed">Marked "Not them"</option>
@@ -34,6 +39,18 @@
           hx-disabled-elt="this" title="Re-run duplicate detection, cross-links and scoring">{{ ui.icon("refresh") }}Re-run matching</button>
 </form>
 
-<div id="entities" hx-get="/cases/{{ case.id }}/entities" hx-trigger="load" hx-swap="innerHTML">
+<div class="bulkbar" id="bulkbar" hidden role="region" aria-label="Selected findings">
+  <span><strong data-bulk-count>0</strong> selected</span>
+  <button class="btn btn-sm btn-primary" type="button" data-bulk="confirm">{{ ui.icon("check") }}Same person</button>
+  <button class="btn btn-sm" type="button" data-bulk="dismiss" data-reason="different_person">Not them</button>
+  <button class="btn btn-sm" type="button" data-bulk="dismiss" data-reason="not_a_profile">Not a real profile</button>
+  <button class="btn btn-ghost btn-sm" type="button" data-bulk-clear>Clear</button>
+</div>
+
+<div id="entities" data-case="{{ case.id }}" hx-get="/cases/{{ case.id }}/entities" hx-trigger="load" hx-swap="innerHTML">
   {{ ui.skeleton(6) }}
 </div>
+
+<aside class="drawer" id="drawer" hidden aria-labelledby="drawer-title">
+  <div id="drawer-body" class="drawer-body"></div>
+</aside>

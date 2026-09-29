@@ -15,7 +15,7 @@ from app.routes.shell import case_shell
 from app.scheduler import set_watch, watch_state
 from app.security import client_ip, current_user, verify_csrf
 from app.services.cases import get_case_for_user
-from app.services.timeline import default_pair, diff_runs
+from app.services.timeline import default_pair, diff_runs, timeline_track
 from app.web import render
 
 router = APIRouter()
@@ -35,7 +35,9 @@ async def _timeline_context(request: Request, session: AsyncSession, case) -> di
     diff = None
     if run_a is not None and run_b is not None and run_a.id != run_b.id:
         diff = await diff_runs(session, case.id, run_a, run_b)
-    return {"case": case, "runs": runs, "run_a": run_a, "run_b": run_b, "diff": diff}
+    track = await timeline_track(session, case.id, runs)
+    peak = max((p.new for p in track), default=0)
+    return {"case": case, "runs": runs, "run_a": run_a, "run_b": run_b, "diff": diff, "track": track, "peak": peak}
 
 
 @router.get("/cases/{case_id}/tab/timeline")

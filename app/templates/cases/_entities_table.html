@@ -7,9 +7,10 @@
 {% if rows %}
 <div class="table-wrap">
 <table class="table entities">
-  <caption class="visually-hidden">Entities in this case. Select a row for details.</caption>
+  <caption class="visually-hidden">Entities in this case. Select a row to open its evidence.</caption>
   <thead>
     <tr>
+      <th class="col-select"><input type="checkbox" class="select-all" data-select-all aria-label="Select all findings shown"></th>
       <th class="col-confirm"><span class="visually-hidden">Confirmed</span></th>
       <th>Value</th>
       <th class="hide-xs">Type</th>

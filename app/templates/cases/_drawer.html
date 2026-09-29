@@ -1,0 +1,63 @@
+{% import "components/ui.html" as ui %}
+{% set a = entity.attributes %}
+{% set st = entity | strength %}
+<div class="drawer-head">
+  <div class="drawer-head-text">
+    <p class="faint small">{{ entity.type | replace('_', ' ') | capitalize }}{% if a.get('site') %} on {{ a.site }}{% endif %}</p>
+    <h2 class="drawer-title" id="drawer-title">
+      {% if a.get('url') %}<a href="{{ a.url }}" target="_blank" rel="noopener noreferrer nofollow">{{ entity.value }}{{ ui.icon("external", "icon") }}</a>{% else %}<span class="ident">{{ entity.value }}</span>{% endif %}
+    </h2>
+    <p class="drawer-badges"><span class="strength-label s-{{ st[0] }}">{{ st[1] }}</span>
+      {% if entity.verification == 'verified' %}<span class="flag flag-ok">Page checked</span>{% elif entity.verification == 'unverified' %}<span class="flag flag-review" title="{{ a.get('verification_reason', '') }}">Not checked</span>{% endif %}
+      {% if entity.dismissed_flag %}<span class="flag">Not them</span>{% endif %}</p>
+  </div>
+  <button class="btn btn-ghost btn-sm btn-icon" type="button" data-drawer-close aria-label="Close evidence">{{ ui.icon("x") }}</button>
+</div>
+
+{% if not entity.is_seed %}
+<div class="drawer-actions">
+  {% if entity.dismissed_flag %}
+  <button class="btn btn-sm" type="button" hx-post="/cases/{{ case.id }}/entities/{{ entity.id }}/restore" hx-swap="none">Restore</button>
+  {% else %}
+  <button class="btn btn-sm{% if entity.confirmed_flag %} is-on{% else %} btn-primary{% endif %}" type="button"
+          hx-post="/cases/{{ case.id }}/entities/{{ entity.id }}/confirm?toast=1" hx-swap="none">{{ ui.icon("check") }}{{ "Confirmed" if entity.confirmed_flag else "Same person" }}</button>
+  <details class="menu">
+    <summary class="btn btn-sm">Not them{{ ui.icon("chevron", "icon") }}</summary>
+    <div class="menu-list" role="menu">
+      {% for key, label in reasons.items() if key != "other" and (key == "different_person" or entity.type == "account") %}
+      <button type="button" role="menuitem" hx-post="/cases/{{ case.id }}/entities/{{ entity.id }}/dismiss" hx-vals='{"reason": "{{ key }}"}' hx-swap="none">{{ label }}</button>
+      {% endfor %}
+    </div>
+  </details>
+  {% endif %}
+  <details class="menu">
+    <summary class="btn btn-ghost btn-sm">{{ ui.icon("search") }}Search the web</summary>
+    <div class="menu-list" role="menu">{{ ui.search_items(entity.type, entity.value, case | case_tags) }}</div>
+  </details>
+</div>
+{% endif %}
+
+<div class="drawer-section">
+  {% include "cases/_entity_detail.html" %}
+</div>
+
+<section class="drawer-section notes" aria-labelledby="notes-title">
+  <h3 id="notes-title">{{ ui.icon("note") }} Notes <span class="count">{{ notes | length }}</span></h3>
+  {% if notes %}
+  <ol class="note-list" role="list">
+    {% for n in notes %}
+    {% set author = authors.get(n.author_id) %}
+    <li class="note">
+      <p class="note-meta"><strong>{{ author.email if author else "Former user" }}</strong> <span class="faint" title="{{ n.created_at | isodate }}">{{ n.created_at | timeago }}</span></p>
+      <p class="note-body pre">{{ n.body | mentions }}</p>
+    </li>
+    {% endfor %}
+  </ol>
+  {% endif %}
+  <form class="note-form" hx-post="/cases/{{ case.id }}/entities/{{ entity.id }}/notes" hx-target="#drawer-body" hx-swap="innerHTML">
+    <label class="visually-hidden" for="note-body">Add a note</label>
+    <textarea id="note-body" name="body" rows="2" required maxlength="4000"
+      placeholder="Add a note. Type @ and an email to notify someone on this case{% if members | length > 1 %} ({{ members | join(', ') }}){% endif %}."></textarea>
+    <button class="btn btn-sm" type="submit">Add note</button>
+  </form>
+</section>

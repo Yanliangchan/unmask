@@ -92,3 +92,56 @@ async def diff_runs(session: AsyncSession, case_id: uuid.UUID, run_a: ScanRun, r
     diff.changed.sort(key=key)
     diff.gone.sort(key=lambda item: (not item.real, -item.entity.confidence))
     return diff
+
+
+@dataclass
+class TrackPoint:
+    run: ScanRun
+    at: object  # datetime
+    position: float  # 0..1 along the track
+    new: int  # entities no earlier scan had seen
+    seen: int  # entities this scan saw at all
+    failed: int  # tools that failed in this scan
+
+
+async def timeline_track(session: AsyncSession, case_id: uuid.UUID, runs: list[ScanRun]) -> list[TrackPoint]:
+    """One point per scan, placed by time, with how much it newly found.
+
+    Positions are proportional to time, but points closer than 4% apart are
+    spread so a burst of scans in one afternoon stays legible.
+    """
+    runs = sorted((r for r in runs if r.status != "queued"), key=lambda r: r.run_number)
+    if not runs:
+        return []
+    entities = (await session.execute(select(Entity.id, Entity.merged_into_id).where(Entity.case_id == case_id))).all()
+    owner = {eid: (merged or eid) for eid, merged in entities}
+    rows = await session.execute(
+        select(EntityObservation.scan_run_id, EntityObservation.entity_id).where(
+            EntityObservation.scan_run_id.in_([r.id for r in runs])
+        )
+    )
+    per_run: dict[uuid.UUID, set[uuid.UUID]] = defaultdict(set)
+    for run_id, entity_id in rows.all():
+        if entity_id in owner:
+            per_run[run_id].add(owner[entity_id])
+
+    times = [r.completed_at or r.started_at or r.created_at for r in runs]
+    start, end = times[0], times[-1]
+    span = (end - start).total_seconds() if end and start else 0
+    positions = [((t - start).total_seconds() / span) if span > 0 else 0.0 for t in times]
+    if len(runs) > 1 and span <= 0:
+        positions = [i / (len(runs) - 1) for i in range(len(runs))]
+    gap = min(0.04, 1 / max(1, len(runs) - 1))
+    for i in range(1, len(positions)):
+        positions[i] = max(positions[i], positions[i - 1] + gap)
+    # Spreading can push the last points past the end; scale back into range.
+    top = positions[-1] or 1.0
+    positions = [p / top if top > 1 else p for p in positions]
+
+    seen_before: set[uuid.UUID] = set()
+    points = []
+    for run, at, pos in zip(runs, times, positions, strict=True):
+        found = per_run.get(run.id, set())
+        points.append(TrackPoint(run, at, pos, len(found - seen_before), len(found), len(run.tools_failed or [])))
+        seen_before |= found
+    return points

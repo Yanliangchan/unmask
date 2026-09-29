@@ -1,8 +1,8 @@
 {% import "components/ui.html" as ui %}
 {% set e = row.entity %}
 <tbody id="ent-{{ e.id }}" class="entity{% if e.confirmed_flag %} is-confirmed{% endif %}">
-  <tr class="entity-row" data-expand="#detail-{{ e.id }}"
-      hx-get="/cases/{{ case.id }}/entities/{{ e.id }}" hx-target="#detail-{{ e.id }} .detail-body" hx-trigger="expand once">
+  <tr class="entity-row" data-drawer="/cases/{{ case.id }}/entities/{{ e.id }}/drawer" data-entity="{{ e.id }}">
+    <td class="col-select">{% if not e.is_seed %}<input type="checkbox" class="row-select" value="{{ e.id }}" data-stop aria-label="Select {{ e.value }}">{% endif %}</td>
     <td class="col-confirm">
       <button class="confirm-toggle" type="button" data-stop aria-pressed="{{ 'true' if e.confirmed_flag else 'false' }}"
               title="{{ 'Confirmed by you. Select to undo.' if e.confirmed_flag else 'Confirm this belongs to the subject' }}"
@@ -11,7 +11,7 @@
       </button>
     </td>
     <td class="value-cell">
-      <button type="button" class="sr-toggle" data-row-toggle aria-expanded="false" aria-controls="detail-{{ e.id }}">Evidence for {{ e.value }}</button>
+      <button type="button" class="sr-toggle" data-row-toggle aria-haspopup="dialog" aria-controls="drawer">Evidence for {{ e.value }}</button>
       {% if e.attributes.get('url') %}
       <a class="ident ident-cut" href="{{ e.attributes.url }}" target="_blank" rel="noopener noreferrer nofollow" data-stop title="{{ e.value }}">{{ e.value }}</a>
       {% else %}
@@ -28,7 +28,7 @@
       <details class="menu" data-stop>
         <summary class="btn btn-ghost btn-sm btn-icon" data-stop aria-label="Actions for {{ e.value }}">{{ ui.icon("more") }}</summary>
         <div class="menu-list" role="menu">
-          <button type="button" role="menuitem" data-open-row="#ent-{{ e.id }}">Show evidence</button>
+          <button type="button" role="menuitem" data-open-row="#ent-{{ e.id }}">{{ ui.icon("note") }}Evidence &amp; notes</button>
           <button type="button" role="menuitem" data-stop hx-get="/cases/{{ case.id }}/entities/{{ e.id }}/merge"
                   hx-target="#merge-{{ e.id }}" data-reveal="#merge-row-{{ e.id }}">{{ ui.icon("merge") }}Merge with…</button>
           {% if not e.is_seed %}
@@ -47,6 +47,5 @@
       </details>
     </td>
   </tr>
-  <tr id="merge-row-{{ e.id }}" class="merge-row" hidden><td colspan="8" id="merge-{{ e.id }}"></td></tr>
-  <tr id="detail-{{ e.id }}" class="detail-row" hidden><td colspan="8"><div class="detail-body">{{ ui.skeleton(3) }}</div></td></tr>
+  <tr id="merge-row-{{ e.id }}" class="merge-row" hidden><td colspan="9" id="merge-{{ e.id }}"></td></tr>
 </tbody>

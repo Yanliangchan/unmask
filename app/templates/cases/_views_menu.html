@@ -1,0 +1,23 @@
+{% import "components/ui.html" as ui %}
+<div class="menu-list views-list" role="menu">
+  <p class="menu-heading">Views</p>
+  {% for label, params in built_in %}
+  <button type="button" role="menuitem" data-view='{{ params | tojson }}'>{{ label }}</button>
+  {% endfor %}
+  {% if views %}
+  <p class="menu-heading">Saved by you</p>
+  {% for v in views %}
+  <div class="view-row">
+    <button type="button" role="menuitem" data-view='{{ v.params | tojson }}'>{{ v.name }}</button>
+    <button type="button" class="btn btn-ghost btn-xs btn-icon" aria-label="Delete view {{ v.name }}"
+            hx-post="/cases/{{ case.id }}/views/{{ v.id }}/delete" hx-target="#views-menu" hx-swap="innerHTML">{{ ui.icon("x") }}</button>
+  </div>
+  {% endfor %}
+  {% endif %}
+  <div class="menu-sep"></div>
+  <form class="view-save" hx-post="/cases/{{ case.id }}/views" hx-include="#entity-filters" hx-target="#views-menu" hx-swap="innerHTML">
+    <label class="visually-hidden" for="view-name">Save current filters as</label>
+    <input id="view-name" type="text" name="name" maxlength="80" placeholder="Save current filters as…" required>
+    <button class="btn btn-sm" type="submit">Save</button>
+  </form>
+</div>

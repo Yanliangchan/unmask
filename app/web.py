@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from functools import lru_cache
@@ -12,7 +13,7 @@ from typing import Any
 
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
-from markupsafe import Markup
+from markupsafe import Markup, escape
 
 from app.config import get_settings
 from app.models import SOURCE_RELIABILITY
@@ -187,6 +188,17 @@ def _explain_failure(tool: str, error: str):
 
 
 templates.env.globals["explain_failure"] = _explain_failure
+
+_MENTION_RE = re.compile(r"@([A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})")
+
+
+def _mentions(text: str) -> Markup:
+    """Escape a note, then highlight @mentions. Nothing the user typed is rendered as HTML."""
+    safe = str(escape(text or ""))
+    return Markup(_MENTION_RE.sub(r'<span class="mention">@\1</span>', safe))  # noqa: S704 — input escaped above
+
+
+templates.env.filters["mentions"] = _mentions
 
 
 def _strength(entity) -> tuple[str, str]:

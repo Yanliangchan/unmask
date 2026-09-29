@@ -323,3 +323,53 @@ class AccessLog(Base):
     detail: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     ip: Mapped[str | None] = mapped_column(String(64))
     timestamp: Mapped[datetime] = _now()
+
+
+class SavedView(Base):
+    """A named set of entity filters, saved by one analyst for one case."""
+
+    __tablename__ = "saved_views"
+    __table_args__ = (UniqueConstraint("case_id", "user_id", "name", name="uq_saved_views_name"),)
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    case_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("investigations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    params: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    created_at: Mapped[datetime] = _now()
+
+
+class Note(Base):
+    """An analyst's note on a finding. The text is case content, so it is encrypted."""
+
+    __tablename__ = "notes"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    case_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("investigations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    entity_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("entities.id", ondelete="CASCADE"), index=True)
+    author_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    body: Mapped[str] = mapped_column(EncryptedText, nullable=False)
+    # Users @mentioned in the note (ids), for notifications.
+    mentions: Mapped[list[str]] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    created_at: Mapped[datetime] = _now()
+
+
+class Notification(Base):
+    """Something a user should know about: a scan finished, a mention, a watched case changed."""
+
+    __tablename__ = "notifications"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    case_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("investigations.id", ondelete="CASCADE"), index=True)
+    # scan_finished | watch_changes | mention | review_ready
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    # Written without identifiers ("3 new findings in <case>"), but encrypted anyway.
+    text: Mapped[str] = mapped_column(EncryptedText, nullable=False)
+    url: Mapped[str | None] = mapped_column(Text)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = _now()

@@ -264,7 +264,7 @@ async def workspace(
     log_access(session, "view_case", user_id=user.id, case_id=case.id, ip=client_ip(request))
     await session.commit()
     ctx = await case_shell(session, case, user, "entities")
-    return render(request, "cases/workspace.html", {**ctx, **await _entity_filter_options(session, case)})
+    return render(request, "cases/workspace.html", {**ctx, **await _entity_filter_options(session, case, user)})
 
 
 @router.get("/cases/{case_id}/graph")
@@ -278,9 +278,16 @@ async def graph_page(
     return render(request, "cases/graph.html", await case_shell(session, case, user, "graph"))
 
 
-async def _entity_filter_options(session: AsyncSession, case) -> dict:
+async def _entity_filter_options(session: AsyncSession, case, user: User) -> dict:
+    from app.routes.workspace import BUILT_IN_VIEWS, views_for
+
     types = (await session.scalars(select(Entity.type).where(Entity.case_id == case.id).distinct())).all()
-    return {"entity_types": sorted(types), "tool_names": [a.name for a in all_adapters()] + ["analyst"]}
+    return {
+        "entity_types": sorted(types),
+        "tool_names": [a.name for a in all_adapters()] + ["analyst"],
+        "views": await views_for(session, case.id, user),
+        "built_in": BUILT_IN_VIEWS,
+    }
 
 
 def _filters_from_query(request: Request) -> EntityFilters:
@@ -471,7 +478,7 @@ async def case_tab(
     case = await get_case_for_user(session, case_id, user)
     if tab == "entities":
         return render(
-            request, "cases/_entities_tab.html", {"case": case, **await _entity_filter_options(session, case)}
+            request, "cases/_entities_tab.html", {"case": case, **await _entity_filter_options(session, case, user)}
         )
     if tab != "graph":
         raise HTTPException(status_code=404)

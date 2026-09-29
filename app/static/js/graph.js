@@ -22,6 +22,8 @@
   function typeOf(t) { return TYPES[t] || TYPES.other; }
 
   var cy = null;
+  // Focus mode: only these node ids are shown; tapping a node adds its neighbours.
+  var focus = null;
   var scriptPromise = null;
   var current = document.currentScript;
   var cytoscapeSrc = (current && current.dataset.cytoscape) || "/static/js/vendor/cytoscape.min.js";
@@ -103,11 +105,36 @@
       if (only("confirmed")) cy.nodes().filter(function (n) { return !n.data("confirmed") && !n.data("seed"); }).addClass("hidden");
       if (only("pivot")) cy.nodes().filter(function (n) { return !n.data("pivot"); }).addClass("hidden");
       if (!only("suggested")) cy.edges("[?suggested]").addClass("hidden");
+      if (focus) cy.nodes().filter(function (n) { return !focus[n.id()]; }).addClass("hidden");
       cy.edges().filter(function (e) { return e.source().hasClass("hidden") || e.target().hasClass("hidden"); }).addClass("hidden");
     });
     var shown = cy.nodes().not(".hidden").length;
     var stats = root.querySelector("[data-graph-stats]");
-    if (stats) stats.textContent = shown + " of " + cy.nodes().length + " entities shown";
+    if (stats) stats.textContent = shown + " of " + cy.nodes().length + " entities shown" + (focus ? " (focus: select a node to expand it)" : "");
+    var exit = root.querySelector("[data-graph-unfocus]");
+    if (exit) exit.hidden = !focus;
+  }
+
+  // Start focus on one node (its direct links), or grow the focus by a node's neighbours.
+  function expand(root, node) {
+    if (!focus) focus = {};
+    node.closedNeighborhood("node").forEach(function (n) { focus[n.id()] = true; });
+    applyFilters(root);
+    var visible = cy.nodes().not(".hidden");
+    visible.layout({ name: "concentric", animate: !style().reduce, padding: 40, fit: true,
+      concentric: function (n) { return n.id() === node.id() ? 2 : 1; }, levelWidth: function () { return 1; } }).run();
+  }
+
+  function exportPng(root) {
+    if (!cy) return;
+    var bg = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim() || "#ffffff";
+    var url = cy.png({ full: true, scale: 2, bg: bg, output: "base64uri" });
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = (root.dataset.caseName || "case").replace(/[^\w.-]+/g, "-").slice(0, 60) + "-graph.png";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   }
 
   function openPanel(root, node) {
@@ -131,7 +158,11 @@
     cy.one("layoutstop", function () { if (cy.zoom() > 1.1) { cy.zoom(1.1); cy.center(); } });
     cy.on("mouseover", "edge", function (e) { e.target.addClass("hover"); });
     cy.on("mouseout", "edge", function (e) { e.target.removeClass("hover"); });
-    cy.on("tap", "node", function (e) { openPanel(root, e.target); });
+    cy.on("tap", "node", function (e) {
+      openPanel(root, e.target);
+      var mode = root.querySelector("[data-graph-focus]");
+      if (focus || (mode && mode.checked)) expand(root, e.target);
+    });
     renderLegend(root, elements.filter(function (el) { return el.group === "nodes"; }));
     applyFilters(root);
   }
@@ -146,15 +177,24 @@
 
   function init() {
     var root = document.querySelector("[data-graph]");
+    focus = null;
     if (!root || root.dataset.ready) return;
     root.dataset.ready = "1";
     root.addEventListener("change", function (e) { if (e.target.matches("[data-graph-filter]")) applyFilters(root); });
     root.addEventListener("click", function (e) {
-      if (e.target.closest("[data-graph-reset]")) {
-        root.querySelectorAll("[data-graph-filter]").forEach(function (el) { el.checked = el.dataset.graphFilter === "suggested"; });
+      if (e.target.closest("[data-graph-reset]") || e.target.closest("[data-graph-unfocus]")) {
+        var wasFocused = !!focus;
+        focus = null;
+        if (e.target.closest("[data-graph-reset]")) {
+          root.querySelectorAll("[data-graph-filter]").forEach(function (el) { el.checked = el.dataset.graphFilter === "suggested"; });
+          var mode = root.querySelector("[data-graph-focus]");
+          if (mode) mode.checked = false;
+        }
         applyFilters(root);
-        if (cy) cy.fit(undefined, 30);
+        if (cy && wasFocused) cy.layout({ name: "cose", animate: !style().reduce, nodeRepulsion: 9000, idealEdgeLength: 90, padding: 30, randomize: false, nodeDimensionsIncludeLabels: true }).run();
+        else if (cy) cy.fit(undefined, 30);
       }
+      if (e.target.closest("[data-graph-png]")) exportPng(root);
       if (e.target.closest("[data-graph-panel-close]")) root.querySelector("[data-graph-panel]").hidden = true;
     });
     var stats = root.querySelector("[data-graph-stats]");

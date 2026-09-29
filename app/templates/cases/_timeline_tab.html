@@ -1,3 +1,29 @@
+{% if track %}
+<section class="track-card" aria-labelledby="track-title">
+  <h2 id="track-title" class="track-title">Scans over time <span class="faint small">bar height is how many new findings each scan turned up</span></h2>
+  <div class="track" role="list" aria-label="Scans in time order">
+    <div class="track-axis" aria-hidden="true"></div>
+    {% for p in track %}
+    <a class="track-point{% if p.failed %} has-failed{% endif %}{% if run_b and p.run.id == run_b.id %} is-current{% endif %} trig-{{ p.run.triggered_by }}"
+       href="/cases/{{ case.id }}/timeline?a={{ track[loop.index0 - 1].run.run_number if not loop.first else p.run.run_number }}&b={{ p.run.run_number }}" role="listitem"
+       aria-label="Scan {{ p.run.run_number }}, {{ p.at | isodate }}{% if p.run.triggered_by != 'manual' %} ({{ 'follow-up' if p.run.triggered_by == 'pivot_chain' else 'watch' }}){% endif %}: {{ p.new }} new, {{ p.seen }} seen{% if p.failed %}, {{ p.failed }} tool{{ 's' if p.failed != 1 }} failed{% endif %}. Compare with the scan before."
+       title="Scan {{ p.run.run_number }}: {{ p.new }} new, {{ p.seen }} seen{% if p.failed %}, {{ p.failed }} failed{% endif %}"
+       style="left: {{ '%.2f' | format(p.position * 100) }}%">
+      <span class="track-bar" aria-hidden="true" style="height: {{ '%.0f' | format(4 + 56 * (p.new / peak if peak else 0)) }}px"></span>
+      <span class="track-dot" aria-hidden="true"></span>
+      <span class="track-label" aria-hidden="true">{{ p.run.run_number }}</span>
+    </a>
+    {% endfor %}
+  </div>
+  <p class="track-range faint small"><span>{{ track[0].at | isodate }}</span><span>{{ track[-1].at | isodate }}</span></p>
+  <ul class="track-key faint small" role="list" aria-label="Key">
+    <li><span class="key-dot"></span>Scan you ran</li>
+    <li><span class="key-dot trig-watch"></span>Watch mode</li>
+    <li><span class="key-dot trig-pivot_chain"></span>Follow-up</li>
+    <li><span class="key-dot has-failed"></span>Some tools failed</li>
+  </ul>
+</section>
+{% endif %}
 {% if runs | length < 2 %}
 <div class="empty">
   <h2>Nothing to compare yet</h2>

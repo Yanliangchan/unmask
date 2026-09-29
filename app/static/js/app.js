@@ -137,17 +137,44 @@
     });
   }
 
-  // --- Entity row expand ----------------------------------------------------
-  function toggleRow(row) {
-    var detail = document.querySelector(row.dataset.expand);
-    if (!detail) return;
-    var open = detail.hidden;
-    detail.hidden = !open;
-    row.dataset.open = open ? "1" : "";
-    var btn = row.querySelector("[data-row-toggle]");
-    if (btn) btn.setAttribute("aria-expanded", open ? "true" : "false");
-    if (open && window.htmx) window.htmx.trigger(row, "expand");
+  // --- Evidence drawer -------------------------------------------------------
+  // Selecting a finding opens its evidence, actions and notes in a side drawer,
+  // so the table keeps its place. Escape or the close button hands focus back.
+  var drawerOpener = null;
+  var drawerRow = null;
+  function openDrawer(row) {
+    var drawer = document.getElementById("drawer");
+    if (!row || !drawer || !window.htmx) return;
+    if (drawerRow) drawerRow.classList.remove("is-active");
+    drawerRow = row;
+    row.classList.add("is-active");
+    drawerOpener = document.activeElement;
+    drawer.hidden = false;
+    document.body.classList.add("drawer-open");
+    window.htmx.ajax("GET", row.dataset.drawer, { target: "#drawer-body", swap: "innerHTML" }).then(function () {
+      var title = document.getElementById("drawer-title");
+      if (title) { title.setAttribute("tabindex", "-1"); title.focus({ preventScroll: true }); }
+    });
   }
+  function closeDrawer() {
+    var drawer = document.getElementById("drawer");
+    if (!drawer || drawer.hidden) return false;
+    drawer.hidden = true;
+    document.body.classList.remove("drawer-open");
+    if (drawerRow) drawerRow.classList.remove("is-active");
+    var back = drawerRow && document.getElementById(drawerRow.closest("tbody").id);
+    var focusTo = back ? back.querySelector("[data-row-toggle]") : drawerOpener;
+    drawerRow = null;
+    if (focusTo && focusTo.focus) focusTo.focus();
+    return true;
+  }
+  window.unmaskDrawer = { open: openDrawer, close: closeDrawer };
+  // Decisions made anywhere reload what the drawer shows.
+  document.body.addEventListener("entities-changed", function () {
+    var drawer = document.getElementById("drawer");
+    if (!drawer || drawer.hidden || !drawerRow || !window.htmx) return;
+    window.htmx.ajax("GET", drawerRow.dataset.drawer, { target: "#drawer-body", swap: "innerHTML" });
+  });
 
   // "Merge with…" reveals its picker row; Cancel hides it again.
   document.addEventListener("click", function (e) {
@@ -158,19 +185,117 @@
   });
 
   document.addEventListener("click", function (e) {
+    if (e.target.closest("[data-drawer-close]")) { closeDrawer(); return; }
     var tog = e.target.closest && e.target.closest("[data-row-toggle]");
-    if (tog) { toggleRow(tog.closest("[data-expand]")); return; }
-    if (e.target.closest("[data-stop], a, button, input, select, label")) {
+    if (tog) { openDrawer(tog.closest("[data-drawer]")); return; }
+    if (e.target.closest("[data-stop], a, button, input, select, label, summary")) {
       var toast = e.target.closest("[data-dismiss-toast]");
       if (toast) toast.closest(".toast").remove();
       return;
     }
-    var row = e.target.closest("[data-expand]");
-    if (row) toggleRow(row);
+    // The whole selection cell is the checkbox's hit area, not a way into the drawer.
+    var cell = e.target.closest("td.col-select");
+    if (cell) {
+      var box = cell.querySelector(".row-select");
+      if (box) box.click();
+      return;
+    }
+    var row = e.target.closest("tr[data-drawer]");
+    if (row) openDrawer(row);
   });
   document.addEventListener("keydown", function (e) {
-    var row = e.target.closest && e.target.closest("[data-expand]");
-    if (row && (e.key === "Enter" || e.key === " ") && e.target === row) { e.preventDefault(); toggleRow(row); }
+    if (e.key !== "Escape") return;
+    if (document.querySelector("dialog[open]") || document.querySelector("details.menu[open]")) return;
+    if (closeDrawer()) e.preventDefault();
+  });
+
+  // --- Bulk selection ----------------------------------------------------------
+  function selectedIds() {
+    return qsa(document, "#entities .row-select:checked").map(function (b) { return b.value; });
+  }
+  function syncBulk() {
+    var bar = document.getElementById("bulkbar");
+    if (!bar) return;
+    var ids = selectedIds();
+    bar.hidden = ids.length === 0;
+    var count = bar.querySelector("[data-bulk-count]");
+    if (count) count.textContent = String(ids.length);
+    var all = document.querySelector("#entities [data-select-all]");
+    if (all) {
+      var boxes = qsa(document, "#entities .row-select");
+      all.checked = boxes.length > 0 && ids.length === boxes.length;
+      all.indeterminate = ids.length > 0 && ids.length < boxes.length;
+    }
+    qsa(document, "#entities tbody.entity").forEach(function (tb) {
+      var box = tb.querySelector(".row-select");
+      tb.classList.toggle("is-selected", !!(box && box.checked));
+    });
+  }
+  var lastChecked = null;
+  document.addEventListener("click", function (e) {
+    var box = e.target.closest && e.target.closest("#entities .row-select");
+    if (!box) return;
+    // Shift-click selects the run of rows between this box and the last one.
+    if (e.shiftKey && lastChecked && lastChecked !== box) {
+      var boxes = qsa(document, "#entities .row-select");
+      var a = boxes.indexOf(lastChecked), b = boxes.indexOf(box);
+      if (a > -1 && b > -1) boxes.slice(Math.min(a, b), Math.max(a, b) + 1).forEach(function (x) { x.checked = box.checked; });
+    }
+    lastChecked = box;
+  });
+  document.addEventListener("change", function (e) {
+    if (e.target.matches && e.target.matches("#entities [data-select-all]")) {
+      qsa(document, "#entities .row-select").forEach(function (b) { b.checked = e.target.checked; });
+    }
+    if (e.target.matches && e.target.matches("#entities .row-select, #entities [data-select-all]")) syncBulk();
+  });
+  // The table reloads as results arrive; keep what the analyst had selected.
+  var keepSelected = [];
+  document.addEventListener("htmx:beforeSwap", function (e) {
+    if (e.detail && e.detail.target && e.detail.target.id === "entities") keepSelected = selectedIds();
+  });
+  document.addEventListener("htmx:afterSettle", function (e) {
+    if (!(e.detail && e.detail.target && e.detail.target.id === "entities")) return;
+    lastChecked = null;
+    qsa(document, "#entities .row-select").forEach(function (b) { if (keepSelected.indexOf(b.value) > -1) b.checked = true; });
+    keepSelected = [];
+    syncBulk();
+  });
+  document.addEventListener("click", function (e) {
+    if (e.target.closest && e.target.closest("[data-bulk-clear]")) {
+      qsa(document, "#entities .row-select, #entities [data-select-all]").forEach(function (b) { b.checked = false; });
+      syncBulk();
+      return;
+    }
+    var btn = e.target.closest && e.target.closest("[data-bulk]");
+    var list = document.getElementById("entities");
+    if (!btn || !list || !window.htmx) return;
+    var ids = selectedIds();
+    if (!ids.length) return;
+    window.htmx.ajax("POST", "/cases/" + list.dataset.case + "/entities/bulk", {
+      source: btn, swap: "none",
+      values: { action: btn.dataset.bulk, reason: btn.dataset.reason || "", ids: ids.join(",") }
+    }).then(function () {
+      keepSelected = [];
+      qsa(document, "#entities .row-select, #entities [data-select-all]").forEach(function (b) { b.checked = false; });
+      syncBulk();
+    });
+  });
+
+  // --- Saved views: apply a view's filters to the entity toolbar ------------------------
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest && e.target.closest("[data-view]");
+    var form = document.getElementById("entity-filters");
+    if (!btn || !form) return;
+    var params = {};
+    try { params = JSON.parse(btn.dataset.view); } catch (err) { return; }
+    ["q", "type", "show", "tool"].forEach(function (k) {
+      var el = form.elements[k];
+      if (el) el.value = params[k] || (k === "show" ? "best" : "");
+    });
+    form.dispatchEvent(new Event("change", { bubbles: true }));
+    var menu = btn.closest("details.menu");
+    if (menu) menu.removeAttribute("open");
   });
 
   // --- Range outputs ----------------------------------------------------------
@@ -247,10 +372,9 @@
     if (!pendingFocus) return;
     var body = document.getElementById("ent-" + pendingFocus);
     if (!body) return;
-    var row = body.querySelector("[data-expand]");
     body.classList.add("is-focused");
     body.scrollIntoView({ block: "center" });
-    if (row && row.dataset.open !== "1") toggleRow(row);
+    openDrawer(body.querySelector("[data-drawer]"));
     pendingFocus = null;
   }
   document.addEventListener("htmx:afterSettle", focusPending);
@@ -287,8 +411,7 @@
     var btn = e.target.closest("[data-open-row]");
     if (!btn) return;
     var body = document.querySelector(btn.dataset.openRow);
-    var row = body && body.querySelector("[data-expand]");
-    if (row && row.dataset.open !== "1") toggleRow(row);
+    openDrawer(body && body.querySelector("[data-drawer]"));
   });
 
   // Whole table rows that link somewhere (the case list).

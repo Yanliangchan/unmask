@@ -16,7 +16,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.config import get_settings
 from app.crypto import cipher
 from app.db import dispose_engine, sessionmaker
-from app.routes import auth, cases, correlation, pivots, public, review, search, watch, web_tab
+from app.routes import auth, cases, correlation, pivots, public, review, search, watch, web_tab, workspace
 from app.routes import settings as settings_routes
 from app.security import LoginRequired, ensure_admin_user
 from app.services.scans import fail_interrupted_runs
@@ -150,6 +150,7 @@ def create_app() -> FastAPI:
     app.include_router(web_tab.router)
     app.include_router(review.router)
     app.include_router(search.router)
+    app.include_router(workspace.router)
     return app
 
 
