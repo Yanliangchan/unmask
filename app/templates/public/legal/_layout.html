@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block main_class %}container legal{% endblock %}
+{% block content %}
+<div class="legal-wrap">
+  <nav class="legal-nav" aria-label="Legal and trust">
+    <p class="legal-nav-title">Legal &amp; trust</p>
+    <ul role="list">
+      {% for href, label in legal_pages %}
+      <li><a href="{{ href }}" {% if href == request.url.path %}aria-current="page"{% endif %}>{{ label }}</a></li>
+      {% endfor %}
+    </ul>
+    {% block toc %}{% endblock %}
+  </nav>
+  <article class="legal-doc">
+    {% block doc %}{% endblock %}
+  </article>
+</div>
+{% endblock %}

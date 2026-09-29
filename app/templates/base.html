@@ -68,6 +68,7 @@
           {{ ui.icon("contrast") }}<span>Theme: <span data-theme-label>{{ theme | capitalize }}</span></span>
         </button>
         <button class="side-btn" type="button" data-shortcuts-open>{{ ui.icon("keyboard") }}<span>Keyboard shortcuts</span><kbd>?</kbd></button>
+        <nav class="side-legal" aria-label="Legal and trust"><a href="/trust">Trust</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a></nav>
         <div class="side-user">
           <span class="avatar sm" aria-hidden="true">{{ user.email[:1] | upper }}</span>
           <a class="side-email" href="/account" title="Account and notification settings for {{ user.email }}">{{ user.email }}</a>
@@ -119,6 +120,7 @@
   {% block footer %}
   <footer class="footer">
     <span>unmask is for authorized investigations with a documented lawful basis.</span>
+    <nav class="footer-links" aria-label="Legal and trust"><a href="/trust">Trust</a><a href="/terms">Terms</a><a href="/acceptable-use">Acceptable use</a><a href="/privacy">Privacy</a></nav>
   </footer>
   {% endblock %}
   {% endif %}

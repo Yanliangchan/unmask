@@ -308,6 +308,7 @@ default (`UNMASK_USERNAME_SITES=all` for everything they know).
    | `PUBLIC_BASE_URL` | your public URL, e.g. `https://unmask.example.com` (canonical URLs, sitemap, Open Graph) |
    | `UNMASK_H8MAIL_KEYS` | optional breach API keys, e.g. `hibp=…` — h8mail stays "Not configured" without one |
    | `UNMASK_PROXY_URL`, `UNMASK_PROXY_TOOLS` | optional outbound proxy (a residential one works best) for tools that sites block from cloud IPs; defaults to Holehe, Sherlock, Maigret and the profile-page check |
+   | `UNMASK_OPERATOR_NAME`, `UNMASK_LEGAL_CONTACT`, `UNMASK_SECURITY_CONTACT`, `UNMASK_GOVERNING_LAW` | who runs this deployment and how to reach them; shown in the Terms, Privacy Notice and Trust pages and in `/.well-known/security.txt`. Governing law defaults to Singapore |
    | `UNMASK_SMTP_HOST`, `UNMASK_SMTP_PORT`, `UNMASK_SMTP_USER`, `UNMASK_SMTP_PASSWORD`, `UNMASK_SMTP_FROM` | optional mail server for email notifications (port 465 uses TLS, others STARTTLS); emails never contain case names or findings |
    | `UNMASK_SERPER_KEY` (or `UNMASK_SERPAPI_KEY`, `UNMASK_GOOGLE_API_KEY` + `UNMASK_GOOGLE_CX`, `UNMASK_BRAVE_API_KEY`) | web search provider for the targeted searches and the Web tab; without one, web search stays "Not configured" |
 
@@ -365,14 +366,26 @@ Register it in `app/adapters/registry.py`. Rules:
 ## Operational footprint & ethics
 
 - **Authorization first.** Cases require a written authorization note and lawful-basis
-  confirmation, stored with the case.
+  confirmation, enforced by a database constraint and shown at the top of every report.
+- **Terms accepted per person.** Every user accepts the Terms of Service and Acceptable Use
+  Policy before using the app; the accepted version and time are stored, and bumping
+  `TERMS_VERSION` in `app/legal.py` asks everyone again.
 - **Your footprint is visible.** Repeated automated lookups against one person are
-  themselves a detectable pattern — to the platforms queried and potentially to the subject.
-  Scan only as often as the investigation needs; watch mode (Phase 6) will stagger runs.
-- **Retention.** Each case has `retention_days` (default 90). Enforced purging ships with
-  watch mode; until then, delete cases you no longer need.
-- **Humans conclude.** Report export (Phase 8) will require a human-written analyst
-  assessment. The platform presents correlated evidence; it does not decide who someone is.
-- **Search engines.** Only the public landing page is indexable. Everything behind the login
-  sends `X-Robots-Tag: noindex` and `Cache-Control: no-store`, and `robots.txt` disallows it.
-  Set `UNMASK_ALLOW_INDEXING=false` to hide the deployment from crawlers entirely.
+  themselves a detectable pattern, to the platforms queried and potentially to the subject.
+  Scan only as often as the investigation needs; watch mode staggers runs.
+- **Retention.** Each case has `retention_days` (default 90) and is purged when it expires.
+- **Humans conclude.** Reports and share links require a human-written analyst assessment.
+  The platform presents correlated evidence; it does not decide who someone is.
+- **Search engines.** Only the landing page and the legal pages are indexable. Everything
+  behind the login, and every share link, sends `X-Robots-Tag: noindex` and
+  `Cache-Control: no-store`. Set `UNMASK_ALLOW_INDEXING=false` to hide the deployment from
+  crawlers entirely.
+
+### Legal pages
+
+`/terms`, `/acceptable-use`, `/privacy` and `/trust` are templates in
+`app/templates/public/legal/`. They are written for whoever operates the deployment: set
+`UNMASK_OPERATOR_NAME`, `UNMASK_LEGAL_CONTACT`, `UNMASK_SECURITY_CONTACT` and
+`UNMASK_GOVERNING_LAW`. They are a starting point, not legal advice: have them reviewed by a
+lawyer qualified where you operate before relying on them, since some liability can't be
+limited and requirements differ between countries.

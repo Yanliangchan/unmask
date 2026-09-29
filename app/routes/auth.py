@@ -78,3 +78,61 @@ async def logout(
         await session.commit()
     request.session.clear()
     return RedirectResponse("/login", status_code=303)
+
+
+# --- Terms acceptance (clickwrap) ------------------------------------------------------------------
+
+
+def _accept_page(request: Request, user: User, next_url: str, error: str | None = None, status_code: int = 200):
+    from app.legal import PAGES, TERMS_VERSION, details
+
+    return render(
+        request,
+        "auth/accept_terms.html",
+        {
+            "seo": Seo(title="Terms of Service", path="/legal/accept"),
+            "user": user,
+            "accepting": True,
+            "L": details(),
+            "legal_pages": PAGES,
+            "next": next_url,
+            "error": error,
+            "updated": user.terms_version is not None and user.terms_version != TERMS_VERSION,
+        },
+        status_code=status_code,
+    )
+
+
+@router.get("/legal/accept")
+async def accept_terms_form(
+    request: Request, next: str | None = None, user: User | None = Depends(current_user_optional)
+):
+    from app.legal import needs_acceptance
+
+    if user is None:
+        return RedirectResponse("/login?next=/legal/accept", status_code=303)
+    if not needs_acceptance(user):
+        return RedirectResponse(_safe_next(next), status_code=303)
+    return _accept_page(request, user, _safe_next(next))
+
+
+@router.post("/legal/accept", dependencies=[Depends(verify_csrf)])
+async def accept_terms(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    user: User | None = Depends(current_user_optional),
+):
+    from app.legal import TERMS_VERSION
+
+    if user is None:
+        return RedirectResponse("/login", status_code=303)
+    form = await request.form()
+    next_url = _safe_next(str(form.get("next") or "/"))
+    if form.get("agree_terms") != "on" or form.get("agree_responsibility") != "on":
+        return _accept_page(request, user, next_url, error="Tick both boxes to continue.", status_code=422)
+    user.terms_version = TERMS_VERSION
+    user.terms_accepted_at = datetime.now(UTC)
+    log_access(session, "accept_terms", user_id=user.id, ip=client_ip(request), version=TERMS_VERSION,
+               user_agent=(request.headers.get("user-agent") or "")[:300])  # fmt: skip
+    await session.commit()
+    return RedirectResponse(next_url, status_code=303)

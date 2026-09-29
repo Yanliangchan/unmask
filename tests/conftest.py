@@ -93,6 +93,11 @@ async def login(client, email="admin@example.com", password="correct-horse-batte
     resp = await client.post("/login", data={"email": email, "password": password, "csrf_token": token})
     assert resp.status_code == 303, resp.text
     home = await client.get("/")
+    if home.status_code == 303 and home.headers["location"].startswith("/legal/accept"):
+        page = await client.get("/legal/accept")
+        await client.post("/legal/accept", data={"csrf_token": csrf_from(page.text), "agree_terms": "on",
+                                                 "agree_responsibility": "on"})  # fmt: skip
+        home = await client.get("/")
     return csrf_from(home.text)
 
 

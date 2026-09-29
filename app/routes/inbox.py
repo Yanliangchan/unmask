@@ -10,9 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.audit import log_access
 from app.db import get_session
+from app.legal import needs_acceptance
 from app.models import User
 from app.routes.shell import case_shell
-from app.security import client_ip, current_user, verify_csrf
+from app.security import client_ip, current_user, current_user_optional, verify_csrf
 from app.services.activity import case_activity
 from app.services.cases import get_case_for_user
 from app.services.home import create_sample_case, sample_case_id
@@ -78,7 +79,12 @@ async def notifications_page(
 
 
 @router.get("/notifications/badge")
-async def notifications_badge(session: AsyncSession = Depends(get_session), user: User = Depends(current_user)):
+async def notifications_badge(
+    session: AsyncSession = Depends(get_session), user: User | None = Depends(current_user_optional)
+):
+    # Polled from every page, including the terms page: never redirect from here.
+    if user is None or needs_acceptance(user):
+        return HTMLResponse("")
     n = await unread_count(session, user.id)
     label = f"{n} unread notification{'s' if n != 1 else ''}"
     body = f'<span class="nav-badge" aria-label="{label}">{n if n < 100 else "99+"}</span>' if n else ""

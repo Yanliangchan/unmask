@@ -130,6 +130,10 @@ class LoginRequired(Exception):
     pass
 
 
+class TermsRequired(Exception):
+    """Signed in, but hasn't accepted the current Terms of Service yet."""
+
+
 async def current_user_optional(request: Request, session: AsyncSession = Depends(get_session)) -> User | None:
     raw = request.session.get("user_id")
     if not raw:
@@ -147,8 +151,12 @@ async def current_user_optional(request: Request, session: AsyncSession = Depend
 
 
 async def current_user(user: User | None = Depends(current_user_optional)) -> User:
+    from app.legal import needs_acceptance
+
     if user is None:
         raise LoginRequired()
+    if needs_acceptance(user):
+        raise TermsRequired()
     return user
 
 

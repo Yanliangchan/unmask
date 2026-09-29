@@ -99,6 +99,9 @@ class User(Base):
     preferences: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
     # Incoming-webhook URL for Slack (or a compatible service). It is a credential, so encrypted.
     slack_webhook: Mapped[str | None] = mapped_column(EncryptedText)
+    # Which version of the Terms and Acceptable Use Policy this user accepted, and when.
+    terms_version: Mapped[str | None] = mapped_column(String(20))
+    terms_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Investigation(Base):

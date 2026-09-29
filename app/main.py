@@ -31,7 +31,7 @@ from app.routes import (
     workspace,
 )
 from app.routes import settings as settings_routes
-from app.security import LoginRequired, ensure_admin_user
+from app.security import LoginRequired, TermsRequired, ensure_admin_user
 from app.services.scans import fail_interrupted_runs
 from app.services.tools import sync_tool_config
 from app.web import Seo, render
@@ -133,6 +133,15 @@ def create_app() -> FastAPI:
         if request.headers.get("hx-request") == "true":
             return RedirectResponse("/login", status_code=303, headers={"HX-Redirect": "/login"})
         return RedirectResponse(f"/login?next={request.url.path}", status_code=303)
+
+    @app.exception_handler(TermsRequired)
+    async def _terms_required(request: Request, exc: TermsRequired):
+        target = "/legal/accept"
+        if request.method == "GET" and request.url.path != "/":
+            target += f"?next={request.url.path}"
+        if request.headers.get("hx-request") == "true":
+            return RedirectResponse(target, status_code=303, headers={"HX-Redirect": target})
+        return RedirectResponse(target, status_code=303)
 
     @app.exception_handler(HTTPException)
     async def _http_error(request: Request, exc: HTTPException):

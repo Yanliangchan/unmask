@@ -67,6 +67,10 @@ async def dashboard(
 ):
     if user is None:
         return render_landing(request)
+    from app.legal import needs_acceptance
+
+    if needs_acceptance(user):
+        return RedirectResponse("/legal/accept", status_code=303)
     from app.services.home import attention, checklist, show_checklist
     from app.services.notifications import recent
 

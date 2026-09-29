@@ -1,0 +1,112 @@
+{% extends "public/legal/_layout.html" %}
+{% block toc %}
+<p class="legal-nav-title">On this page</p>
+<ol class="legal-toc">
+  <li><a href="#responsibility">Who is responsible for what</a></li>
+  <li><a href="#safeguards">Responsible-use safeguards</a></li>
+  <li><a href="#security">How data is protected</a></li>
+  <li><a href="#third-parties">What leaves the platform</a></li>
+  <li><a href="#retention">Retention and deletion</a></li>
+  <li><a href="#limits">Known limits</a></li>
+  <li><a href="#disclosure">Reporting a vulnerability</a></li>
+</ol>
+{% endblock %}
+{% block doc %}
+<header class="legal-head">
+  <p class="legal-kicker">Trust</p>
+  <h1>Trust at unmask</h1>
+  <p class="legal-meta">Updated {{ L.effective }}</p>
+  <div class="legal-summary">
+    <p>unmask handles information about real people, so it is built to make careful use the default: every case records who authorised it and on what basis, every decision and export is logged, identifiers are encrypted at rest, and nothing is kept longer than its retention period. This page describes those controls as they are, including their limits. It is a description, not a warranty: the <a href="/terms">Terms of Service</a> govern.</p>
+  </div>
+</header>
+
+<section id="responsibility">
+  <h2>Who is responsible for what</h2>
+  <p>unmask is a tool. The organisation that uses it decides who is researched, why, and what happens with the results, and is the controller of that personal data. The operator of this service{% if L.operator_is_named %} ({{ L.operator }}){% endif %} runs the software and its security. Where your organisation self-hosts unmask, it is both.</p>
+  <div class="table-wrap">
+  <table class="legal-table">
+    <caption class="visually-hidden">Shared responsibility</caption>
+    <thead><tr><th scope="col">Area</th><th scope="col">The operator</th><th scope="col">You, the customer</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">Whether an investigation is lawful</th><td>Provides the lawful-basis and authorisation gates</td><td><strong>Decides, documents and is accountable</strong></td></tr>
+      <tr><th scope="row">Who is researched, and why</th><td>No involvement</td><td><strong>Fully responsible</strong></td></tr>
+      <tr><th scope="row">Accuracy of findings</th><td>Shows scores, sources and reasons; makes no promise of accuracy</td><td><strong>Verifies before relying on anything</strong></td></tr>
+      <tr><th scope="row">Decisions about people</th><td>None: the software never decides</td><td><strong>Made by your people, under the law that applies</strong></td></tr>
+      <tr><th scope="row">Subjects' rights and notices</th><td>Refers requests to you</td><td><strong>Answers access, correction, deletion and objection requests</strong></td></tr>
+      <tr><th scope="row">Who can see a case</th><td>Enforces case-level access</td><td><strong>Chooses who to share with, and revokes access</strong></td></tr>
+      <tr><th scope="row">Retention</th><td>Deletes cases when their period ends</td><td><strong>Sets periods no longer than necessary</strong></td></tr>
+      <tr><th scope="row">Platform security</th><td><strong>Encryption, access control, patching, backups</strong></td><td>Strong passwords, protecting accounts, reporting misuse</td></tr>
+      <tr><th scope="row">API keys, proxies, webhooks you add</th><td>Stores them encrypted or in server settings</td><td><strong>Lawful to use, within their providers' terms</strong></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="safeguards">
+  <h2>Responsible-use safeguards</h2>
+  <ul class="legal-list">
+    <li><strong>No case without a basis.</strong> A case can't be created without an authorisation note and a lawful-basis confirmation. The database itself rejects a case without them, so no code path can skip the check. Both appear at the top of every report.</li>
+    <li><strong>Terms accepted per person.</strong> Every user accepts the Terms and Acceptable Use Policy before using the service, and again when they change. The version and time are recorded.</li>
+    <li><strong>Findings are presented as leads.</strong> Every finding carries a score, the sources that reported it, a source-reliability grade and the reasons behind its score. Reports lead with a human-written assessment and are only produced once one exists.</li>
+    <li><strong>Humans decide.</strong> The software confirms nothing on its own. "Same person" and "Not them" are decisions made by a named analyst, and each one is logged.</li>
+    <li><strong>Everything is attributable.</strong> Sign-ins, failed sign-ins, opening a case, every decision, note, snapshot, export, share and share-link view is written to an audit log with the user and time. Audit records survive case deletion.</li>
+    <li><strong>Access is per case.</strong> Only the owner and the people they share a case with can open it. Only the owner can share it, create external links or delete it.</li>
+    <li><strong>Sample data for learning.</strong> New users can practise on a sample case about an invented person, which can't be scanned.</li>
+  </ul>
+</section>
+
+<section id="security">
+  <h2>How data is protected</h2>
+  <ul class="legal-list">
+    <li><strong>Encryption at rest.</strong> Target values, findings and their details, notes, notifications, snapshots, relation explanations and Slack webhooks are encrypted in the database with Fernet (AES-128 in CBC mode with an HMAC-SHA256 authentication tag) before they are stored. Lookups use a keyed HMAC "blind index" with a separate key, so identifiers are never stored in the clear to be searchable. Keys can be rotated without downtime.</li>
+    <li><strong>Passwords</strong> are hashed with Argon2id. Repeated failed sign-ins are throttled and logged.</li>
+    <li><strong>In the browser.</strong> A strict Content Security Policy allows only the application's own scripts; every script is self-hosted, so analysts' browsers make no third-party requests while working a case. Pages are protected against cross-site request forgery and clickjacking, and no referrer is sent to outside sites.</li>
+    <li><strong>Search engines</strong> may index only the public pages (the home page and these legal pages). Everything behind sign-in is marked not to be indexed, and so are share links.</li>
+    <li><strong>Share links</strong> for people without an account are read-only, expire within at most 30 days, can be revoked at once, and only a hash of each link is stored. Every view is logged.</li>
+    <li><strong>Page snapshots</strong> are stored byte-for-byte with a SHA-256 fingerprint recorded at capture, so their integrity can be checked later. Captured pages are shown as plain text and never rendered inside the application. The service refuses to fetch any address that isn't on the public internet, at every redirect.</li>
+    <li><strong>Notifications</strong> sent by email or Slack say only what happened and link back in. They never include case names, targets or findings.</li>
+    <li><strong>Tools</strong> run as separate processes with time limits. Credentials such as proxy passwords reach them through the environment, never on a command line where other processes could read them.</li>
+  </ul>
+</section>
+
+<section id="third-parties">
+  <h2>What leaves the platform</h2>
+  <p>To find anything, unmask must ask other services. When a scan runs, the identifiers in the case (a username, email address, name, domain, phone number or IP address) are sent to some or all of:</p>
+  <ul class="legal-list">
+    <li>websites whose sign-up, profile or recovery pages are checked to see whether an account exists (via open-source tools such as Sherlock, Maigret and Holehe);</li>
+    <li>web search providers configured by the operator (for example Serper, SerpAPI, Google Programmable Search, Brave Search or DuckDuckGo);</li>
+    <li>breach-notification services, where keys have been configured (via h8mail);</li>
+    <li>certificate transparency logs and DNS and infrastructure sources (for example crt.sh, theHarvester, Amass and SpiderFoot); and</li>
+    <li>any outbound proxy the operator has configured, which carries that traffic.</li>
+  </ul>
+  <p>Those services receive the identifier and the server's (or proxy's) network address, under their own terms and privacy policies. Some may log the request, and a site could in principle notice that an account was looked up. Decide whether that is acceptable for each case before you scan. The data is otherwise hosted by the hosting provider the operator has chosen; unmask sends no analytics or telemetry anywhere.</p>
+</section>
+
+<section id="retention">
+  <h2>Retention and deletion</h2>
+  <ul class="legal-list">
+    <li>Each case has a retention period (90 days by default, adjustable per case). The period restarts when the case is scanned again, not when it is merely viewed. The Home page warns before a case is due to be deleted.</li>
+    <li>When the period ends, the case and everything in it (targets, findings, notes, snapshots, share links) is permanently deleted. The owner can also delete a case at any time. Sample cases are kept for 30 days.</li>
+    <li>Audit records are kept after a case is deleted, without the case's contents, so that past access can still be accounted for.</li>
+    <li>Database backups follow the operator's backup schedule, and deleted data leaves them as backups expire.</li>
+  </ul>
+</section>
+
+<section id="limits">
+  <h2>Known limits</h2>
+  <p>We would rather you knew these than discovered them:</p>
+  <ul class="legal-list">
+    <li>Scores are estimates. A common name or handle can match many people, and sites change in ways that make their pages look like profiles when they aren't. Verify before you rely on anything.</li>
+    <li>Some sites block requests from cloud servers, so results can be incomplete; the app reports which tools failed rather than showing an empty result as "nothing found".</li>
+    <li>Data you export or download leaves unmask's controls. Its security and deletion are then your responsibility.</li>
+    <li>The address check on page snapshots resolves names before fetching; a hostile site could in theory change its DNS between the check and the fetch. Routing fetches through a proxy moves that resolution off the server.</li>
+    <li>Encryption at rest protects the database and its backups. It does not protect against someone who has signed in with a valid account, which is why access control, the audit log and your account security matter.</li>
+  </ul>
+</section>
+
+<section id="disclosure">
+  <h2>Reporting a vulnerability</h2>
+  <p>If you believe you have found a security vulnerability, please tell us{% if L.security_contact %} at <a href="mailto:{{ L.security_contact }}">{{ L.security_contact }}</a>{% endif %}, with enough detail to reproduce it. Please do not access other people's data, degrade the service or publish the issue before it is fixed. We will not pursue legal action against good-faith research that follows these rules. This permission covers only this service and only research conducted in line with this section.</p>
+</section>
+{% endblock %}

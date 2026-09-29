@@ -1,0 +1,95 @@
+{% extends "public/legal/_layout.html" %}
+{% block toc %}
+<p class="legal-nav-title">On this page</p>
+<ol class="legal-toc">
+  <li><a href="#a1">Principles</a></li>
+  <li><a href="#a2">Never permitted</a></li>
+  <li><a href="#a3">Only with extra safeguards</a></li>
+  <li><a href="#a4">Handling results</a></li>
+  <li><a href="#a5">The Service itself</a></li>
+  <li><a href="#a6">Enforcement</a></li>
+  <li><a href="#a7">Reporting misuse</a></li>
+</ol>
+{% endblock %}
+{% block doc %}
+<header class="legal-head">
+  <p class="legal-kicker">Acceptable Use Policy</p>
+  <h1>Acceptable Use Policy</h1>
+  <p class="legal-meta">Version {{ L.version }} · effective {{ L.effective }} · part of the <a href="/terms">Terms of Service</a></p>
+  <div class="legal-summary">
+    <p><strong>In short.</strong> Use unmask only for authorised, lawful and proportionate investigations, such as due diligence, fraud and security investigations, protecting people from impersonation, and research with a proper basis. Never use it to find, follow, frighten, expose or discriminate against anyone.</p>
+  </div>
+</header>
+
+<section id="a1">
+  <h2>1. Principles</h2>
+  <p>Every Case must be:</p>
+  <ul class="legal-list">
+    <li><strong>authorised</strong>: someone entitled to approve it has done so, and the authorisation note says who and on what basis;</li>
+    <li><strong>lawful</strong>: you have a lawful basis for processing each Subject's personal data, and the investigation does not break any law;</li>
+    <li><strong>necessary and proportionate</strong>: you look only for what the purpose requires, and stop when it is achieved; and</li>
+    <li><strong>accountable</strong>: you can explain and justify every search, decision and disclosure you make.</li>
+  </ul>
+  <p>Capitalised terms have the meanings given in the <a href="/terms">Terms of Service</a>.</p>
+</section>
+
+<section id="a2">
+  <h2>2. Never permitted</h2>
+  <p>You must not use the Service, any Finding, or anything derived from them, to:</p>
+  <ol class="legal-list">
+    <li>stalk, harass, intimidate, threaten, bully, blackmail or monitor any person, or help anyone else do so;</li>
+    <li>locate, identify or contact a person who does not want to be found by you, including a current or former partner, a family member, someone who has left a relationship or a group, or someone protected by a court order, refuge or witness programme;</li>
+    <li>publish or expose a person's identity, home address, contact details, workplace or other personal information to shame, target or endanger them ("doxxing");</li>
+    <li>investigate a child, other than in a lawful child-protection or safeguarding role that requires it;</li>
+    <li>infer, record or act on a person's racial or ethnic origin, political opinions, religious or philosophical beliefs, trade union membership, genetic or biometric data, health, sex life or sexual orientation, or criminal record, except where Applicable Law expressly permits it and you have the safeguards it requires;</li>
+    <li>discriminate against any person, or make any decision about them on the basis of a protected characteristic;</li>
+    <li>gain or attempt to gain unauthorised access to any account, device, system or non-public data, including by using breach data, leaked credentials or password-reset flows to access accounts, by credential stuffing, or by social engineering;</li>
+    <li>impersonate any person or organisation, or create false or misleading accounts, to obtain information;</li>
+    <li>bypass, disable or interfere with the lawful-basis confirmation, authorisation note, retention, audit or access controls of the Service;</li>
+    <li>investigate someone on behalf of a person you have not verified, or for an undisclosed purpose, or resell investigations as a service to the public;</li>
+    <li>sell, license, rent or broker Findings, or compile them into a database or dataset offered to others;</li>
+    <li>train or improve a machine-learning model on Findings about identifiable people, unless Applicable Law permits it and you have a lawful basis;</li>
+    <li>carry out surveillance of journalists, activists, political opponents, protesters, trade unionists or lawyers because of their work or beliefs;</li>
+    <li>support any unlawful act, any act of violence, or any violation of human rights; or</li>
+    <li>breach the terms of any Third-Party Source, or any sanctions, export-control or anti-corruption law.</li>
+  </ol>
+</section>
+
+<section id="a3">
+  <h2>3. Only with extra safeguards</h2>
+  <p>The following uses are allowed only if Applicable Law permits them and you have first put its required safeguards in place (for example notice, consent, a permissible purpose, an impact assessment, or a documented legitimate-interests test), and recorded them in the Case's authorisation note:</p>
+  <ul class="legal-list">
+    <li>screening candidates, employees, contractors, tenants, borrowers or insured persons (see section 6 of the Terms: the Service must not be used as a consumer report);</li>
+    <li>investigations by or for law enforcement, which must follow the legal process required in your jurisdiction;</li>
+    <li>investigating a current or former employee, customer or member of your organisation;</li>
+    <li>investigating anyone who has asked you not to process their data, or who has objected to it; and</li>
+    <li>watch mode (repeated scanning over time) on a named individual, which must be justified as proportionate for its whole duration.</li>
+  </ul>
+</section>
+
+<section id="a4">
+  <h2>4. Handling results</h2>
+  <ul class="legal-list">
+    <li>Treat every Finding as unverified until you have checked it yourself. Record your conclusion, and your reasons, in the analyst assessment.</li>
+    <li>Do not disclose Findings to anyone who is not authorised to receive them under the Case's authorisation, and do not forward share links.</li>
+    <li>Keep only what you need. Delete Cases, exports, snapshots and downloaded copies when the purpose is complete or the retention period ends.</li>
+    <li>If a Finding relates to someone other than your Subject, do not use it, and mark it "Not them".</li>
+    <li>Respect Subjects' rights, including to be informed, to access, to correct and to object, where Applicable Law gives them.</li>
+  </ul>
+</section>
+
+<section id="a5">
+  <h2>5. The Service itself</h2>
+  <p>You must not: probe, scan or test the Service's security without our written permission (see the <a href="/trust#disclosure">disclosure policy</a>); overload or disrupt it; circumvent rate limits or access controls; reverse engineer it except as permitted by law; access it with automated means other than its documented features; share accounts; or use it to send spam or malicious content.</p>
+</section>
+
+<section id="a6">
+  <h2>6. Enforcement</h2>
+  <p>If we reasonably believe this policy has been breached, we may, without notice or liability: suspend or close accounts; disable Cases, share links or features; preserve and review audit records and Customer Data involved; notify the affected person where that is lawful and necessary to protect them; and report the matter to, and cooperate with, law enforcement, regulators or courts. These steps are in addition to our rights under the Terms, including your indemnity.</p>
+</section>
+
+<section id="a7">
+  <h2>7. Reporting misuse</h2>
+  <p>If you believe someone is using the Service against you or anyone else, contact {% if L.contact %}<a href="mailto:{{ L.contact }}">{{ L.contact }}</a>{% else %}the operator of this service{% endif %}. If you are in immediate danger, contact your local emergency services first.</p>
+</section>
+{% endblock %}

@@ -107,6 +107,13 @@ class Settings(BaseSettings):
     healthcheck_interval_hours: int = Field(default=24, alias="UNMASK_HEALTHCHECK_HOURS")
     alert_webhook_url: str = Field(default="", alias="UNMASK_ALERT_WEBHOOK_URL")
 
+    # Legal pages (/terms, /privacy, /acceptable-use, /trust). Whoever runs this
+    # deployment is the party users contract with; name them here.
+    operator_name: str = Field(default="", alias="UNMASK_OPERATOR_NAME")
+    legal_contact: str = Field(default="", alias="UNMASK_LEGAL_CONTACT")
+    security_contact: str = Field(default="", alias="UNMASK_SECURITY_CONTACT")
+    governing_law: str = Field(default="Singapore", alias="UNMASK_GOVERNING_LAW")
+
     # Email notifications (optional). Port 465 uses implicit TLS; any other port uses STARTTLS.
     smtp_host: str = Field(default="", alias="UNMASK_SMTP_HOST")
     smtp_port: int = Field(default=587, alias="UNMASK_SMTP_PORT")

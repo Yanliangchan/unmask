@@ -1,0 +1,92 @@
+{% extends "public/legal/_layout.html" %}
+{% block toc %}
+<p class="legal-nav-title">On this page</p>
+<ol class="legal-toc">
+  <li><a href="#p1">Who this covers</a></li>
+  <li><a href="#p2">If you are being researched</a></li>
+  <li><a href="#p3">Data about users</a></li>
+  <li><a href="#p4">Why, and on what basis</a></li>
+  <li><a href="#p5">Sharing</a></li>
+  <li><a href="#p6">How long</a></li>
+  <li><a href="#p7">Your rights</a></li>
+  <li><a href="#p8">Cookies</a></li>
+  <li><a href="#p9">Changes and contact</a></li>
+</ol>
+{% endblock %}
+{% block doc %}
+<header class="legal-head">
+  <p class="legal-kicker">Privacy Notice</p>
+  <h1>Privacy Notice</h1>
+  <p class="legal-meta">Updated {{ L.effective }}</p>
+</header>
+
+<section id="p1">
+  <h2>1. Who this covers</h2>
+  <p>This notice explains how {{ L.operator }} ("we") handles personal data in running this unmask service. It covers two groups of people, whose data we handle in different roles:</p>
+  <ul class="legal-list">
+    <li><strong>People researched in cases.</strong> Our customers decide whom to research and why. For that data the customer is the controller and we act only on their instructions, as their processor (a "data intermediary" under Singapore's PDPA). Section 2 explains what that means for you.</li>
+    <li><strong>People who use the service</strong> (analysts and administrators). For their account data we are the controller. Sections 3 to 9 apply.</li>
+  </ul>
+</section>
+
+<section id="p2">
+  <h2>2. If you are being researched</h2>
+  <p>A customer may have used unmask to look up information about you from public and third-party sources, such as whether a username or email address is registered on websites, public web pages that mention you, or public records about a domain. That customer is responsible for having a lawful basis, for telling you where the law requires it, and for answering your requests.</p>
+  <p>If you want to exercise your rights (for example to access, correct or delete your data, or to object), please contact the organisation that researched you. If you don't know who that is, or they don't respond, contact us{% if L.contact %} at <a href="mailto:{{ L.contact }}">{{ L.contact }}</a>{% endif %}. Where we can lawfully do so, we will pass your request to the customer responsible and help them respond. We can't search customers' cases for you ourselves, because they are encrypted and confidential to the customer, and doing so would itself mean processing your data without their instruction. If you believe unmask is being used to harm you, please tell us: the <a href="/acceptable-use">Acceptable Use Policy</a> prohibits it and we act on reports.</p>
+</section>
+
+<section id="p3">
+  <h2>3. Data about users</h2>
+  <ul class="legal-list">
+    <li><strong>Account data:</strong> your email address, optional display name, a one-way hash of your password (never the password itself), whether you are an administrator, and when you created your account and last signed in.</li>
+    <li><strong>Settings:</strong> your theme, notification choices, and any Slack webhook you add (stored encrypted).</li>
+    <li><strong>Terms acceptance:</strong> the version of the Terms you accepted and when.</li>
+    <li><strong>Activity records:</strong> an audit log of what you do in the service (sign-ins and failed sign-ins, cases opened, decisions, notes, exports, shares) with the time and your IP address.</li>
+    <li><strong>Content you write:</strong> notes and assessments, which are part of the customer's cases.</li>
+    <li><strong>Technical data:</strong> standard server and proxy logs kept by our hosting provider, which can include IP addresses, browser type and the pages requested.</li>
+  </ul>
+  <p>We do not use analytics, advertising or tracking tools, and we do not sell personal data.</p>
+</section>
+
+<section id="p4">
+  <h2>4. Why, and on what basis</h2>
+  <div class="table-wrap">
+  <table class="legal-table">
+    <thead><tr><th scope="col">Purpose</th><th scope="col">Data</th><th scope="col">Legal basis (where the GDPR or UK GDPR applies)</th></tr></thead>
+    <tbody>
+      <tr><td>Providing your account and the service</td><td>Account data, settings</td><td>Performance of our contract with you or your organisation</td></tr>
+      <tr><td>Keeping the service and its data secure, and preventing and investigating misuse</td><td>Activity records, technical data</td><td>Legitimate interests: protecting the people researched, our customers and the service</td></tr>
+      <tr><td>Showing that use of the service was authorised and accountable</td><td>Activity records, terms acceptance</td><td>Legitimate interests, and compliance with legal obligations where they apply</td></tr>
+      <tr><td>Sending the notifications you choose</td><td>Email address, Slack webhook</td><td>Performance of contract; you can switch them off at any time</td></tr>
+      <tr><td>Complying with the law and responding to lawful requests</td><td>Any of the above, as required</td><td>Legal obligation</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Where Singapore's PDPA applies, we rely on your consent given when you create or use an account, on deemed consent by contractual necessity, and on the legitimate-interests and other exceptions the Act provides.</p>
+</section>
+
+<section id="p5">
+  <h2>5. Sharing</h2>
+  <p>We share user data only: with the hosting and email providers that run the service for us, under contracts that require them to protect it; with the customer organisation whose account you use (its administrators may be given access to its users' activity records); with the people a case is shared with (who can see your notes and decisions in it); and with courts, regulators or law enforcement where the law requires it or where necessary to prevent serious harm, as described in the Terms. If our providers are outside your country, we use appropriate safeguards for the transfer, such as standard contractual clauses.</p>
+</section>
+
+<section id="p6">
+  <h2>6. How long</h2>
+  <p>We keep account data while your account is active, and delete it within a reasonable time after it is closed, unless we need to keep it longer to meet a legal obligation or to establish, exercise or defend legal claims. Audit records are kept for as long as needed to account for the use of the service, which may be longer than the cases they refer to. Case data follows the retention periods described on the <a href="/trust#retention">Trust page</a>.</p>
+</section>
+
+<section id="p7">
+  <h2>7. Your rights</h2>
+  <p>Depending on the law that applies to you, you may have the right to access your personal data, correct it, delete it, restrict or object to its processing, receive it in a portable form, withdraw consent, and complain to a data protection authority (in Singapore, the Personal Data Protection Commission). To exercise these rights, contact us{% if L.contact %} at <a href="mailto:{{ L.contact }}">{{ L.contact }}</a>{% endif %}. We may need to verify your identity first. Some rights are limited where data must be kept for security, legal or accountability reasons, including audit records.</p>
+</section>
+
+<section id="p8">
+  <h2>8. Cookies</h2>
+  <p>We use only cookies that the service needs: a session cookie that keeps you signed in and protects forms against forgery, and a cookie that remembers your light or dark theme. We don't use cookies for analytics or advertising, so we don't ask for cookie consent.</p>
+</section>
+
+<section id="p9">
+  <h2>9. Changes and contact</h2>
+  <p>We will update this notice when our practices change and show the date at the top. For any question about privacy, contact {% if L.contact %}<a href="mailto:{{ L.contact }}">{{ L.contact }}</a>{% else %}the operator of this service{% endif %}.</p>
+</section>
+{% endblock %}

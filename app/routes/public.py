@@ -11,12 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.db import get_session
+from app.security import current_user_optional
 from app.web import SITE_DESCRIPTION, TEMPLATES_DIR, Seo, render
 
 router = APIRouter()
 
 # Paths that may appear in search results. Everything else is private.
-PUBLIC_PATHS = ["/"]
+PUBLIC_PATHS = ["/", "/trust", "/terms", "/acceptable-use", "/privacy"]
 LANDING_TEMPLATE = TEMPLATES_DIR / "public" / "landing.html"
 
 
@@ -72,6 +73,10 @@ async def robots() -> str:
         "User-agent: *\n"
         "Allow: /$\n"
         "Allow: /static/\n"
+        "Allow: /trust\n"
+        "Allow: /terms\n"
+        "Allow: /acceptable-use\n"
+        "Allow: /privacy\n"
         "Disallow: /cases\n"
         "Disallow: /login\n"
         "Disallow: /partials\n"
@@ -120,3 +125,57 @@ async def manifest() -> JSONResponse:
 async def healthz(session: AsyncSession = Depends(get_session)) -> JSONResponse:
     await session.execute(text("SELECT 1"))
     return JSONResponse({"status": "ok"})
+
+
+# --- Legal and trust pages ----------------------------------------------------------------------
+
+LEGAL = {
+    "/trust": ("trust.html", "Trust",
+               "How unmask protects the data in your investigations, what leaves the platform, and who is "
+               "responsible for what."),
+    "/terms": ("terms.html", "Terms of Service",
+               "The terms that govern use of unmask, including your responsibilities for lawful, authorised "
+               "investigations."),
+    "/acceptable-use": ("acceptable_use.html", "Acceptable Use Policy", "What unmask may and may never be used for."),
+    "/privacy": ("privacy.html", "Privacy Notice",
+                 "How personal data is handled in running unmask, for users and for people who are researched."),
+}  # fmt: skip
+
+
+def legal_context(path: str) -> dict:
+    from app.legal import PAGES, details
+
+    _, title, description = LEGAL[path]
+    return {
+        "seo": Seo(title=title, description=description, path=path, indexable=True),
+        "L": details(),
+        "legal_pages": PAGES,
+    }
+
+
+def _legal_page(path: str):
+    async def page(request: Request, user=Depends(current_user_optional)):
+        return render(request, f"public/legal/{LEGAL[path][0]}", {**legal_context(path), "user": user})
+
+    return page
+
+
+for _path in LEGAL:
+    router.add_api_route(_path, _legal_page(_path), methods=["GET", "HEAD"], include_in_schema=False)
+
+
+@router.get("/.well-known/security.txt", response_class=PlainTextResponse, include_in_schema=False)
+async def security_txt() -> Response:
+    from datetime import timedelta
+
+    from app.legal import details
+
+    contact = details().security_contact
+    if not contact:
+        return PlainTextResponse("", status_code=404)
+    base = get_settings().public_base_url.rstrip("/")
+    expires = (datetime.now(UTC) + timedelta(days=180)).strftime("%Y-%m-%dT00:00:00Z")
+    return PlainTextResponse(
+        f"Contact: mailto:{contact}\nExpires: {expires}\nPolicy: {base}/trust#disclosure\n"
+        f"Preferred-Languages: en\nCanonical: {base}/.well-known/security.txt\n"
+    )
