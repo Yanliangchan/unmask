@@ -35,6 +35,74 @@
   </div>
 </section>
 
+<section class="settings-section" id="export">
+  <header>
+    <h2>Export data</h2>
+    <p>The findings behind the report, for spreadsheets, scripts or a threat-intelligence platform. Findings marked "Not them" are left out unless you include them.</p>
+  </header>
+  <div class="body">
+    <form class="inline-form export-form" method="get" data-export-form>
+      <label class="field"><span>Include</span>
+        <select name="scope">
+          <option value="visible">All findings except "Not them"</option>
+          <option value="confirmed">Confirmed findings and targets only</option>
+          <option value="all">Everything, including "Not them"</option>
+        </select>
+      </label>
+      <button class="btn btn-sm" type="submit" formaction="/cases/{{ case.id }}/export.csv">{{ ui.icon("download") }}CSV</button>
+      <button class="btn btn-sm" type="submit" formaction="/cases/{{ case.id }}/export.json">{{ ui.icon("download") }}JSON</button>
+      <button class="btn btn-sm" type="submit" formaction="/cases/{{ case.id }}/export.stix">{{ ui.icon("download") }}STIX 2.1</button>
+    </form>
+    <p class="hint mt-8">STIX bundles are marked TLP:AMBER. For a PDF, open the report and choose Print or save as PDF. Every export is recorded in the audit log.</p>
+  </div>
+</section>
+
+{% if is_owner %}
+<section class="settings-section" id="share-links">
+  <header>
+    <h2>Share links</h2>
+    <p>A read-only link to the report for someone without an account, such as a client or a manager. It shows the assessment and findings, never lets anyone change the case, and stops working when it expires or you revoke it.</p>
+  </header>
+  <div class="body">
+    {% if new_link %}
+    <div class="alert alert-ok" role="status">
+      <p><strong>Link created.</strong> Copy it now: for safety it won't be shown again.</p>
+      <label class="field"><span class="visually-hidden">Share link</span><input type="text" class="mono" value="{{ new_link }}" readonly data-select-on-focus></label>
+    </div>
+    {% endif %}
+    {% if share_links %}
+    <ul class="people share-links">
+      {% for l in share_links %}
+      {% set live = not l.revoked_at and l.expires_at > now %}
+      <li>
+        <span>{{ l.label or "Link" }} <span class="faint small">· created {{ l.created_at | timeago }} · {% if l.revoked_at %}revoked{% elif not live %}expired{% else %}expires {{ l.expires_at | isodate }}{% endif %} · {{ l.views }} view{{ 's' if l.views != 1 }}</span></span>
+        {% if live %}
+        <form method="post" action="/cases/{{ case.id }}/share-links/{{ l.id }}/revoke">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-ghost btn-xs" type="submit">Revoke</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% if (case.analyst_assessment or '') | trim | length >= min_assessment %}
+    <form method="post" action="/cases/{{ case.id }}/share-links" class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="field grow"><span>Who it's for <span class="faint">(optional)</span></span><input type="text" name="label" maxlength="120" placeholder="e.g. Client legal team"></label>
+      <label class="field"><span>Expires after</span>
+        <select name="days"><option value="1">1 day</option><option value="7" selected>7 days</option><option value="30">30 days</option></select>
+      </label>
+      <button class="btn btn-sm" type="submit">{{ ui.icon("link") }}Create link</button>
+    </form>
+    <p class="hint mt-8">Anyone with the link can read the report until it expires. Share it only with people covered by this case's authorization.</p>
+    {% else %}
+    <p class="hint">Write the analyst assessment first: a shared report always carries your conclusion.</p>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
 <section class="settings-section" id="authorization">
   <header>
     <h2>Authorization</h2>

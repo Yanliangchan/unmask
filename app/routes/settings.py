@@ -29,6 +29,7 @@ MESSAGES = {
     "shared": "Case shared.",
     "unshared": "Access removed.",
     "pivot": "Auto-pivot setting saved.",
+    "link_revoked": "Share link revoked. It stops working immediately.",
 }
 
 
@@ -49,6 +50,12 @@ async def settings_page(
     user: User = Depends(current_user),
 ):
     case = await get_case_for_user(session, case_id, user)
+    return render(request, "cases/settings.html", await settings_context(request, session, case, user))
+
+
+async def settings_context(request: Request, session: AsyncSession, case: Investigation, user: User, **extra) -> dict:
+    from app.services.evidence import share_links_for
+
     shared = (
         (await session.scalars(select(User).where(User.id.in_(case.shared_with or [])))).all()
         if case.shared_with
@@ -57,22 +64,21 @@ async def settings_page(
     owner = await session.get(User, case.owner_id) if case.owner_id else None
     error = request.query_params.get("error")
     ctx = await case_shell(session, case, user, "settings")
-    return render(
-        request,
-        "cases/settings.html",
-        {
-            **ctx,
-            "owner": owner,
-            "is_owner": _is_owner(case, user),
-            "frequencies": list(FREQUENCY_DAYS),
-            "purge_at": await purge_date(session, case),
-            "shared": shared,
-            "min_assessment": MIN_ASSESSMENT_CHARS,
-            "message": MESSAGES.get(request.query_params.get("saved", "")),
-            "error": error if error in ERRORS else None,
-            "errors": ERRORS,
-        },
-    )
+    return {
+        **ctx,
+        "owner": owner,
+        "is_owner": _is_owner(case, user),
+        "frequencies": list(FREQUENCY_DAYS),
+        "purge_at": await purge_date(session, case),
+        "shared": shared,
+        "min_assessment": MIN_ASSESSMENT_CHARS,
+        "message": MESSAGES.get(request.query_params.get("saved", "")),
+        "error": error if error in ERRORS else None,
+        "errors": ERRORS,
+        "share_links": await share_links_for(session, case.id),
+        "now": datetime.now(UTC),
+        **extra,
+    }
 
 
 ERRORS = {

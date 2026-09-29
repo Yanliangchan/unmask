@@ -88,7 +88,14 @@ def static_url(path: str) -> str:
     return f"/static/{path}?v={digest}"
 
 
-def render(request: Request, template: str, context: dict[str, Any] | None = None, *, status_code: int = 200):
+def render(
+    request: Request,
+    template: str,
+    context: dict[str, Any] | None = None,
+    *,
+    status_code: int = 200,
+    headers: dict[str, str] | None = None,
+):
     ctx = {
         "request": request,
         "csrf_token": csrf_token(request),
@@ -101,7 +108,7 @@ def render(request: Request, template: str, context: dict[str, Any] | None = Non
     # The theme is rendered server-side from a cookie so pages never flash the wrong one.
     theme = request.cookies.get("theme")
     ctx.setdefault("theme", theme if theme in THEMES else "system")
-    return templates.TemplateResponse(request, template, ctx, status_code=status_code)
+    return templates.TemplateResponse(request, template, ctx, status_code=status_code, headers=headers)
 
 
 def _timeago(value: datetime | None) -> str:

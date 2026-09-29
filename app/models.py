@@ -382,3 +382,52 @@ class Notification(Base):
     url: Mapped[str | None] = mapped_column(Text)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _now()
+
+
+class Snapshot(Base):
+    """A copy of a web page as it was when the analyst captured it, with its SHA-256.
+
+    The body is stored exactly as received (base64 of the raw bytes, encrypted),
+    so the hash can be re-checked later and the copy shown as evidence.
+    """
+
+    __tablename__ = "snapshots"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    case_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("investigations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    entity_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("entities.id", ondelete="SET NULL"), index=True)
+    url: Mapped[str] = mapped_column(EncryptedText, nullable=False)
+    final_url: Mapped[str] = mapped_column(EncryptedText, nullable=False)
+    status_code: Mapped[int] = mapped_column(Integer, nullable=False)
+    content_type: Mapped[str] = mapped_column(String(200), nullable=False, server_default=text("''"))
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    size: Mapped[int] = mapped_column(Integer, nullable=False)
+    truncated: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    title: Mapped[str | None] = mapped_column(EncryptedText)
+    body_b64: Mapped[str] = mapped_column(EncryptedText, nullable=False)
+    captured_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = _now()
+
+
+class ShareLink(Base):
+    """A read-only, expiring link to a case's report for someone without an account.
+
+    Only a hash of the token is stored; the link itself is shown once.
+    """
+
+    __tablename__ = "share_links"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    case_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("investigations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    label: Mapped[str | None] = mapped_column(String(120))
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    views: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    last_viewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = _now()

@@ -317,6 +317,11 @@
     if (form.dataset && form.dataset.confirm && !window.confirm(form.dataset.confirm)) e.preventDefault();
   });
 
+  // Read-only fields meant for copying (a new share link) select themselves.
+  document.addEventListener("focusin", function (e) {
+    if (e.target.matches && e.target.matches("[data-select-on-focus]")) e.target.select();
+  });
+
   // --- Print button (report view) -----------------------------------------------
   document.addEventListener("click", function (e) {
     if (e.target.closest("[data-print]")) window.print();

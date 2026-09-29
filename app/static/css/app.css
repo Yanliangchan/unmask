@@ -713,8 +713,8 @@ p a:not(.btn), .table-foot a, .hint a { text-decoration: underline; text-underli
 .drawer-section { padding: 14px 0; border-bottom: 1px solid var(--border); }
 .drawer-section:last-child { border-bottom: 0; }
 .drawer .entity-detail { grid-template-columns: 1fr; padding: 0; gap: 4px; }
-.notes h3 { display: flex; align-items: center; gap: 6px; font-size: 13px; margin: 0 0 10px; }
-.notes h3 .count { color: var(--faint); font-weight: 400; }
+.drawer-h3 { display: flex; align-items: center; gap: 6px; font-size: 13px; margin: 0 0 10px; }
+.drawer-h3 .count { color: var(--faint); font-weight: 400; }
 .note-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 10px; }
 .note { background: var(--bg-sunk); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 10px; }
 .note-meta { margin: 0 0 2px; font-size: 12px; }
@@ -823,3 +823,33 @@ a.side-email:hover { color: var(--text); }
 .activity .quote { margin-top: 4px; padding-left: 10px; border-left: 2px solid var(--border-strong); color: var(--text); font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .activity .ident { font-size: 12.5px; }
 .day-head { font-size: 12px; font-weight: 600; color: var(--muted); margin: 18px 0 2px; text-transform: none; }
+
+/* --- Snapshots, exports, share links --------------------------------------------------------------- */
+.snap-list { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.snapshot-meta { margin: 0 0 8px; }
+.snapshot-meta > div { grid-template-columns: 120px 1fr; align-items: baseline; }
+.wrap { overflow-wrap: anywhere; }
+.snapshot-text { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; font-size: 13px; line-height: 1.55; max-height: 70vh; overflow: auto; }
+.export-form { align-items: flex-end; flex-wrap: wrap; }
+.shared-note { margin: 0; font-size: 13px; color: var(--muted); }
+
+/* --- Phones: findings as cards; selection and bulk editing stay on larger screens --------------------- */
+@media (max-width: 600px) {
+  .entities thead { display: none; }
+  .entities .col-select, #bulkbar, .views-menu .view-save { display: none !important; }
+  .entities, .entities tbody.entity { display: block; width: 100%; }
+  .entities tbody.entity { border-bottom: 1px solid var(--border); }
+  .entities tr.entity-row { display: grid; grid-template-columns: 30px minmax(0, 1fr) 36px; grid-template-areas: "confirm value menu" ". match menu"; align-items: start; padding: 10px 2px; }
+  .entities tr.entity-row > td { border: 0; padding: 0; background: none; }
+  .entities tr.entity-row > .col-confirm { grid-area: confirm; padding-top: 1px; }
+  .entities tr.entity-row > .value-cell { grid-area: value; max-width: none; }
+  .entities tr.entity-row > .col-match { grid-area: match; padding-top: 4px; }
+  .entities tr.entity-row > .col-menu { grid-area: menu; }
+  .entities .ident-cut { max-width: 100%; }
+  .entities tr.merge-row, .entities tr.merge-row > td { display: block; }
+  .drawer { width: 100vw; border-left: 0; }
+  .drawer-body { padding: 14px 14px 40px; }
+  .drawer-actions .btn { flex: 1 1 auto; justify-content: center; }
+  .snapshot-meta > div { grid-template-columns: 1fr; gap: 0; }
+  .report-actions .shared-note { flex-basis: 100%; }
+}

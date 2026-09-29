@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block main_class %}container reading{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="crumb"><a href="/">Home</a> / <a href="/cases/{{ case.id }}">{{ case.name }}</a> /</p>
+    <h1>Page snapshot</h1>
+  </div>
+  <a class="btn btn-sm" href="/cases/{{ case.id }}/snapshots/{{ s.id }}/raw">{{ ui.icon("download") }}Download original</a>
+</div>
+
+<dl class="kv snapshot-meta">
+  <div><dt>Address</dt><dd class="ident wrap">{{ s.url }}</dd></div>
+  {% if s.final_url != s.url %}<div><dt>Ended up at</dt><dd class="ident wrap">{{ s.final_url }}</dd></div>{% endif %}
+  <div><dt>Captured</dt><dd>{{ s.created_at | isodate }}{% if by %} by {{ by.email }}{% endif %}</dd></div>
+  <div><dt>Response</dt><dd>HTTP {{ s.status_code }} · {{ s.content_type or 'unknown type' }} · {{ '{:,}'.format(s.size) }} bytes{% if s.truncated %} (cut at 2 MB){% endif %}</dd></div>
+  <div><dt>SHA-256</dt><dd class="mono wrap">{{ s.sha256 }}</dd></div>
+  <div><dt>Integrity</dt><dd>{% if intact %}<span class="flag flag-ok">Matches</span> The stored copy still has the hash recorded at capture.{% else %}<span class="flag flag-review">Changed</span> The stored copy no longer matches its recorded hash.{% endif %}</dd></div>
+</dl>
+<p class="hint">To check a downloaded copy yourself: <code>sha256sum snapshot-{{ s.sha256[:16] }}.html</code> should print the value above.</p>
+
+<h2 class="section-title">{{ s.title or "Page text" }}</h2>
+<p class="muted small">The page's text, without its scripts or styling. The original is kept exactly as received; download it to see it in full.</p>
+<pre class="snapshot-text">{{ text or "No readable text on this page." }}</pre>
+{% endblock %}

@@ -19,6 +19,7 @@ from app.security import client_ip, current_user, verify_csrf
 from app.services.accuracy import DISMISS_REASONS
 from app.services.cases import get_case_for_user
 from app.services.entities import SHOW_MODES, entity_detail
+from app.services.evidence import snapshots_for
 from app.web import render
 
 router = APIRouter()
@@ -64,6 +65,7 @@ async def _drawer_context(session: AsyncSession, case, entity_id: uuid.UUID) -> 
         "authors": authors,
         "reasons": DISMISS_REASONS,
         "members": sorted((await _case_members(session, case)).keys()),
+        "snapshots": await snapshots_for(session, case.id, entity_id),
     }
 
 

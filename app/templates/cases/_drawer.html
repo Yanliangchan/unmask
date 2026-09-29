@@ -41,8 +41,26 @@
   {% include "cases/_entity_detail.html" %}
 </div>
 
+{% set page_url = a.get('url') or (entity.value if entity.value.startswith('http') else '') %}
+{% if page_url or snapshots %}
+<section class="drawer-section" aria-labelledby="snap-title">
+  <h3 id="snap-title" class="drawer-h3">{{ ui.icon("camera") }} Page snapshots <span class="count">{{ snapshots | length }}</span></h3>
+  <p class="muted small">Save the page as it is now, with a SHA-256 fingerprint, so the evidence survives if it changes or disappears.</p>
+  {% if snapshots %}
+  <ul class="snap-list" role="list">
+    {% for s in snapshots %}
+    <li><a href="/cases/{{ case.id }}/snapshots/{{ s.id }}">{{ s.created_at | isodate }}</a> <span class="faint small">HTTP {{ s.status_code }} · <span class="mono">{{ s.sha256[:12] }}…</span></span></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if page_url %}
+  <button class="btn btn-sm" type="button" hx-post="/cases/{{ case.id }}/entities/{{ entity.id }}/snapshot" hx-swap="none" hx-disabled-elt="this">{{ ui.icon("camera") }}Save page now</button>
+  {% endif %}
+</section>
+{% endif %}
+
 <section class="drawer-section notes" aria-labelledby="notes-title">
-  <h3 id="notes-title">{{ ui.icon("note") }} Notes <span class="count">{{ notes | length }}</span></h3>
+  <h3 id="notes-title" class="drawer-h3">{{ ui.icon("note") }} Notes <span class="count">{{ notes | length }}</span></h3>
   {% if notes %}
   <ol class="note-list" role="list">
     {% for n in notes %}

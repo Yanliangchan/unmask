@@ -6,9 +6,14 @@
 {% block content %}
 {% set c = r.case %}
 <div class="report-actions no-print">
+  {% if shared %}
+  <p class="shared-note">Shared read-only view · link expires {{ shared.expires_at | isodate }}. Confidential: don't forward it.</p>
+  <span class="spacer"></span>
+  {% else %}
   <a class="btn btn-ghost btn-sm" href="/cases/{{ c.id }}/settings">Back to settings</a>
   <span class="spacer"></span>
   <a class="btn btn-sm" href="/cases/{{ c.id }}/report.md">Download Markdown</a>
+  {% endif %}
   <button class="btn btn-primary btn-sm" type="button" data-print>Print or save as PDF</button>
 </div>
 
@@ -16,7 +21,7 @@
   <header>
     <p class="report-kicker">Case report · Confidential</p>
     <h1>{{ c.name }}</h1>
-    <p class="report-meta">Generated {{ r.generated_at | isodate }} by {{ r.generated_by }} · case <span class="mono">{{ c.id }}</span></p>
+    <p class="report-meta">Generated {{ r.generated_at | isodate }}{% if not shared %} by {{ r.generated_by }}{% endif %} · case <span class="mono">{{ c.id }}</span></p>
     <p class="report-disclaimer">
       This report presents correlated open-source findings. Confidence scores estimate whether a finding relates to
       the subject; they are not conclusions. The conclusion is the analyst assessment below, written by a person.
