@@ -264,6 +264,13 @@
     select.dispatchEvent(new Event("change", { bubbles: true }));
   });
 
+  // Buttons that change something another panel shows ask that panel to reload itself.
+  document.addEventListener("htmx:afterRequest", function (e) {
+    var elt = e.detail.elt;
+    var target = elt && elt.dataset && elt.dataset.refresh && document.querySelector(elt.dataset.refresh);
+    if (target && e.detail.successful && window.htmx) window.htmx.trigger(target, "refresh");
+  });
+
   // "Run scan" stays disabled while the case already has a scan in progress.
   function syncRunButton() {
     var status = document.getElementById("scan-status");

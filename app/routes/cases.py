@@ -356,11 +356,13 @@ async def run_scan(
     user: User = Depends(current_user),
 ):
     case = await get_case_for_user(session, case_id, user)
+    form = await request.form()
+    only = [str(form["only"])] if form.get("only") else None
     active = [r for r in case.scan_runs if r.status in ("queued", "running")]
     if active:
         run = active[-1]
     else:
-        run = await create_scan_run(session, case, triggered_by="manual")
+        run = await create_scan_run(session, case, triggered_by="manual", only_tools=only)
         log_access(
             session, "run_scan", user_id=user.id, case_id=case.id, ip=client_ip(request), run_number=run.run_number
         )

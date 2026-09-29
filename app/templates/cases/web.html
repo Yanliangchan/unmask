@@ -1,0 +1,43 @@
+{% extends "cases/_layout.html" %}
+{% import "components/ui.html" as ui %}
+{% block tab %}
+{% if added %}<p class="alert alert-ok" role="status">Added to the case as a confirmed finding.</p>{% endif %}
+
+<div class="web-head">
+  <p class="muted small">
+    {% if provider %}Several targeted searches per target (exact match, with each context tag, social and developer sites, documents) through {{ provider }}. Keep what's relevant; it joins the case's findings.
+    {% else %}<strong class="text-warn">Web search isn't set up.</strong> {{ setup_hint }}.{% endif %}
+  </p>
+  <div class="web-actions">
+    {% if search_available %}
+    <button class="btn btn-sm" type="button" data-run-scan hx-post="/cases/{{ case.id }}/scans" hx-vals='{"only": "websearch"}'
+            hx-target="#scan-status" hx-swap="outerHTML">{{ ui.icon("search") }}Run web search</button>
+    {% endif %}
+  </div>
+</div>
+
+<details class="add-finding">
+  <summary>Add something you found</summary>
+  <form method="post" action="/cases/{{ case.id }}/findings?from=web" class="add-finding-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label class="field"><span>Type</span>
+      <select name="type">{% for value, label in addable %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select>
+    </label>
+    <label class="field grow"><span>Value or link</span>
+      <input type="text" name="value" required maxlength="2000" autocomplete="off" placeholder="https://… or an address, name, handle">
+    </label>
+    <label class="field grow"><span>Note <span class="faint">(optional)</span></span>
+      <input type="text" name="note" maxlength="1000" autocomplete="off" placeholder="Where you found it, why it matters">
+    </label>
+    <button class="btn btn-primary btn-sm" type="submit">Add as finding</button>
+  </form>
+  <p class="hint">Added findings count as confirmed by you and show up in the report.</p>
+</details>
+
+<input type="hidden" id="web-show" name="show" value="results">
+<div id="web-results" hx-get="/cases/{{ case.id }}/web/results"
+     hx-trigger="load, refresh, entities-changed from:body, scan-finished from:body, results-updated from:body"
+     hx-swap="innerHTML" hx-include="#web-show">
+  <p class="muted small">Loading…</p>
+</div>
+{% endblock %}

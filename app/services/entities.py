@@ -25,6 +25,8 @@ def hidden_reason(e: Entity) -> str | None:
         return "dismissed"
     if e.is_seed or e.confirmed_flag:
         return None
+    if e.type == "web_mention":
+        return "web"  # search results live in the Web tab until the analyst keeps one
     if e.type == "account" and e.verification == "unverified":
         return "unverified"
     if e.confidence < WEAK_CONFIDENCE:

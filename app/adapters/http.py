@@ -21,6 +21,27 @@ def client(timeout: float = 60) -> httpx.AsyncClient:
     )
 
 
+async def post_json(
+    url: str,
+    *,
+    body: dict,
+    headers: dict | None = None,
+    timeout: float = 60,  # noqa: ASYNC109 — passed through to httpx
+) -> tuple[httpx.Response, object]:
+    """POST a JSON body to a JSON API; the same "a non-JSON 200 is an error" rule as get_json."""
+    try:
+        async with client(timeout) as c:
+            resp = await c.post(url, json=body, headers=headers)
+    except httpx.HTTPError as exc:
+        raise AdapterError(f"request failed: {exc.__class__.__name__}: {exc}") from exc
+    if resp.status_code != 200:
+        raise AdapterError(f"HTTP {resp.status_code} from {resp.url.host}")
+    try:
+        return resp, resp.json()
+    except ValueError as exc:
+        raise SignatureMismatch(f"{resp.url.host} returned a body that isn't JSON") from exc
+
+
 async def get_json(
     url: str,
     *,

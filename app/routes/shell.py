@@ -14,6 +14,7 @@ from app.web import Seo
 
 TABS = [
     ("entities", "Entities", ""),
+    ("web", "Web", "/web"),
     ("graph", "Graph", "/graph"),
     ("timeline", "Timeline", "/timeline"),
     ("pivots", "Pivots", "/pivots"),
@@ -26,7 +27,24 @@ async def case_shell(session: AsyncSession, case: Investigation, user: User, tab
         select(ScanRun).where(ScanRun.case_id == case.id).order_by(ScanRun.run_number.desc()).limit(1)
     )
     entity_count = await session.scalar(
-        select(func.count()).select_from(Entity).where(Entity.case_id == case.id, Entity.merged_into_id.is_(None))
+        select(func.count())
+        .select_from(Entity)
+        .where(
+            Entity.case_id == case.id,
+            Entity.merged_into_id.is_(None),
+            Entity.type != "web_mention",
+            Entity.dismissed_flag.is_(False),
+        )
+    )
+    web_count = await session.scalar(
+        select(func.count())
+        .select_from(Entity)
+        .where(
+            Entity.case_id == case.id,
+            Entity.merged_into_id.is_(None),
+            Entity.type == "web_mention",
+            Entity.dismissed_flag.is_(False),
+        )
     )
     pivot_count = await session.scalar(select(func.count()).select_from(PivotLog).where(PivotLog.case_id == case.id))
     review_count = await session.scalar(
@@ -47,5 +65,5 @@ async def case_shell(session: AsyncSession, case: Investigation, user: User, tab
         "workers": worker_count(),
         "watch": watch_state(case),
         "auto_pivot": auto_pivot_enabled(case),
-        "counts": {"entities": entity_count, "pivots": pivot_count, "review": review_count},
+        "counts": {"entities": entity_count, "web": web_count, "pivots": pivot_count, "review": review_count},
     }

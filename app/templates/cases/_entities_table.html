@@ -1,7 +1,8 @@
 {% macro hidden_note(hidden, show) -%}
 {% set total = hidden.get('unverified', 0) + hidden.get('weak', 0) %}
 {% if show == "best" and total %} {{ total }} more hidden ({% if hidden.get('unverified') %}{{ hidden.unverified }} with a profile page that couldn't be checked{% endif %}{% if hidden.get('unverified') and hidden.get('weak') %}, {% endif %}{% if hidden.get('weak') %}{{ hidden.weak }} weak{% endif %}). <button type="button" class="link-btn" data-show="all">Show all</button>{% endif %}
-{%- if hidden.get('dismissed') %} {{ hidden.dismissed }} marked "Not them". <button type="button" class="link-btn" data-show="dismissed">View</button>{% endif %}
+{%- if show == "best" and hidden.get('web') %} · {{ hidden.web }} web result{{ 's' if hidden.web != 1 }} in the <a href="/cases/{{ case.id }}/web">Web tab</a>.{% endif %}
+{%- if hidden.get('dismissed') %} · {{ hidden.dismissed }} marked "Not them". <button type="button" class="link-btn" data-show="dismissed">View</button>{% endif %}
 {%- endmacro %}
 {% if rows %}
 <div class="table-wrap">

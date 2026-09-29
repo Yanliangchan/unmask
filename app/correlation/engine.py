@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import re
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -39,7 +40,7 @@ SAME_AS = "same_as"
 POSSIBLE_SAME = "possible_same"
 NOT_SAME = "not_same"
 # Cross-field links that count as corroboration in the confidence score.
-CORROBORATING = {"shares_handle", "profile_name_match", "email_at_domain", "breach_associated"}
+CORROBORATING = {"shares_handle", "profile_name_match", "email_at_domain", "breach_associated", "profile_links_to"}
 
 ENGINE = "correlation"
 SUGGEST_RATIO = 85
@@ -238,9 +239,54 @@ def _detail_text(entity: Entity) -> str:
     return json.dumps(attrs, default=str, ensure_ascii=False)
 
 
+# "Jane Doe (janedoe) · GitHub", "Jane Doe - Medium", "Jane Doe | LinkedIn" -> "Jane Doe"
+_TITLE_SUFFIX = re.compile(r"\s+[·•|/–—:\-]\s+[^·•|/–—:]{1,40}$|\s*\([^)]*\)$|\s+@\S+$")
+_NOT_A_NAME = re.compile(r"^(?:profile|user|posts?|about|account|member|overview|page)\b", re.I)
+
+
+def _title_name(title: str, handle: str) -> str | None:
+    name = title.strip()
+    for _ in range(3):
+        stripped = _TITLE_SUFFIX.sub("", name).strip()
+        # "janedoe (Jane Doe) · GitHub": the handle comes first and the name is in brackets.
+        if handle and norm.handle(stripped) == norm.handle(handle) and (m := re.search(r"\(([^)]+)\)\s*$", name)):
+            name = m.group(1).strip()
+            break
+        name = stripped
+    words = name.split()
+    # A display name: 2-5 words, mostly letters, and not just the handle again.
+    if not 2 <= len(words) <= 5 or sum(ch.isalpha() for ch in name) < 0.8 * len(name.replace(" ", "")):
+        return None
+    if _NOT_A_NAME.match(name) or (handle and norm.handle(name) == norm.handle(handle)):
+        return None
+    return name
+
+
 def _profile_names(entity: Entity) -> list[str]:
-    profile = (entity.attributes or {}).get("profile") or {}
-    return [str(profile[k]) for k in ("fullname", "name") if profile.get(k)]
+    attrs = entity.attributes or {}
+    profile = attrs.get("profile") or {}
+    names = [str(profile[k]) for k in ("fullname", "name") if profile.get(k)]
+    # A checked profile page's title usually carries the display name.
+    if entity.verification == "verified":
+        title = (attrs.get("preview") or {}).get("title") or ""
+        if title and (name := _title_name(str(title), str(attrs.get("username") or ""))):
+            names.append(name)
+    return names
+
+
+def _link_targets(entity: Entity) -> tuple[list[str], list[str]]:
+    preview = (entity.attributes or {}).get("preview") or {}
+    if entity.verification != "verified":
+        return [], []
+    return list(preview.get("links") or []), list(preview.get("emails") or [])
+
+
+def _url_key(url: str) -> str:
+    from urllib.parse import urlparse
+
+    p = urlparse(url.strip())
+    host = (p.hostname or "").lower().removeprefix("www.")
+    return f"{host}{p.path.rstrip('/')}".lower()
 
 
 async def correlate_case(session: AsyncSession, case_id: uuid.UUID, *, semantic: bool = True) -> CorrelationResult:
@@ -339,6 +385,31 @@ async def correlate_case(session: AsyncSession, case_id: uuid.UUID, *, semantic:
                 if ratio >= PROFILE_NAME_RATIO and norm.initials_compatible(pname, name.value):
                     why = f"profile name '{pname}' on {account.attributes.get('site')} matches '{name.value}'"
                     if _link(session, graph, case_id, account, name, "profile_name_match", why, ratio / 100):
+                        result.linked += 1
+
+    # A checked profile that links to another account, the target's domain or an email in the case.
+    by_url = {_url_key(e.value): e for e in by_type.get("account", []) + by_type.get("web_mention", [])}
+    for account in by_type.get("account", []):
+        links, emails = _link_targets(account)
+        site = account.attributes.get("site") or "profile"
+        for link in links:
+            other = by_url.get(_url_key(link))
+            if other is not None and other.id != account.id:
+                why = f"the {site} profile links to {other.value}"
+                if _link(session, graph, case_id, account, other, "profile_links_to", why, 0.9):
+                    result.linked += 1
+            host = _url_key(link).split("/", 1)[0]
+            for d in by_type.get("domain", []):
+                dom = norm.canonical("domain", d.value)
+                if host == dom or host.endswith("." + dom):
+                    why = f"the {site} profile links to {d.value}"
+                    if _link(session, graph, case_id, account, d, "profile_links_to", why, 0.9):
+                        result.linked += 1
+        for addr in emails:
+            for email in by_type.get("email", []):
+                if norm.canonical("email", email.value) == norm.canonical("email", addr):
+                    why = f"the {site} profile lists {email.value}"
+                    if _link(session, graph, case_id, account, email, "profile_links_to", why, 0.9):
                         result.linked += 1
 
     # Pass 2 — semantic similarity for names and usernames the rules missed.

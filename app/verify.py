@@ -24,6 +24,7 @@ import html
 import re
 from collections import Counter
 from dataclasses import dataclass, field
+from typing import Any
 from urllib.parse import urlparse
 
 import httpx
@@ -68,6 +69,16 @@ _TITLE = re.compile(r"<title[^>]*>(.*?)</title>", re.I | re.S)
 _META = re.compile(r"<meta\s+[^>]*>", re.I)
 _ATTR = re.compile(r'([a-zA-Z:_-]+)\s*=\s*("([^"]*)"|\'([^\']*)\')')
 _CANONICAL = re.compile(r'<link\s+[^>]*rel=["\']canonical["\'][^>]*>', re.I)
+_HREF = re.compile(r"""<a\s[^>]*?href\s*=\s*["']([^"'#][^"']*)["']""", re.I)
+_MAILTO = re.compile(r"mailto:([A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,24})", re.I)
+# Hosts whose links are site furniture (app stores, share buttons, CDNs), never someone's own page.
+_BOILERPLATE = re.compile(
+    r"(?:^|\.)(?:google|apple|microsoft|mozilla|cloudflare|cloudfront|akamaihd|gstatic|w3\.org|schema\.org|"
+    r"creativecommons|gravatar|wikipedia|wikimedia|archive\.org|onetrust|cookielaw|doubleclick|googletagmanager|"
+    r"play\.google|itunes|apps\.apple|bit\.ly)(?:\.[a-z.]+)?$",
+    re.I,
+)
+MAX_LINKS = 20
 _TAGS = re.compile(r"<(script|style)[^>]*>.*?</\1>|<[^>]+>", re.I | re.S)
 
 
@@ -75,7 +86,7 @@ _TAGS = re.compile(r"<(script|style)[^>]*>.*?</\1>|<[^>]+>", re.I | re.S)
 class Verdict:
     status: str
     reason: str
-    preview: dict[str, str] = field(default_factory=dict)
+    preview: dict[str, Any] = field(default_factory=dict)
 
 
 def _fold(text: str) -> str:
@@ -112,6 +123,40 @@ def extract_preview(page: str) -> dict[str, str]:
     return {k: v[:500] for k, v in preview.items() if v}
 
 
+def _base_domain(host: str) -> str:
+    parts = host.lower().split(".")
+    return ".".join(parts[-3:] if len(parts) > 2 and len(parts[-2]) <= 3 else parts[-2:])
+
+
+def extract_links(page: str, page_url: str) -> tuple[list[str], list[str]]:
+    """Outbound links a profile page points to (other profiles, a personal site) and its mailto addresses.
+
+    Only links off the site itself count: a profile's own navigation says
+    nothing about the person. Profiles on other known sites are kept first.
+    """
+    from app.search.profiles import is_known_site, match_profile
+
+    own = _base_domain(urlparse(page_url).hostname or "")
+    profiles, sites, seen = [], [], set()
+    for href in _HREF.findall(page):
+        href = html.unescape(href).strip()
+        if not href.startswith(("http://", "https://")):
+            continue
+        host = (urlparse(href).hostname or "").lower()
+        if not host or _base_domain(host) == own or _BOILERPLATE.search(host):
+            continue
+        profile = match_profile(href)
+        if profile is None and is_known_site(href):
+            continue  # share buttons, hashtag and search pages on social sites
+        key = profile.url if profile else href.rstrip("/")
+        if key in seen:
+            continue
+        seen.add(key)
+        (profiles if profile else sites).append(key)
+    emails = sorted({m.lower() for m in _MAILTO.findall(page)})[:5]
+    return (profiles + sites)[:MAX_LINKS], emails
+
+
 def classify(url: str, username: str, status_code: int, final_url: str, page: str) -> Verdict:
     """Decide what a fetched profile page proves. Pure, so it is easy to test."""
     head = page[:60_000]
@@ -138,6 +183,11 @@ def classify(url: str, username: str, status_code: int, final_url: str, page: st
 
     named = " ".join(preview.get(k, "") for k in ("title", "page_title", "description", "username", "canonical"))
     if user and user in _fold(named):
+        links, emails = extract_links(page, final_url)
+        if links:
+            preview["links"] = links
+        if emails:
+            preview["emails"] = emails
         return Verdict(VERIFIED, "profile page names the username", preview)
     if _LOGIN.search(title_text):
         return Verdict(UNVERIFIED, "login wall: the profile is only visible when signed in", preview)
@@ -232,3 +282,44 @@ async def verify_candidates(candidates: list[EntityCandidate]) -> tuple[list[Ent
             cand.attributes["preview"] = verdict.preview
         kept.append(cand)
     return kept, stats
+
+
+def linked_accounts(candidates: list[EntityCandidate]) -> list[EntityCandidate]:
+    """Accounts that verified profile pages link to, as new candidates.
+
+    People link their own accounts (a GitHub bio pointing at a personal site,
+    an X profile linking a LinkedIn page). A link from a checked profile of the
+    subject is much stronger evidence than a username coincidence, so these
+    start with a higher prior; they are verified like any other account.
+    """
+    from app.search.profiles import match_profile
+
+    known = {c.value for c in candidates}
+    out: dict[str, EntityCandidate] = {}
+    for cand in candidates:
+        attrs = cand.attributes or {}
+        if cand.type != "account" or attrs.get("verification") != VERIFIED:
+            continue
+        source = attrs.get("site") or urlparse(cand.value).hostname
+        for link in (attrs.get("preview") or {}).get("links") or []:
+            profile = match_profile(link)
+            if profile is None or profile.url in known or profile.url in out:
+                continue
+            out[profile.url] = EntityCandidate(
+                type="account",
+                value=profile.url,
+                attributes={
+                    "site": profile.site,
+                    "username": profile.handle,
+                    "url": profile.url,
+                    "host": urlparse(profile.url).hostname,
+                    "origin": f"linked from the {source} profile",
+                    "linked_from": cand.value,
+                },
+                source_reliability="C",
+                confidence=0.6,
+                field_confidence={"exists": 0.7, "same_person": 0.6},
+                relation_type="has_account",
+                relation_explanation=f"the {source} profile links to it",
+            )
+    return list(out.values())

@@ -30,7 +30,8 @@
   {% for key, label, suffix in tabs %}
   <a href="/cases/{{ case.id }}{{ suffix }}" {% if key == tab %}aria-current="page"{% endif %}>{{ label }}
     {%- if key == "entities" and counts.entities %}<span class="count">{{ counts.entities }}</span>{% endif %}
-    {%- if key == "pivots" and counts.pivots %}<span class="count">{{ counts.pivots }}</span>{% endif %}</a>
+    {%- if key == "pivots" and counts.pivots %}<span class="count">{{ counts.pivots }}</span>{% endif %}
+    {%- if key == "web" and counts.web %}<span class="count">{{ counts.web }}</span>{% endif %}</a>
   {% endfor %}
 </nav>
 

@@ -168,7 +168,8 @@ async def dismiss_entity(
     log_access(session, "dismiss_entity", user_id=user.id, case_id=case.id, ip=client_ip(request),
                entity_id=str(entity.id))  # fmt: skip
     await session.commit()
-    return _changed(f"Marked as not them: {entity.value[:60]}", undo=f"/cases/{case.id}/entities/{entity.id}/restore")
+    what = "Marked not relevant" if entity.type == "web_mention" else "Marked as not them"
+    return _changed(f"{what}: {entity.value[:60]}", undo=f"/cases/{case.id}/entities/{entity.id}/restore")
 
 
 @router.post("/cases/{case_id}/entities/{entity_id}/restore", dependencies=[Depends(verify_csrf)])

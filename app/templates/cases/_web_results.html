@@ -1,0 +1,41 @@
+{% import "components/ui.html" as ui %}
+<div class="web-filter" role="group" aria-label="Show">
+  <input type="hidden" id="web-show" name="show" value="{{ show }}" hx-swap-oob="true">
+  {% for key, label in [("results", "Results"), ("kept", "Kept"), ("dismissed", "Not relevant")] %}
+  <button type="button" class="chip-btn" aria-pressed="{{ 'true' if show == key else 'false' }}"
+          hx-get="/cases/{{ case.id }}/web/results?show={{ key }}" hx-target="#web-results">{{ label }} <span class="count">{{ counts[key] }}</span></button>
+  {% endfor %}
+</div>
+{% if rows %}
+<ol class="web-list" role="list">
+  {% for e in rows %}
+  {% set a = e.attributes %}
+  <li class="web-item{% if e.confirmed_flag %} is-kept{% endif %}">
+    <div class="web-main">
+      <a class="web-title" href="{{ a.get('url', e.value) }}" target="_blank" rel="noopener noreferrer nofollow">{{ a.get('title') or e.value }}</a>
+      <p class="web-url mono">{{ a.get('host') or '' }}</p>
+      {% if a.get('snippet') %}<p class="web-snippet">{{ a.snippet }}</p>{% endif %}
+      {% if a.get('note') %}<p class="web-snippet"><span class="faint">Note:</span> {{ a.note }}</p>{% endif %}
+      <p class="web-meta">
+        {% if a.get('found_by') %}<span class="faint">Found by</span> {% for f in a.found_by %}<span class="flag">{{ f }}</span>{% endfor %}{% elif a.get('origin') %}<span class="faint">{{ a.origin | capitalize }}</span>{% endif %}
+      </p>
+    </div>
+    <div class="web-acts">
+      {% if e.dismissed_flag %}
+      <button class="btn btn-sm" type="button" hx-post="/cases/{{ case.id }}/entities/{{ e.id }}/restore" hx-swap="none">Restore</button>
+      {% else %}
+      <button class="btn btn-sm{% if e.confirmed_flag %} is-on{% endif %}" type="button" aria-pressed="{{ 'true' if e.confirmed_flag else 'false' }}"
+              hx-post="/cases/{{ case.id }}/entities/{{ e.id }}/confirm" hx-swap="none" data-refresh="#web-results">{{ ui.icon("check") }}{{ "Kept" if e.confirmed_flag else "Keep" }}</button>
+      <button class="btn btn-ghost btn-sm" type="button" hx-post="/cases/{{ case.id }}/entities/{{ e.id }}/dismiss" hx-swap="none">Not relevant</button>
+      {% endif %}
+    </div>
+  </li>
+  {% endfor %}
+</ol>
+{% else %}
+<div class="empty">
+  {% if show == "kept" %}<h2>Nothing kept yet</h2><p>Keep a result to add it to the case's findings.</p>
+  {% elif show == "dismissed" %}<h2>Nothing marked not relevant</h2><p>Results you set aside appear here.</p>
+  {% else %}<h2>No web results yet</h2><p>Run a web search, or add something you found yourself.</p>{% endif %}
+</div>
+{% endif %}

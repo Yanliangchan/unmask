@@ -155,3 +155,69 @@ async def test_scan_keeps_verified_hits_ranks_them_above_unverified_and_counts_r
     run = await db.scalar(select(ScanRun).where(ScanRun.case_id == case_id))
     counts = run.failure_details["_verification"]["fake_checked"]["counts"]
     assert counts == {VERIFIED: 1, UNVERIFIED: 1, REJECTED: 1}
+
+
+# --- Profile content: outbound links and display names ---------------------------------------
+
+LINKED_PROFILE = """<html><head><title>Jane Doe (janedoe) · Real</title></head><body>
+<a href="/settings">Settings</a><a href="https://real.example/about">About</a>
+<a href="https://github.com/janedoe">GitHub</a><a href="https://twitter.com/intent/tweet">Share</a>
+<a href="https://janedoe.dev/">Site</a><a href="https://play.google.com/store/apps/x">App</a>
+<a href="mailto:Jane@Acme.example">Mail</a></body></html>"""
+
+
+def test_extract_links_keeps_other_profiles_and_personal_sites_only():
+    links, emails = verify.extract_links(LINKED_PROFILE, "https://real.example/janedoe")
+    assert links == ["https://github.com/janedoe", "https://janedoe.dev"]
+    assert emails == ["jane@acme.example"]
+
+
+def _linked_pages(request: httpx.Request) -> httpx.Response:
+    if request.url.host == "real.example":
+        return httpx.Response(200, html=LINKED_PROFILE)
+    if request.url.host == "github.com":
+        return httpx.Response(200, html="<title>janedoe (Jane Doe) · GitHub</title>")
+    return httpx.Response(404)
+
+
+class FakeLinkedAdapter(FakeCheckedAdapter):
+    name = "fake_linked"
+
+    def parse(self, raw):
+        return [_account("real", raw.target_value)]
+
+
+async def test_linked_profiles_become_corroborated_accounts(client, db, monkeypatch):
+    from app.models import Relation
+
+    monkeypatch.setattr(verify, "transport", httpx.MockTransport(_linked_pages))
+    registry.register(FakeLinkedAdapter())
+    await sync_tool_config(db)
+    try:
+        csrf = await login(client)
+        data = case_form_data(csrf, name=f"L {uuid.uuid4().hex[:6]}", tools=["fake_linked"])
+        data["target_type"], data["target_value"], data["target_tags"] = (
+            ["username", "name"],
+            ["janedoe", "Jane Doe"],
+            ["", ""],
+        )
+        r = await client.post("/cases", data=data)
+        case_id = uuid.UUID(r.headers["location"].rsplit("/", 1)[1])
+        await jobs.wait_for_all()
+    finally:
+        registry.unregister("fake_linked")
+
+    accounts = {
+        e.attributes["site"]: e
+        for e in (await db.scalars(select(Entity).where(Entity.case_id == case_id, Entity.type == "account"))).all()
+    }
+    github = accounts["GitHub"]
+    assert github.verification == VERIFIED
+    assert github.attributes["origin"] == "linked from the real profile"
+    rels = (await db.scalars(select(Relation).where(Relation.case_id == case_id))).all()
+    kinds = {(r.relation_type, r.entity_a_id, r.entity_b_id) for r in rels}
+    real = accounts["real"]
+    assert ("profile_links_to", real.id, github.id) in kinds or ("profile_links_to", github.id, real.id) in kinds
+    # Both pages' titles name "Jane Doe", which matches the name target.
+    assert sum(1 for k in kinds if k[0] == "profile_name_match") >= 2
+    assert github.confidence >= 0.7 and real.confidence >= 0.7

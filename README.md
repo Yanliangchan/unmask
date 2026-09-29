@@ -291,6 +291,7 @@ nothing.
    | `UNMASK_ADMIN_EMAIL`, `UNMASK_ADMIN_PASSWORD` | bootstrap admin; remove after first login |
    | `PUBLIC_BASE_URL` | your public URL, e.g. `https://unmask.example.com` (canonical URLs, sitemap, Open Graph) |
    | `UNMASK_H8MAIL_KEYS` | optional breach API keys, e.g. `hibp=…` — h8mail stays "Not configured" without one |
+   | `UNMASK_SERPER_KEY` (or `UNMASK_SERPAPI_KEY`, `UNMASK_GOOGLE_API_KEY` + `UNMASK_GOOGLE_CX`, `UNMASK_BRAVE_API_KEY`) | web search provider for the targeted searches and the Web tab; without one, web search stays "Not configured" |
 
 5. **Generate a domain** for the web service.
 6. **Backups.** The database holds irreplaceable case data. Enable Railway's Postgres

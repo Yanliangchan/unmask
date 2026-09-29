@@ -28,7 +28,7 @@ from app.db import sessionmaker
 from app.models import Entity, EntityObservation, Investigation, PivotLog, Relation, ScanRun, Target, ToolConfig
 from app.services.tools import record_failure, record_success, tool_configs
 from app.throttle import tool_slot
-from app.verify import VerificationStats, verify_candidates
+from app.verify import VerificationStats, linked_accounts, verify_candidates
 
 log = logging.getLogger(__name__)
 
@@ -342,6 +342,10 @@ async def _run_job(
             if adapter.verify_accounts:
                 found, stats = await verify_candidates(found)
                 verification.merge(stats)
+                # One hop only: accounts the verified profiles link to, checked the same way.
+                linked, linked_stats = await verify_candidates(linked_accounts(found))
+                verification.merge(linked_stats)
+                found.extend(linked)
             if inp.guessed and found:
                 found.append(_guess_confirmed(inp, found, adapter.name))
             candidates.extend(found)

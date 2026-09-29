@@ -62,9 +62,17 @@ class Settings(BaseSettings):
     )
     spiderfoot_use_case: str = Field(default="passive", alias="UNMASK_SPIDERFOOT_USE_CASE")
     crtsh_url: str = Field(default="https://crt.sh/", alias="UNMASK_CRTSH_URL")
+    # Web search (app/search). One provider is used: UNMASK_SEARCH_PROVIDER, or the
+    # first with a key in this order: serper, serpapi, google, brave.
+    search_provider: str = Field(default="", alias="UNMASK_SEARCH_PROVIDER")
+    serper_key: str = Field(default="", alias="UNMASK_SERPER_KEY")
+    serpapi_key: str = Field(default="", alias="UNMASK_SERPAPI_KEY")
+    google_api_key: str = Field(default="", alias="UNMASK_GOOGLE_API_KEY")
+    google_cx: str = Field(default="", alias="UNMASK_GOOGLE_CX")
     brave_api_key: str = Field(default="", alias="UNMASK_BRAVE_API_KEY")
-    # Result pages per Brave query (20 results each); each costs one API call.
-    brave_max_results: int = Field(default=20, alias="UNMASK_BRAVE_MAX_RESULTS")
+    # Each target gets up to this many targeted queries (each is one API call).
+    search_max_queries: int = Field(default=8, alias="UNMASK_SEARCH_MAX_QUERIES")
+    search_results_per_query: int = Field(default=10, alias="UNMASK_SEARCH_RESULTS")
 
     # Account verification: each account hit's profile page is fetched once and
     # checked before it is shown (see app/verify.py).
