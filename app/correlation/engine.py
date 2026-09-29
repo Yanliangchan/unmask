@@ -480,7 +480,20 @@ async def rescore_case(session: AsyncSession, case_id: uuid.UUID) -> int:
     for t in (await session.scalars(select(Target).where(Target.case_id == case_id))).all():
         tags.extend(t.context_tags or [])
 
+    from app.correlation.commonness import username_rarity
+    from app.services.accuracy import site_factor, site_host, site_stats
+
+    stats = await site_stats(session)
     for e in active.values():
+        attrs = e.attributes or {}
+        rarity, rarity_note, factor, site_note = None, "", 1.0, None
+        if e.type == "account":
+            if e.site_host is None:
+                e.site_host = site_host(e.value)  # backfills accounts stored before the column existed
+            # Linked accounts are evidence through the link, not a username coincidence.
+            if attrs.get("username") and not attrs.get("linked_from"):
+                rarity, rarity_note = username_rarity(str(attrs["username"]))
+            factor, site_note = site_factor(stats.get(e.site_host or ""))
         ev = Evidence(
             prior=float((e.field_confidence or {}).get("prior", e.confidence)),
             reliability=e.source_reliability,
@@ -490,6 +503,10 @@ async def rescore_case(session: AsyncSession, case_id: uuid.UUID) -> int:
             is_seed=e.is_seed,
             confirmed=e.confirmed_flag,
             verification=e.verification,
+            rarity=rarity,
+            rarity_note=rarity_note,
+            site_factor=factor,
+            site_note=site_note,
         )
         s = score(ev)
         adapter_fields = {k: v for k, v in (e.field_confidence or {}).items() if not k.startswith("evidence.")}

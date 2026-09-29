@@ -29,6 +29,7 @@ from app.db import get_session
 from app.jobs import enqueue_correlation, uses_rq
 from app.models import Entity, Relation, User
 from app.security import client_ip, current_user, verify_csrf
+from app.services.accuracy import DISMISS_REASONS
 from app.services.cases import get_case_for_user
 from app.services.entities import list_suggestions, merge_candidates
 from app.web import render
@@ -163,10 +164,12 @@ async def dismiss_entity(
     entity = await _entity(session, case.id, entity_id)
     if entity.is_seed:
         raise HTTPException(status_code=400, detail="A target can't be ruled out; edit the case instead")
+    reason = str((await request.form()).get("reason") or "other")
     entity.dismissed_flag = True
     entity.confirmed_flag = False
+    entity.dismiss_reason = reason if reason in DISMISS_REASONS else "other"
     log_access(session, "dismiss_entity", user_id=user.id, case_id=case.id, ip=client_ip(request),
-               entity_id=str(entity.id))  # fmt: skip
+               entity_id=str(entity.id), reason=entity.dismiss_reason)  # fmt: skip
     await session.commit()
     what = "Marked not relevant" if entity.type == "web_mention" else "Marked as not them"
     return _changed(f"{what}: {entity.value[:60]}", undo=f"/cases/{case.id}/entities/{entity.id}/restore")
@@ -183,6 +186,7 @@ async def restore_entity(
     case = await get_case_for_user(session, case_id, user)
     entity = await _entity(session, case.id, entity_id)
     entity.dismissed_flag = False
+    entity.dismiss_reason = None
     log_access(session, "restore_entity", user_id=user.id, case_id=case.id, ip=client_ip(request),
                entity_id=str(entity.id))  # fmt: skip
     await session.commit()

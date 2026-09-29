@@ -26,6 +26,7 @@ from app.adapters.registry import adapters_for, get_adapter
 from app.config import get_settings
 from app.db import sessionmaker
 from app.models import Entity, EntityObservation, Investigation, PivotLog, Relation, ScanRun, Target, ToolConfig
+from app.services.accuracy import site_host
 from app.services.tools import record_failure, record_success, tool_configs
 from app.throttle import tool_slot
 from app.verify import VerificationStats, linked_accounts, verify_candidates
@@ -155,6 +156,7 @@ async def persist_candidates(
                 field_confidence={**cand.field_confidence, "prior": max(0.0, min(1.0, cand.confidence))},
                 source_reliability=cand.source_reliability,
                 verification=cand.attributes.get("verification"),
+                site_host=site_host(cand.value) if cand.type == "account" else None,
                 first_seen=now,
                 last_verified=now,
             )

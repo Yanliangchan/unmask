@@ -34,7 +34,10 @@
           {% if e.dismissed_flag %}
           <button type="button" role="menuitem" hx-post="/cases/{{ case.id }}/entities/{{ e.id }}/restore" hx-swap="none">Restore</button>
           {% else %}
-          <button type="button" role="menuitem" hx-post="/cases/{{ case.id }}/entities/{{ e.id }}/dismiss" hx-swap="none">Not them</button>
+          <p class="menu-heading">Not them</p>
+          <button type="button" role="menuitem" hx-post="/cases/{{ case.id }}/entities/{{ e.id }}/dismiss" hx-vals='{"reason": "different_person"}' hx-swap="none">Different person</button>
+          {% if e.type == "account" %}<button type="button" role="menuitem" hx-post="/cases/{{ case.id }}/entities/{{ e.id }}/dismiss" hx-vals='{"reason": "not_a_profile"}' hx-swap="none">Not a real profile</button>
+          <button type="button" role="menuitem" hx-post="/cases/{{ case.id }}/entities/{{ e.id }}/dismiss" hx-vals='{"reason": "bot_or_spam"}' hx-swap="none">Bot or spam account</button>{% endif %}
           {% endif %}
           {% endif %}
           <div class="menu-sep"></div>

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -16,6 +17,7 @@ from app.models import TARGET_TYPES, Entity, ScanRun, User
 from app.routes.public import render_landing
 from app.routes.shell import case_shell
 from app.security import client_ip, current_user, current_user_optional, verify_csrf
+from app.services.accuracy import DISMISS_REASONS, accuracy_report, site_factor
 from app.services.cases import (
     CaseValidationError,
     TargetInput,
@@ -24,6 +26,7 @@ from app.services.cases import (
     list_cases_for_user,
     mark_reviewed,
     parse_tags,
+    visible_case_ids,
 )
 from app.services.entities import SHOW_MODES, EntityFilters, entity_detail, list_entities, list_entities_view
 from app.services.graph import case_graph
@@ -87,6 +90,9 @@ async def tools_page(
             "user": user,
             "health": await tool_health(session),
             "workers": worker_count(),
+            "acc": await accuracy_report(session, await visible_case_ids(session, user)),
+            "site_factor": site_factor,
+            "reason_labels": DISMISS_REASONS,
         },
     )
 
@@ -340,6 +346,12 @@ async def toggle_confirm(
     await lock_case(session, case.id)
     await rescore_case(session, case.id)
     await session.commit()
+    if request.query_params.get("toast"):
+        # From the review queue: announce it with Undo (the same toggle) and move on.
+        verb = "Confirmed" if entity.confirmed_flag else "Unconfirmed"
+        toast = {"message": f"{verb}: {entity.value[:60]}", "undo": f"/cases/{case.id}/entities/{entity.id}/confirm"}
+        trigger = json.dumps({"entities-changed": True, "toast": toast}, ensure_ascii=True)
+        return HTMLResponse("", headers={"HX-Trigger": trigger})
     rows = await list_entities(session, case.id, EntityFilters(show="all"))
     row = next((r for r in rows if r.entity.id == entity.id), None)
     return render(request, "cases/_entity_row.html", {"case": case, "row": row})

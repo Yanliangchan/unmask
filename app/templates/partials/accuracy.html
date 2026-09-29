@@ -1,0 +1,53 @@
+<section class="accuracy" aria-labelledby="acc-title">
+  <h2 id="acc-title">How accurate are the results?</h2>
+  <p class="muted small">Every Confirm and Not them is a check on the tools. {% if acc.decided %}{{ acc.decided }} decision{{ 's' if acc.decided != 1 }} in your cases so far.{% endif %}</p>
+  {% if not acc.decided %}
+  <div class="empty"><h2>No decisions yet</h2><p>Confirm or rule out findings in a case (the review queue is quickest) and this fills in.</p></div>
+  {% else %}
+  <div class="acc-grid">
+    <div>
+      <h3>Scores against your decisions</h3>
+      <p class="hint">If "Likely" findings are confirmed much less than 70% of the time, the scores are too generous.</p>
+      <table class="table compact">
+        <thead><tr><th>Scored</th><th class="num">Decided</th><th class="num">Confirmed</th></tr></thead>
+        <tbody>
+          {% for b in acc.bands %}
+          <tr><td>{{ b.label }}</td><td class="num">{{ b.decided }}</td>
+              <td class="num">{% if b.rate is not none %}{{ (b.rate * 100) | round | int }}%{% else %}<span class="faint">–</span>{% endif %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div>
+      <h3>By tool</h3>
+      <p class="hint">Share of each tool's findings you confirmed.</p>
+      <table class="table compact">
+        <thead><tr><th>Tool</th><th class="num">Confirmed</th><th class="num">Not them</th><th class="num">Right</th></tr></thead>
+        <tbody>
+          {% for t in acc.tools %}
+          <tr><td>{{ tool_label(t.tool) }}</td><td class="num">{{ t.confirmed }}</td><td class="num">{{ t.dismissed }}</td>
+              <td class="num">{{ (t.rate * 100) | round | int }}%</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% if acc.sites %}
+  <h3>By site</h3>
+  <p class="hint">Account hits on sites with a poor record count for less in the score, and more on sites with a good one (after at least 3 decisions, across all cases).</p>
+  <div class="table-wrap">
+  <table class="table compact">
+    <thead><tr><th>Site</th><th class="num">Confirmed</th><th class="num">Not them</th><th>Effect on score</th><th class="hide-sm">Main reason ruled out</th></tr></thead>
+    <tbody>
+      {% for s in acc.sites[:20] %}
+      {% set f = site_factor(s)[0] %}
+      <tr><td class="mono">{{ s.host }}</td><td class="num">{{ s.confirmed }}</td><td class="num">{{ s.dismissed }}</td>
+          <td>{% if f > 1.02 %}<span class="text-ok">Raised ×{{ '%.2f' | format(f) }}</span>{% elif f < 0.98 %}<span class="text-warn">Lowered ×{{ '%.2f' | format(f) }}</span>{% else %}<span class="faint">None yet</span>{% endif %}</td>
+          <td class="hide-sm faint">{% if s.reasons %}{{ reason_labels.get(s.reasons.most_common(1)[0][0], 'Other') }}{% endif %}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+  {% endif %}
+</section>

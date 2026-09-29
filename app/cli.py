@@ -4,6 +4,7 @@ python -m app.cli gen-keys
 python -m app.cli create-user EMAIL [--admin]
 python -m app.cli health-check [TOOL]
 python -m app.cli preflight
+python -m app.cli eval FILE [--tools sherlock,maigret,websearch] [--json OUT]
 """
 
 from __future__ import annotations
@@ -123,6 +124,23 @@ async def health_check(tool: str | None) -> None:
     await dispose_engine()
 
 
+def evaluate(path: str, tools: list[str], json_out: str | None) -> None:
+    from app import evaluation
+
+    try:
+        data = evaluation.load(path)
+    except (OSError, ValueError) as exc:
+        sys.exit(f"Can't use {path}: {exc}")
+    print(f"Authorization: {data['authorization']}")
+    print(f"{len(data['identities'])} identities x {len(tools)} tools. Live tools are slow; this can take a while.\n")
+    results = asyncio.run(evaluation.run_eval(data, tools))
+    print(evaluation.summarize(results))
+    if json_out:
+        with open(json_out, "w") as fh:
+            fh.write(evaluation.to_json(results))
+        print(f"\nDetails (missed accounts, false positives) written to {json_out}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -132,6 +150,10 @@ def main() -> None:
     cu.add_argument("--admin", action="store_true")
     hc = sub.add_parser("health-check", help="run tool health checks against known-good targets")
     hc.add_argument("tool", nargs="?")
+    ev = sub.add_parser("eval", help="measure the tools against identities whose accounts are known")
+    ev.add_argument("file")
+    ev.add_argument("--tools", default="sherlock,maigret,websearch")
+    ev.add_argument("--json", dest="json_out")
     pf = sub.add_parser("preflight", help="check configuration and wait for the database (run before migrations)")
     pf.add_argument("--wait", type=int, default=int(os.environ.get("UNMASK_DB_WAIT", "60")))
     args = parser.parse_args()
@@ -142,6 +164,8 @@ def main() -> None:
         asyncio.run(create_user(args.email, args.admin))
     elif args.cmd == "health-check":
         asyncio.run(health_check(args.tool))
+    elif args.cmd == "eval":
+        evaluate(args.file, [t.strip() for t in args.tools.split(",") if t.strip()], args.json_out)
     elif args.cmd == "preflight":
         preflight(args.wait)
 

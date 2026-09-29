@@ -18,6 +18,7 @@ from app.adapters.base import (
     run_tool_subprocess,
     strip_ansi,
 )
+from app.adapters.sites import focused_sites
 
 _LINE = re.compile(r"^\[(?P<mark>[+\-])\](?:\s*\[\d+\s*ms\])?\s+(?P<site>[^:]+):\s*(?P<rest>.*)$")
 _START = re.compile(r"^\[\*\] Checking username (?P<username>\S+) on:")
@@ -122,6 +123,7 @@ class SherlockAdapter(ToolAdapter):
         return [*argv, "--", username]
 
     async def run(self, target_value: str, context_tags: list[str], sites: list[str] | None = None) -> list[RawResult]:
+        sites = sites or focused_sites(self.name)
         proc = await run_tool_subprocess(self.build_argv(target_value.strip(), sites))
         if proc.returncode != 0:
             tail = (proc.stderr or proc.stdout).strip().splitlines()[-1:] or ["no output"]

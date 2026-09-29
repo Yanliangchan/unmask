@@ -52,7 +52,10 @@ class Settings(BaseSettings):
 
     # Per-tool settings. API keys are written to a 0600 config file inside the
     # tool's throwaway working directory, never passed on the command line.
-    # Sites Maigret checks, most popular first. Beyond ~200 the extra sites add
+    # focused: username tools check a curated list of ~120 reliable sites
+    # (app/adapters/sites.py); all: every site they know (slower, noisier).
+    username_sites: str = Field(default="focused", alias="UNMASK_USERNAME_SITES")
+    # With UNMASK_USERNAME_SITES=all: sites Maigret checks, most popular first. Beyond ~200 the extra sites add
     # minutes and mostly false positives.
     maigret_top_sites: int = Field(default=200, alias="UNMASK_MAIGRET_TOP_SITES")
     # h8mail keys as comma-separated name=value pairs, e.g. "hibp=...,snusbase_token=..."

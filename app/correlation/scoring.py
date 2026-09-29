@@ -44,6 +44,12 @@ class Evidence:
     is_seed: bool = False
     confirmed: bool = False
     verification: str | None = None
+    # Account hits: how distinctive the username is (None = not a username match).
+    rarity: float | None = None
+    rarity_note: str = ""
+    # Account hits: this site's track record in past analyst decisions.
+    site_factor: float = 1.0
+    site_note: str | None = None
 
 
 @dataclass
@@ -54,14 +60,28 @@ class Score:
 
 
 def score(ev: Evidence) -> Score:
-    w = RELIABILITY_WEIGHT.get(ev.reliability, 0.4)
-    if ev.is_seed or ev.confirmed:
-        why = "analyst-supplied target" if ev.is_seed else "confirmed by analyst"
-        return Score(1.0, {"evidence.override": 1.0}, [why])
+    if ev.is_seed:
+        return Score(1.0, {"evidence.override": 1.0}, ["analyst-supplied target"])
+    model = _model_score(ev)
+    if ev.confirmed:
+        # The model's own estimate is kept so decisions can check the scores later.
+        components = {**model.components, "evidence.override": 1.0, "evidence.model_score": model.overall}
+        return Score(1.0, components, ["confirmed by analyst", *model.explanation])
+    return model
 
+
+def _model_score(ev: Evidence) -> Score:
+    w = RELIABILITY_WEIGHT.get(ev.reliability, 0.4)
     # Reliability scales the prior between 60% and 100% of its value.
     base = max(0.0, min(1.0, ev.prior)) * (0.6 + 0.4 * w)
     explanation = [f"prior {ev.prior:.2f} from the source, weighted by reliability {ev.reliability} → {base:.2f}"]
+    if ev.rarity is not None and ev.rarity < 1.0:
+        base *= 0.5 + 0.5 * ev.rarity
+        if ev.rarity_note:
+            explanation.append(f"{ev.rarity_note} → {base:.2f}")
+    if ev.site_factor != 1.0:
+        base = min(0.95, base * ev.site_factor)
+        explanation.append(f"{ev.site_note} → {base:.2f}")
     if ev.verification == "unverified":
         base *= UNVERIFIED_FACTOR
         explanation.append(f"profile page could not be checked, so the prior is reduced to {base:.2f}")
@@ -96,6 +116,11 @@ def score(ev: Evidence) -> Score:
         components["evidence.tag_match"] = round(ev.tag_match, 4)
     if ev.verification:
         components["evidence.verified"] = 1.0 if ev.verification == "verified" else 0.0
+    if ev.rarity is not None:
+        components["evidence.username_rarity"] = round(ev.rarity, 3)
+    if ev.site_factor != 1.0:
+        components["evidence.site_factor"] = round(ev.site_factor, 3)
+    components["evidence.model_score"] = overall
     return Score(overall, components, explanation)
 
 

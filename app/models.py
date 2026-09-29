@@ -221,6 +221,11 @@ class Entity(Base):
     dismissed_flag: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     # Account hits only: verified | unverified (see app/verify.py). Null for other types.
     verification: Mapped[str | None] = mapped_column(String(12))
+    # Accounts only: the site's host ("github.com"), kept in clear so decisions can be
+    # counted per site (app/services/accuracy.py). A site name is not personal data.
+    site_host: Mapped[str | None] = mapped_column(String(255), index=True)
+    # Why the analyst said "Not them": different_person | not_a_profile | bot_or_spam | other
+    dismiss_reason: Mapped[str | None] = mapped_column(String(32))
     is_seed: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     merged_into_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("entities.id", ondelete="SET NULL"), index=True)
 

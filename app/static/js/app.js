@@ -164,7 +164,10 @@
       undo.textContent = "Undo";
       undo.addEventListener("click", function () {
         el.remove();
-        window.htmx.ajax("POST", undoUrl, { source: document.body, swap: "none" });
+        // Every view that lists findings reloads once the undo has landed.
+        window.htmx.ajax("POST", undoUrl, { source: document.body, swap: "none" }).then(function () {
+          window.htmx.trigger(document.body, "entities-changed");
+        });
       });
       el.appendChild(undo);
     }
@@ -269,6 +272,21 @@
     var elt = e.detail.elt;
     var target = elt && elt.dataset && elt.dataset.refresh && document.querySelector(elt.dataset.refresh);
     if (target && e.detail.successful && window.htmx) window.htmx.trigger(target, "refresh");
+  });
+
+  // Review queue: skip keeps a list of skipped ids; single keys answer the current card.
+  document.addEventListener("click", function (e) {
+    var skip = e.target.closest && e.target.closest("[data-skip], [data-skip-reset]");
+    var input = document.getElementById("review-skip");
+    if (!skip || !input || !window.htmx) return;
+    input.value = skip.hasAttribute("data-skip-reset") ? "" : (input.value ? input.value + "," : "") + skip.dataset.skip;
+    window.htmx.trigger("#review-card", "refresh");
+  });
+  document.addEventListener("keydown", function (e) {
+    if (!document.getElementById("review-card") || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target.closest && e.target.closest("input, textarea, select")) return;
+    var btn = document.querySelector('#review-card [data-key="' + e.key.toLowerCase() + '"]:not([disabled])');
+    if (btn) { e.preventDefault(); btn.click(); }
   });
 
   // "Run scan" stays disabled while the case already has a scan in progress.

@@ -247,3 +247,7 @@ async def delete_case(session: AsyncSession, case_id: uuid.UUID, *, user_id: uui
     )
     session.add(AccessLog(case_id=None, user_id=user_id, action=action, detail={"case_id": str(case_id), **detail}))
     await session.execute(delete(Investigation).where(Investigation.id == case_id))
+
+
+async def visible_case_ids(session: AsyncSession, user: User) -> list[uuid.UUID]:
+    return list((await session.scalars(select(Investigation.id).where(_visible_to(user)))).all())

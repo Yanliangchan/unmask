@@ -19,6 +19,7 @@ from app.adapters.base import (
     strip_ansi,
 )
 from app.adapters.sherlock import validate_username
+from app.adapters.sites import focused_sites
 from app.config import get_settings
 
 _START = re.compile(r"^\[\*\] Checking username (?P<username>\S+) on:")
@@ -119,6 +120,7 @@ class MaigretAdapter(ToolAdapter):
 
     async def run(self, target_value: str, context_tags: list[str], sites: list[str] | None = None) -> list[RawResult]:
         username = target_value.strip()
+        sites = sites or focused_sites(self.name)
         proc = await run_tool_subprocess(
             self.build_argv(username, sites), timeout=self.timeout_seconds, collect=["out/*ndjson*.json"]
         )

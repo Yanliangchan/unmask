@@ -270,6 +270,22 @@ Health checks run each tool against a known-good target and validate a content s
 (e.g. Sherlock must find the known account on GitHub *and* GitLab) — an HTTP 200 alone proves
 nothing.
 
+### Measuring accuracy
+
+```bash
+python -m app.cli eval identities.json --json results.json
+```
+
+Runs the username tools and web search against people whose accounts you know (your own, or
+volunteers who agreed; the file must record that authorization) and reports each tool's
+precision, recall and run time, before and after the profile-page check. Rerun it after any
+change to tools, site lists or scoring. The file format is documented in `app/evaluation.py`.
+
+Inside the app, every Confirm and "Not them" (with its reason) is counted per site. The Tools
+page shows how often each score band, tool and site was right, and sites with a poor record count
+for less in future scores. Username tools check a focused list of ~120 reliable sites by
+default (`UNMASK_USERNAME_SITES=all` for everything they know).
+
 ## Deploying to Railway
 
 1. **Create a project** and add the **PostgreSQL** and **Redis** plugins.

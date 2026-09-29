@@ -38,6 +38,7 @@ class CaseSummary:
     discarded: int = 0
     scanning: bool = False
     scanned: bool = False
+    undecided: int = 0
 
 
 def _card(e: Entity) -> ProfileCard:
@@ -100,6 +101,7 @@ async def case_summary(session: AsyncSession, case_id: uuid.UUID) -> CaseSummary
         discarded=discarded,
         scanning=scanning,
         scanned=bool(runs),
+        undecided=sum(1 for e in visible if not e.confirmed_flag and e.type != "web_mention"),
     )
     confirmed = sum(1 for e in likely if e.confirmed_flag)
     if accounts:

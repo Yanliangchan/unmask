@@ -1,0 +1,13 @@
+{% extends "cases/_layout.html" %}
+{% block tab %}
+<div class="review-page">
+  <p class="crumb"><a href="/cases/{{ case.id }}">Findings</a> / Review</p>
+  <input type="hidden" id="review-skip" name="skip" value="">
+  <input type="hidden" id="review-all" name="all" value="{{ '1' if all else '' }}">
+  <div id="review-card" hx-get="/cases/{{ case.id }}/review/next" hx-trigger="load, refresh, entities-changed from:body"
+       hx-include="#review-skip, #review-all" hx-swap="innerHTML" aria-live="polite">
+    <p class="muted small">Loading…</p>
+  </div>
+  <p class="hint review-keys">Keys: <kbd>Y</kbd> confirm · <kbd>N</kbd> different person · <kbd>P</kbd> not a real profile · <kbd>B</kbd> bot or spam · <kbd>S</kbd> skip</p>
+</div>
+{% endblock %}

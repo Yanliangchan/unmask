@@ -70,7 +70,9 @@ async def test_analyst_can_add_a_finding_they_found_elsewhere(client, db):
         data={"csrf_token": csrf, "type": "account", "value": "https://www.linkedin.com/in/janedoe", "note": "CV"},
     )
     assert r.status_code == 303 and r.headers["location"] == f"/cases/{case_id}/web?added=account"
-    e = await db.scalar(select(Entity).where(Entity.case_id == case_id, Entity.source_tool == "analyst"))
+    e = await db.scalar(
+        select(Entity).where(Entity.case_id == case_id, Entity.source_tool == "analyst", Entity.is_seed.is_(False))
+    )
     assert e.confirmed_flag and e.confidence == 1.0 and e.attributes["note"] == "CV"
     assert e.attributes["origin"] == "added by admin@example.com"
     assert "linkedin.com/in/janedoe" in (await client.get(f"/cases/{case_id}/entities")).text

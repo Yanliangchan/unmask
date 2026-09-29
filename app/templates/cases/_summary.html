@@ -4,6 +4,7 @@
     <div>
       <h2 id="summary-title">{{ s.headline }}</h2>
       <p class="muted">{{ s.detail }}</p>
+      {% if s.undecided %}<p class="summary-cta"><a class="btn btn-sm btn-primary" href="/cases/{{ case.id }}/review">Review {{ s.undecided }} finding{{ 's' if s.undecided != 1 }}</a> <span class="faint small">one at a time, with the keyboard</span></p>{% endif %}
     </div>
     <dl class="summary-stats">
       <div><dt>Shown</dt><dd>{{ s.shown }}</dd></div>
