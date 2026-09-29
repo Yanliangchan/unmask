@@ -23,7 +23,7 @@ from app.adapters.base import (
 )
 from app.config import get_settings
 from app.identifiers import guess_type
-from app.search.profiles import match_profile
+from app.search.profiles import handle_relates_to, match_profile
 from app.search.providers import active_provider, setup_hint
 from app.search.queries import Query, build_queries
 
@@ -143,7 +143,9 @@ class WebSearchAdapter(ToolAdapter):
             out.append(mention)
 
             profile = match_profile(hit["url"])
-            if profile:
+            # Only a profile whose handle resembles the target is treated as an account;
+            # the rest (a company's page found through a context tag) stay web mentions.
+            if profile and handle_relates_to(profile.handle, raw.target_value):
                 out.append(
                     EntityCandidate(
                         type="account",

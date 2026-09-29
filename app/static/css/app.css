@@ -895,3 +895,6 @@ a.side-email:hover { color: var(--text); }
   .legal-nav ul { display: flex; flex-wrap: wrap; gap: 4px; }
 }
 .legal-doc a, .accept-card a, .legal-summary a { text-decoration: underline; text-underline-offset: 2px; }
+.tools-unset { margin-top: 14px; font-size: 13.5px; }
+.tools-unset summary { cursor: pointer; color: var(--muted); }
+.tools-unset p { margin: 6px 0 8px; }

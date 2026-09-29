@@ -61,6 +61,10 @@ class ToolHealth:
 def health_of(cfg: ToolConfig) -> ToolHealth:
     adapter = get_adapter(cfg.tool_name)
     label = adapter.label if adapter else cfg.tool_name
+    # A tool that can't work on this server says so first, whatever its past failures.
+    missing = adapter.configured() if adapter else None
+    if missing:
+        return ToolHealth(cfg.tool_name, label, "off", "Not configured", missing)
     if cfg.circuit_open:
         return ToolHealth(
             cfg.tool_name,
@@ -71,9 +75,6 @@ def health_of(cfg: ToolConfig) -> ToolHealth:
         )
     if not cfg.enabled:
         return ToolHealth(cfg.tool_name, label, "off", "Disabled", "Disabled by configuration")
-    missing = adapter.configured() if adapter else None
-    if missing:
-        return ToolHealth(cfg.tool_name, label, "off", "Not configured", missing)
     if cfg.last_health_ok is False:
         reason = (cfg.last_failure_reason or "").removeprefix("health check: ")
         return ToolHealth(cfg.tool_name, label, "degraded", "Degraded", f"Health check failed: {reason}")

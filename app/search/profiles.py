@@ -77,3 +77,43 @@ def is_known_site(url: str) -> bool:
     """True for any page on a site listed here, profile or not (share buttons, search pages...)."""
     host = (urlparse(url).hostname or "").lower()
     return any(h.match(host) for _, h, _, _ in _COMPILED)
+
+
+def _squash(text: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", text.casefold())
+
+
+def handle_relates_to(handle: str, target: str) -> bool:
+    """Whether a profile handle plausibly belongs to the searched target.
+
+    A search for "janedoe tryhackme" also returns TryHackMe's own X account; its
+    handle has nothing to do with Jane, so it is a search result, not her account.
+    Usernames must match closely, names need two of their parts (or a part plus
+    an initial), emails are compared on their local part.
+    """
+    from difflib import SequenceMatcher
+
+    h = _squash(handle)
+    if len(h) < 2:
+        return False
+    target = target.strip()
+    if "@" in target:
+        target = target.split("@", 1)[0]
+    words = [w for w in re.split(r"[\s._\-]+", target.casefold()) if w]
+    t = _squash(target)
+    if not t:
+        return False
+    if h == t or (len(t) >= 4 and t in h) or (len(h) >= 5 and h in t):
+        return True
+    if SequenceMatcher(None, h, t).ratio() >= 0.8:
+        return True
+    parts = [_squash(w) for w in words if len(_squash(w)) >= 2]
+    if len(parts) >= 2:
+        present = [p for p in parts if p in h]
+        if len(present) >= 2:
+            return True
+        # One full part plus the initial of another at either end ("jdoe", "janed").
+        if len(present) == 1:
+            others = [p[0] for p in parts if p not in present]
+            return any(h.startswith(i) or h.endswith(i) for i in others) and len(present[0]) >= 3
+    return False

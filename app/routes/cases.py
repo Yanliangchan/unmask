@@ -169,6 +169,8 @@ async def _tool_choices(session: AsyncSession) -> list[dict]:
             or (None if cfgs.get(a.name) and cfgs[a.name].enabled else "currently disabled"),
         }
         for a in all_adapters()
+        # A tool that isn't configured on this server isn't offered at all.
+        if a.configured() is None
     ]
 
 

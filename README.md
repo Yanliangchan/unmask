@@ -307,7 +307,7 @@ default (`UNMASK_USERNAME_SITES=all` for everything they know).
    | `UNMASK_ADMIN_EMAIL`, `UNMASK_ADMIN_PASSWORD` | bootstrap admin; remove after first login |
    | `PUBLIC_BASE_URL` | your public URL, e.g. `https://unmask.example.com` (canonical URLs, sitemap, Open Graph) |
    | `UNMASK_H8MAIL_KEYS` | optional breach API keys, e.g. `hibp=…` — h8mail stays "Not configured" without one |
-   | `UNMASK_PROXY_URL`, `UNMASK_PROXY_TOOLS` | optional outbound proxy (a residential one works best) for tools that sites block from cloud IPs; defaults to Holehe, Sherlock, Maigret and the profile-page check |
+   | `UNMASK_PROXY_URL`, `UNMASK_PROXY_TOOLS` | optional outbound proxy (a residential one works best) for tools that sites block from cloud IPs; defaults to Holehe, Sherlock, Maigret and the profile-page check. Holehe stays switched off without one (its sites rate-limit cloud servers), unless `UNMASK_HOLEHE_DIRECT=true` on a home or office network |
    | `UNMASK_OPERATOR_NAME`, `UNMASK_LEGAL_CONTACT`, `UNMASK_SECURITY_CONTACT`, `UNMASK_GOVERNING_LAW` | who runs this deployment and how to reach them; shown in the Terms, Privacy Notice and Trust pages and in `/.well-known/security.txt`. Governing law defaults to Singapore |
    | `UNMASK_SMTP_HOST`, `UNMASK_SMTP_PORT`, `UNMASK_SMTP_USER`, `UNMASK_SMTP_PASSWORD`, `UNMASK_SMTP_FROM` | optional mail server for email notifications (port 465 uses TLS, others STARTTLS); emails never contain case names or findings |
    | `UNMASK_SERPER_KEY` (or `UNMASK_SERPAPI_KEY`, `UNMASK_GOOGLE_API_KEY` + `UNMASK_GOOGLE_CX`, `UNMASK_BRAVE_API_KEY`) | web search provider for the targeted searches and the Web tab; without one, web search stays "Not configured" |

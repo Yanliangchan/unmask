@@ -3,6 +3,8 @@
 <p class="alert alert-error" role="alert">No scan worker is running. Queued scans and checks will not start.</p>
 {% endif %}
 {% if notice %}<p class="alert" role="status">{{ notice }}</p>{% endif %}
+{% set unset = health | selectattr("status_label", "equalto", "Not configured") | list %}
+{% set health = health | rejectattr("status_label", "equalto", "Not configured") | list %}
 {% set down = health | selectattr("status", "equalto", "down") | list %}
 {% if down %}
 <p class="alert alert-error" role="alert">{{ down | length }} tool{{ 's' if down | length > 1 }} auto-disabled by the circuit breaker. Run a check once the problem is fixed to switch {{ 'them' if down | length > 1 else 'it' }} back on.</p>
@@ -23,8 +25,17 @@
       </td>
     </tr>
     {% else %}
-    <tr><td colspan="4" class="muted">No tools registered.</td></tr>
+    <tr><td colspan="4" class="muted">No tools are set up yet.</td></tr>
     {% endfor %}
   </tbody>
 </table>
 </div>
+{% if unset %}
+<details class="tools-unset">
+  <summary>{{ unset | length }} more tool{{ 's' if unset | length != 1 }} available once set up</summary>
+  <p class="muted small">These don't run and aren't offered when creating a case until they're configured.</p>
+  <ul class="plain-list">
+    {% for t in unset %}<li><strong>{{ t.label }}</strong><div class="sub">{{ t.detail }}</div></li>{% endfor %}
+  </ul>
+</details>
+{% endif %}

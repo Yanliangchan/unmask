@@ -80,6 +80,9 @@ class Settings(BaseSettings):
     # Outbound proxy for tools that sites block from cloud IPs (see app/proxy.py).
     proxy_url: str = Field(default="", alias="UNMASK_PROXY_URL")
     proxy_tools: str = Field(default="holehe,sherlock,maigret,verify", alias="UNMASK_PROXY_TOOLS")
+    # Holehe's sites rate-limit datacenter addresses, so without a proxy it only
+    # produces false negatives on a server. Set true on a home or office network.
+    holehe_direct: bool = Field(default=False, alias="UNMASK_HOLEHE_DIRECT")
 
     # Account verification: each account hit's profile page is fetched once and
     # checked before it is shown (see app/verify.py).

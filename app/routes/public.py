@@ -21,6 +21,19 @@ PUBLIC_PATHS = ["/", "/trust", "/terms", "/acceptable-use", "/privacy"]
 LANDING_TEMPLATE = TEMPLATES_DIR / "public" / "landing.html"
 
 
+def available_tool_labels() -> list[str]:
+    """Tools this deployment can actually run: the landing page only advertises those."""
+    from app.adapters.registry import all_adapters
+
+    return [a.label for a in all_adapters() if a.configured() is None]
+
+
+def _tool_sentence(labels: list[str]) -> str:
+    if not labels:
+        return "open-source OSINT tools"
+    return labels[0] if len(labels) == 1 else ", ".join(labels[:-1]) + " and " + labels[-1]
+
+
 def landing_seo() -> Seo:
     base = get_settings().public_base_url.rstrip("/")
     return Seo(
@@ -41,7 +54,7 @@ def landing_seo() -> Seo:
                 "screenshot": base + "/static/img/screenshot-case.png",
                 "image": base + "/static/img/og-image.png",
                 "featureList": [
-                    "Runs Sherlock, Maigret, Holehe, theHarvester, crt.sh, Amass and SpiderFoot as one case",
+                    f"Runs {_tool_sentence(available_tool_labels())} as one case",
                     "De-duplicated findings with per-field confidence and source reliability",
                     "Automatic follow-up lookups, each one logged",
                     "Scan-to-scan comparison with watch mode",
@@ -60,7 +73,8 @@ def landing_seo() -> Seo:
 
 
 def render_landing(request: Request):
-    return render(request, "public/landing.html", {"seo": landing_seo()})
+    tools = _tool_sentence(available_tool_labels())
+    return render(request, "public/landing.html", {"seo": landing_seo(), "tools_sentence": tools})
 
 
 @router.get("/robots.txt", response_class=PlainTextResponse, include_in_schema=False)

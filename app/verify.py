@@ -79,6 +79,7 @@ _BOILERPLATE = re.compile(
     re.I,
 )
 MAX_LINKS = 20
+_CHROME = re.compile(r"<(nav|footer)\b[^>]*>.*?</\1\s*>", re.I | re.S)
 _TAGS = re.compile(r"<(script|style)[^>]*>.*?</\1>|<[^>]+>", re.I | re.S)
 
 
@@ -128,17 +129,44 @@ def _base_domain(host: str) -> str:
     return ".".join(parts[-3:] if len(parts) > 2 and len(parts[-2]) <= 3 else parts[-2:])
 
 
-def extract_links(page: str, page_url: str) -> tuple[list[str], list[str]]:
+def _brand(host: str) -> str:
+    """The name part of a site's domain: tryhackme.com -> "tryhackme", app.hackthebox.eu -> "hackthebox"."""
+    return _base_domain(host).split(".")[0]
+
+
+def _norm_handle(handle: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", handle.lower())
+
+
+def is_site_account(handle: str, *hosts: str) -> bool:
+    """True if a profile handle is a site's own account rather than a person's.
+
+    Profile pages carry the site's own social links in their header and footer
+    (TryHackMe's page links x.com/realtryhackme; GitHub's links x.com/github).
+    Those say nothing about the person, so a handle containing the brand of the
+    page it was found on, or of the site it points to, is dropped.
+    """
+    h = _norm_handle(handle)
+    for host in hosts:
+        brand = _norm_handle(_brand(host or ""))
+        if len(brand) >= 4 and brand in h:
+            return True
+    return False
+
+
+def extract_links(page: str, page_url: str, username: str = "") -> tuple[list[str], list[str]]:
     """Outbound links a profile page points to (other profiles, a personal site) and its mailto addresses.
 
     Only links off the site itself count: a profile's own navigation says
     nothing about the person. Profiles on other known sites are kept first.
     """
-    from app.search.profiles import is_known_site, match_profile
+    from app.search.profiles import handle_relates_to, is_known_site, match_profile
 
-    own = _base_domain(urlparse(page_url).hostname or "")
+    page_host = urlparse(page_url).hostname or ""
+    own = _base_domain(page_host)
     profiles, sites, seen = [], [], set()
-    for href in _HREF.findall(page):
+    # Site-wide navigation and footers carry the site's own links, not the person's.
+    for href in _HREF.findall(_CHROME.sub(" ", page)):
         href = html.unescape(href).strip()
         if not href.startswith(("http://", "https://")):
             continue
@@ -148,6 +176,11 @@ def extract_links(page: str, page_url: str) -> tuple[list[str], list[str]]:
         profile = match_profile(href)
         if profile is None and is_known_site(href):
             continue  # share buttons, hashtag and search pages on social sites
+        # The site's own accounts, unless the handle is the person's own
+        # (janedoe.com linking x.com/janedoe is exactly the link we want).
+        if (profile is not None and is_site_account(profile.handle, page_host, host)
+                and not (username and handle_relates_to(profile.handle, username))):  # fmt: skip
+            continue
         key = profile.url if profile else href.rstrip("/")
         if key in seen:
             continue
@@ -183,7 +216,7 @@ def classify(url: str, username: str, status_code: int, final_url: str, page: st
 
     named = " ".join(preview.get(k, "") for k in ("title", "page_title", "description", "username", "canonical"))
     if user and user in _fold(named):
-        links, emails = extract_links(page, final_url)
+        links, emails = extract_links(page, final_url, username)
         if links:
             preview["links"] = links
         if emails:
@@ -295,7 +328,7 @@ def linked_accounts(candidates: list[EntityCandidate]) -> list[EntityCandidate]:
     subject is much stronger evidence than a username coincidence, so these
     start with a higher prior; they are verified like any other account.
     """
-    from app.search.profiles import match_profile
+    from app.search.profiles import handle_relates_to, match_profile
 
     known = {c.value for c in candidates}
     out: dict[str, EntityCandidate] = {}
@@ -307,6 +340,11 @@ def linked_accounts(candidates: list[EntityCandidate]) -> list[EntityCandidate]:
         for link in (attrs.get("preview") or {}).get("links") or []:
             profile = match_profile(link)
             if profile is None or profile.url in known or profile.url in out:
+                continue
+            # Also applied here for previews stored before the filter existed.
+            hosts = (urlparse(cand.value).hostname or "", urlparse(profile.url).hostname or "")
+            own = handle_relates_to(profile.handle, attrs.get("username") or "")
+            if is_site_account(profile.handle, *hosts) and not own:
                 continue
             out[profile.url] = EntityCandidate(
                 type="account",

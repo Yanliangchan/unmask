@@ -168,8 +168,12 @@ class SherlockAdapter(ToolAdapter):
         return self.check_health_output(candidates)
 
     def check_health_output(self, candidates: list[EntityCandidate]) -> HealthResult:
+        # One signature site proves the tool and its parsing work. A single site
+        # missing usually means that site blocks this server, not that Sherlock broke.
         sites = {c.attributes.get("site") for c in candidates}
+        found = HEALTH_SIGNATURE_SITES & sites
         missing = HEALTH_SIGNATURE_SITES - sites
-        if missing:
+        if not found:
             return HealthResult(False, f"known account not detected on: {', '.join(sorted(missing))}")
-        return HealthResult(True, f"{len(candidates)} accounts found for known-good username")
+        note = f"; not seen on {', '.join(sorted(missing))}, which may block this server" if missing else ""
+        return HealthResult(True, f"known account found on {', '.join(sorted(found))}{note}")

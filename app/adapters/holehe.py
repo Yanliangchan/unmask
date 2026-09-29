@@ -76,6 +76,17 @@ class HoleheAdapter(ToolAdapter):
     health_check_target = "unmask-health@example.com"
     timeout_seconds = 300
 
+    def configured(self) -> str | None:
+        from app.config import get_settings
+        from app.proxy import proxy_for
+
+        if proxy_for(self.name) or get_settings().holehe_direct:
+            return None
+        return (
+            "needs a proxy: the sites Holehe checks block requests from cloud servers, so it would only report "
+            "false negatives. Set UNMASK_PROXY_URL (or UNMASK_HOLEHE_DIRECT=true on a home or office network)"
+        )
+
     def build_argv(self, email: str) -> list[str]:
         email = validate_email(email)
         return [
