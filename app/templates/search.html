@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head"><div><h1>Search</h1><p class="muted small">Every case you can see: case names, targets and findings.</p></div></div>
+<form class="search-form" method="get" action="/search" role="search">
+  <label class="visually-hidden" for="search-q">Search</label>
+  <input id="search-q" type="search" name="q" value="{{ q }}" placeholder="An email, username, name, domain…" autofocus autocomplete="off">
+  <button class="btn btn-primary" type="submit">Search</button>
+</form>
+{% if too_short %}
+<p class="muted">Type at least two characters.</p>
+{% elif q and not groups %}
+<div class="empty"><h2>Nothing found for “{{ q }}”</h2><p>No case name, target or finding you can see contains it.</p></div>
+{% endif %}
+{% for group, hits in groups.items() %}
+<section class="search-group">
+  <h2>{{ group }} <span class="count">{{ hits | length }}</span></h2>
+  <ul class="search-hits" role="list">
+    {% for h in hits %}
+    <li><a href="{{ h.url }}" class="mono">{{ h.label }}</a> <span class="faint small">{{ h.hint }}</span></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endfor %}
+{% endblock %}

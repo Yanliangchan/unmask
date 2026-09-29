@@ -1,6 +1,8 @@
 {% import "components/ui.html" as ui %}
 <div id="summary" hx-get="/cases/{{ case.id }}/summary"
-     hx-trigger="load, scan-finished from:body, results-updated from:body, entities-changed from:body" hx-swap="innerHTML"></div>
+     hx-trigger="load, scan-finished from:body, results-updated from:body, entities-changed from:body" hx-swap="innerHTML">
+  <div class="summary">{{ ui.skeleton(2, card=True) }}</div>
+</div>
 
 <div id="suggestions" hx-get="/cases/{{ case.id }}/suggestions"
      hx-trigger="load, scan-finished from:body, results-updated from:body, entities-changed from:body" hx-swap="innerHTML"></div>
@@ -33,5 +35,5 @@
 </form>
 
 <div id="entities" hx-get="/cases/{{ case.id }}/entities" hx-trigger="load" hx-swap="innerHTML">
-  <p class="muted small">Loading…</p>
+  {{ ui.skeleton(6) }}
 </div>

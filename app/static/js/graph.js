@@ -42,6 +42,11 @@
 
   function style() {
     var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Colours come from the page's theme tokens, so the graph follows light and dark.
+    var css = getComputedStyle(document.documentElement);
+    var v = function (name) { return css.getPropertyValue(name).trim(); };
+    var c = { text: v("--text"), strong: v("--text-strong"), muted: v("--muted"), bg: v("--bg-sunk"),
+              line: v("--border-strong"), accent: v("--accent"), ok: v("--ok"), warn: v("--warn") };
     return {
       reduce: reduce,
       sheet: [
@@ -50,21 +55,21 @@
           "shape": function (n) { return typeOf(n.data("type")).shape; },
           "width": function (n) { return 18 + 42 * n.data("centrality"); },
           "height": function (n) { return 18 + 42 * n.data("centrality"); },
-          "label": "data(label)", "color": "#d7dde6", "font-size": 9, "font-family": "ui-monospace, monospace",
-          "text-valign": "bottom", "text-margin-y": 4, "text-outline-color": "#0b0e13", "text-outline-width": 2,
-          "border-width": 1, "border-color": "#0b0e13"
+          "label": "data(label)", "color": c.text, "font-size": 9, "font-family": "ui-monospace, monospace",
+          "text-valign": "bottom", "text-margin-y": 4, "text-outline-color": c.bg, "text-outline-width": 2,
+          "border-width": 1, "border-color": c.bg
         } },
-        { selector: "node[?pivot]", style: { "border-width": 2, "border-style": "dashed", "border-color": "#d7dde6" } },
-        { selector: "node[?seed]", style: { "border-width": 4, "border-style": "double", "border-color": "#f2f5f9" } },
-        { selector: "node[?confirmed]", style: { "border-width": 4, "border-style": "solid", "border-color": "#3fbf7f" } },
-        { selector: "node:selected", style: { "overlay-color": "#8fa8ff", "overlay-opacity": 0.25 } },
+        { selector: "node[?pivot]", style: { "border-width": 2, "border-style": "dashed", "border-color": c.text } },
+        { selector: "node[?seed]", style: { "border-width": 4, "border-style": "double", "border-color": c.strong } },
+        { selector: "node[?confirmed]", style: { "border-width": 4, "border-style": "solid", "border-color": c.ok } },
+        { selector: "node:selected", style: { "overlay-color": c.accent, "overlay-opacity": 0.25 } },
         { selector: "edge", style: {
-          "width": 1.2, "line-color": "#2f3847", "curve-style": "bezier", "target-arrow-shape": "none",
-          "font-size": 8, "color": "#8591a3", "text-rotation": "autorotate", "text-background-color": "#0b0e13",
+          "width": 1.2, "line-color": c.line, "curve-style": "bezier", "target-arrow-shape": "none",
+          "font-size": 8, "color": c.muted, "text-rotation": "autorotate", "text-background-color": c.bg,
           "text-background-opacity": 1, "text-background-padding": 2
         } },
-        { selector: "edge[?suggested]", style: { "line-style": "dashed", "line-color": "#e0a43a", "width": 1.5 } },
-        { selector: "edge.hover, edge:selected", style: { "label": "data(label)", "line-color": "#8fa8ff", "width": 2 } },
+        { selector: "edge[?suggested]", style: { "line-style": "dashed", "line-color": c.warn, "width": 1.5 } },
+        { selector: "edge.hover, edge:selected", style: { "label": "data(label)", "line-color": c.accent, "width": 2 } },
         { selector: ".hidden", style: { "display": "none" } }
       ]
     };
@@ -129,6 +134,14 @@
     cy.on("tap", "node", function (e) { openPanel(root, e.target); });
     renderLegend(root, elements.filter(function (el) { return el.group === "nodes"; }));
     applyFilters(root);
+  }
+
+  // Restyle in place when the theme changes (toggle, or the system switching light/dark).
+  function restyle() { if (cy) cy.style(style().sheet); }
+  document.addEventListener("unmask:theme", restyle);
+  if (window.matchMedia) {
+    var mq = window.matchMedia("(prefers-color-scheme: dark)");
+    if (mq.addEventListener) mq.addEventListener("change", restyle);
   }
 
   function init() {

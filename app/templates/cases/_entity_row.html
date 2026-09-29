@@ -1,7 +1,7 @@
 {% import "components/ui.html" as ui %}
 {% set e = row.entity %}
 <tbody id="ent-{{ e.id }}" class="entity{% if e.confirmed_flag %} is-confirmed{% endif %}">
-  <tr class="entity-row" data-expand="#detail-{{ e.id }}" tabindex="0" aria-expanded="false"
+  <tr class="entity-row" data-expand="#detail-{{ e.id }}"
       hx-get="/cases/{{ case.id }}/entities/{{ e.id }}" hx-target="#detail-{{ e.id }} .detail-body" hx-trigger="expand once">
     <td class="col-confirm">
       <button class="confirm-toggle" type="button" data-stop aria-pressed="{{ 'true' if e.confirmed_flag else 'false' }}"
@@ -11,6 +11,7 @@
       </button>
     </td>
     <td class="value-cell">
+      <button type="button" class="sr-toggle" data-row-toggle aria-expanded="false" aria-controls="detail-{{ e.id }}">Evidence for {{ e.value }}</button>
       {% if e.attributes.get('url') %}
       <a class="ident ident-cut" href="{{ e.attributes.url }}" target="_blank" rel="noopener noreferrer nofollow" data-stop title="{{ e.value }}">{{ e.value }}</a>
       {% else %}
@@ -47,5 +48,5 @@
     </td>
   </tr>
   <tr id="merge-row-{{ e.id }}" class="merge-row" hidden><td colspan="8" id="merge-{{ e.id }}"></td></tr>
-  <tr id="detail-{{ e.id }}" class="detail-row" hidden><td colspan="8"><div class="detail-body"><p class="muted small detail-loading">Loading…</p></div></td></tr>
+  <tr id="detail-{{ e.id }}" class="detail-row" hidden><td colspan="8"><div class="detail-body">{{ ui.skeleton(3) }}</div></td></tr>
 </tbody>

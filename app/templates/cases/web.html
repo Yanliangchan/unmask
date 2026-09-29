@@ -38,6 +38,6 @@
 <div id="web-results" hx-get="/cases/{{ case.id }}/web/results"
      hx-trigger="load, refresh, entities-changed from:body, scan-finished from:body, results-updated from:body"
      hx-swap="innerHTML" hx-include="#web-show">
-  <p class="muted small">Loading…</p>
+  {{ ui.skeleton(5) }}
 </div>
 {% endblock %}

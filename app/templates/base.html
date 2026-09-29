@@ -1,5 +1,5 @@
 {% import "components/ui.html" as ui %}<!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="{{ theme }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,8 +8,9 @@
   <meta name="robots" content="{{ seo.robots }}">
   <link rel="canonical" href="{{ seo.canonical }}">
   <meta name="application-name" content="unmask">
-  <meta name="theme-color" content="#0e0f11">
-  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0e0f11" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
   <meta name="referrer" content="no-referrer">
   <meta name="htmx-config" content='{"includeIndicatorStyles": false, "defaultSwapStyle": "innerHTML"}'>
 
@@ -39,38 +40,87 @@
   <script src="{{ static_url('js/app.js') }}" defer></script>
   {% block head %}{% endblock %}
 </head>
-<body class="{% block body_class %}{% endblock %}" hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
+<body class="{% block body_class %}{% endblock %}{% if user %} has-shell{% endif %}" hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
   <a class="skip-link" href="#main">Skip to content</a>
+  {% if user %}
+  {% set path = request.url.path %}
+  <div class="shell">
+    <header class="mobilebar">
+      <button class="btn btn-ghost btn-sm btn-icon" type="button" data-nav-toggle aria-controls="sidebar" aria-expanded="false" aria-label="Menu">{{ ui.icon("menu") }}</button>
+      <a class="brand" href="/">{{ ui.icon("logo", "icon") }}<span>unmask</span></a>
+      <button class="btn btn-ghost btn-sm btn-icon" type="button" data-palette-open aria-label="Search">{{ ui.icon("search") }}</button>
+    </header>
+    <aside class="sidebar" id="sidebar" aria-label="Main">
+      <a class="brand" href="/" aria-label="unmask home">{{ ui.icon("logo", "icon") }}<span>unmask</span></a>
+      <button class="palette-trigger" type="button" data-palette-open>
+        {{ ui.icon("search") }}<span>Search…</span><kbd data-mod-key>Ctrl K</kbd>
+      </button>
+      <nav class="side-nav" aria-label="Primary">
+        {% block nav %}
+        <a href="/" {% if path == '/' or (path.startswith('/cases/') and path != '/cases/new') %}aria-current="page"{% endif %}>{{ ui.icon("folder") }}Cases</a>
+        <a href="/cases/new" {% if path == '/cases/new' %}aria-current="page"{% endif %}>{{ ui.icon("plus") }}New case</a>
+        <a href="/tools" {% if path == '/tools' %}aria-current="page"{% endif %}>{{ ui.icon("tool") }}Tools &amp; accuracy</a>
+        {% endblock %}
+      </nav>
+      <div class="side-foot">
+        <button class="side-btn" type="button" data-theme-toggle aria-label="Theme: {{ theme }}. Change theme">
+          {{ ui.icon("contrast") }}<span>Theme: <span data-theme-label>{{ theme | capitalize }}</span></span>
+        </button>
+        <button class="side-btn" type="button" data-shortcuts-open>{{ ui.icon("keyboard") }}<span>Keyboard shortcuts</span><kbd>?</kbd></button>
+        <div class="side-user">
+          <span class="avatar sm" aria-hidden="true">{{ user.email[:1] | upper }}</span>
+          <span class="side-email" title="{{ user.email }}">{{ user.email }}</span>
+          <form method="post" action="/logout">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="btn btn-ghost btn-xs" type="submit">Log out</button>
+          </form>
+        </div>
+      </div>
+    </aside>
+    <div class="shell-main">
+      <main id="main" class="{% block main_class %}container{% endblock %}">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <dialog class="palette" id="palette" aria-label="Search and commands">
+    <div class="palette-box">
+      <div class="palette-input">{{ ui.icon("search") }}<input type="text" id="palette-q" placeholder="Search cases, findings, or type a command" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="true" aria-controls="palette-list" aria-autocomplete="list"></div>
+      <ul class="palette-list" id="palette-list" role="listbox" aria-label="Results"></ul>
+      <p class="palette-foot"><kbd>↑</kbd><kbd>↓</kbd> move · <kbd>Enter</kbd> open · <kbd>Esc</kbd> close</p>
+    </div>
+  </dialog>
+
+  <dialog class="shortcuts" id="shortcuts" aria-labelledby="shortcuts-title">
+    <div class="dialog-head"><h2 id="shortcuts-title">Keyboard shortcuts</h2><button class="btn btn-ghost btn-sm" type="button" data-dialog-close>Close</button></div>
+    <dl class="shortcut-list">
+      <div><dt><kbd data-mod-key>Ctrl K</kbd></dt><dd>Search and jump anywhere</dd></div>
+      <div><dt><kbd>/</kbd></dt><dd>Search</dd></div>
+      <div><dt><kbd>g</kbd> <kbd>c</kbd></dt><dd>Go to cases</dd></div>
+      <div><dt><kbd>g</kbd> <kbd>t</kbd></dt><dd>Go to tools</dd></div>
+      <div><dt><kbd>n</kbd></dt><dd>New case</dd></div>
+      <div><dt><kbd>r</kbd></dt><dd>Review queue (in a case)</dd></div>
+      <div><dt><kbd>y</kbd> <kbd>n</kbd> <kbd>p</kbd> <kbd>b</kbd> <kbd>s</kbd></dt><dd>Review: same person, different person, not a profile, bot, skip</dd></div>
+      <div><dt><kbd>?</kbd></dt><dd>This list</dd></div>
+    </dl>
+  </dialog>
+  {% else %}
   <header class="topbar">
     <a class="brand" href="/" aria-label="unmask home">{{ ui.icon("logo", "icon") }}<span>unmask</span></a>
-    {% if user %}
-    {% set path = request.url.path %}
-    <nav class="nav" aria-label="Primary">
-      <a href="/" {% if path == '/' or path.startswith('/cases/') and path != '/cases/new' %}aria-current="page"{% endif %}>Cases</a>
-      <a href="/tools" {% if path == '/tools' %}aria-current="page"{% endif %}>Tools</a>
-    </nav>
-    <div class="topbar-end">
-      <a class="btn btn-primary btn-sm" href="/cases/new" aria-label="New case">{{ ui.icon("plus") }}<span class="hide-xs">New case</span></a>
-      <span class="who small muted">{{ user.email }}</span>
-      <form method="post" action="/logout">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button class="btn btn-ghost btn-sm" type="submit">Log out</button>
-      </form>
-    </div>
-    {% else %}
     <div class="nav"></div>
     {% if request.url.path != '/login' %}<a class="btn btn-sm" href="/login">Sign in</a>{% endif %}
-    {% endif %}
   </header>
+  <main id="main" class="{{ self.main_class() }}">
+    {{ self.content() }}
+  </main>
+  {% block footer %}
+  <footer class="footer">
+    <span>unmask is for authorized investigations with a documented lawful basis.</span>
+  </footer>
+  {% endblock %}
+  {% endif %}
 
   <div id="toasts" class="toasts" aria-live="polite"></div>
-
-  <main id="main" class="{% block main_class %}container{% endblock %}">
-    {% block content %}{% endblock %}
-  </main>
-
-  {% block footer %}
-  {% if not user %}<footer class="footer">unmask is for authorized investigations with a documented lawful basis.</footer>{% endif %}
-  {% endblock %}
 </body>
 </html>

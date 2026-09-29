@@ -66,6 +66,9 @@ class Seo:
         return Markup("\n".join(blocks))  # noqa: S704
 
 
+THEMES = ("system", "light", "dark")
+
+
 @lru_cache(maxsize=256)
 def _static_digest(path: str, mtime_ns: int) -> str:
     return hashlib.sha256((STATIC_DIR / path).read_bytes()).hexdigest()[:10]
@@ -94,6 +97,9 @@ def render(request: Request, template: str, context: dict[str, Any] | None = Non
     ctx.update(context or {})
     ctx.setdefault("seo", Seo(title="unmask"))
     ctx.setdefault("user", None)
+    # The theme is rendered server-side from a cookie so pages never flash the wrong one.
+    theme = request.cookies.get("theme")
+    ctx.setdefault("theme", theme if theme in THEMES else "system")
     return templates.TemplateResponse(request, template, ctx, status_code=status_code)
 
 
