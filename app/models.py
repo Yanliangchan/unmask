@@ -434,3 +434,20 @@ class ShareLink(Base):
     views: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
     last_viewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _now()
+
+
+class AppSecret(Base):
+    """An API key or other integration setting entered on the Integrations page.
+
+    Values are encrypted and never shown again in full; they override the
+    matching environment variable while set.
+    """
+
+    __tablename__ = "app_secrets"
+
+    name: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(EncryptedText, nullable=False)
+    updated_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )

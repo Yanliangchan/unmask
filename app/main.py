@@ -22,6 +22,7 @@ from app.routes import (
     correlation,
     evidence,
     inbox,
+    integrations,
     pivots,
     public,
     review,
@@ -67,6 +68,9 @@ async def lifespan(app: FastAPI):
     settings.validate_for_startup()
     cipher.configure(settings.data_keys, settings.index_key)
     async with sessionmaker()() as session:
+        from app.integrations import refresh as refresh_integrations
+
+        await refresh_integrations(session, force=True)
         await sync_tool_config(session)
         await ensure_admin_user(session)
         if settings.queue_backend == "rq":
@@ -101,6 +105,15 @@ def create_app() -> FastAPI:
         same_site="lax",
         https_only=settings.is_production,
     )
+
+    @app.middleware("http")
+    async def integration_keys(request: Request, call_next):
+        # Keys entered in another process (or another replica) reach this one within a minute.
+        if not request.url.path.startswith("/static"):
+            from app.integrations import refresh as refresh_integrations
+
+            await refresh_integrations()
+        return await call_next(request)
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next):
@@ -175,6 +188,7 @@ def create_app() -> FastAPI:
     app.include_router(workspace.router)
     app.include_router(inbox.router)
     app.include_router(evidence.router)
+    app.include_router(integrations.router)
     return app
 
 

@@ -84,7 +84,8 @@ class HoleheAdapter(ToolAdapter):
             return None
         return (
             "needs a proxy: the sites Holehe checks block requests from cloud servers, so it would only report "
-            "false negatives. Set UNMASK_PROXY_URL (or UNMASK_HOLEHE_DIRECT=true on a home or office network)"
+            "false negatives. Add one under Outbound proxy on the Integrations page (or set UNMASK_HOLEHE_DIRECT=true "
+            "on a home or office network)"
         )
 
     def build_argv(self, email: str) -> list[str]:

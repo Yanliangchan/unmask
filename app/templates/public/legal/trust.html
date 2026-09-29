@@ -67,6 +67,7 @@
     <li><strong>Page snapshots</strong> are stored byte-for-byte with a SHA-256 fingerprint recorded at capture, so their integrity can be checked later. Captured pages are shown as plain text and never rendered inside the application. The service refuses to fetch any address that isn't on the public internet, at every redirect.</li>
     <li><strong>Notifications</strong> sent by email or Slack say only what happened and link back in. They never include case names, targets or findings.</li>
     <li><strong>Tools</strong> run as separate processes with time limits. Credentials such as proxy passwords reach them through the environment, never on a command line where other processes could read them.</li>
+    <li><strong>API keys</strong> entered on the Integrations page are encrypted like case data, shown back only as their last four characters, and can be changed only by administrators. Every change is logged, without the key itself.</li>
   </ul>
 </section>
 
@@ -76,8 +77,10 @@
   <ul class="legal-list">
     <li>websites whose sign-up, profile or recovery pages are checked to see whether an account exists (via open-source tools such as Sherlock, Maigret and Holehe);</li>
     <li>web search providers configured by the operator (for example Serper, SerpAPI, Google Programmable Search, Brave Search or DuckDuckGo);</li>
-    <li>breach-notification services, where keys have been configured (via h8mail);</li>
-    <li>certificate transparency logs and DNS and infrastructure sources (for example crt.sh, theHarvester, Amass and SpiderFoot); and</li>
+    <li>public profile APIs (GitHub, GitLab, Keybase, Hacker News and Gravatar; Gravatar receives a hash of the email address);</li>
+    <li>breach-notification services (LeakCheck's public API, and Have I Been Pwned or h8mail's sources where keys have been configured);</li>
+    <li>email, phone and IP intelligence services where keys have been configured (EmailRep, Hunter, Numverify, IPinfo and Shodan);</li>
+    <li>domain registration, archive, certificate transparency and DNS sources (for example RDAP, the Internet Archive, crt.sh, VirusTotal, SecurityTrails, theHarvester, Amass and SpiderFoot); and</li>
     <li>any outbound proxy the operator has configured, which carries that traffic.</li>
   </ul>
   <p>Those services receive the identifier and the server's (or proxy's) network address, under their own terms and privacy policies. Some may log the request, and a site could in principle notice that an account was looked up. Decide whether that is acceptable for each case before you scan. The data is otherwise hosted by the hosting provider the operator has chosen; unmask sends no analytics or telemetry anywhere.</p>

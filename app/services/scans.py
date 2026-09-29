@@ -379,6 +379,9 @@ async def _run_job(
 
 
 async def execute_scan_run(run_id: uuid.UUID) -> None:
+    from app.integrations import refresh as refresh_integrations
+
+    await refresh_integrations(force=True)
     async with sessionmaker()() as session:
         run = await session.get(ScanRun, run_id)
         if run is None or run.status not in ("queued",):

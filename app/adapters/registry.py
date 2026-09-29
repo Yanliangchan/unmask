@@ -5,6 +5,26 @@ from app.adapters.base import ToolAdapter
 from app.adapters.crtsh import CrtShAdapter
 from app.adapters.h8mail import H8mailAdapter
 from app.adapters.holehe import HoleheAdapter
+from app.adapters.keyed import (
+    EmailRepAdapter,
+    HibpAdapter,
+    HunterAdapter,
+    IpinfoAdapter,
+    NumverifyAdapter,
+    SecurityTrailsAdapter,
+    ShodanAdapter,
+    VirusTotalAdapter,
+)
+from app.adapters.lookups import (
+    GitHubAdapter,
+    GitLabAdapter,
+    GravatarAdapter,
+    HackerNewsAdapter,
+    KeybaseAdapter,
+    LeakCheckAdapter,
+    RdapAdapter,
+    WaybackAdapter,
+)
 from app.adapters.maigret import MaigretAdapter
 from app.adapters.sherlock import SherlockAdapter
 from app.adapters.spiderfoot import SpiderFootAdapter
@@ -45,6 +65,24 @@ CORE_ADAPTERS: tuple[type[ToolAdapter], ...] = (
     SpiderFootAdapter,
     DuckDuckGoAdapter,
     WebSearchAdapter,
+    # Free API lookups
+    GitHubAdapter,
+    GitLabAdapter,
+    KeybaseAdapter,
+    HackerNewsAdapter,
+    GravatarAdapter,
+    LeakCheckAdapter,
+    WaybackAdapter,
+    RdapAdapter,
+    # Need a key from the Integrations page
+    HibpAdapter,
+    HunterAdapter,
+    EmailRepAdapter,
+    ShodanAdapter,
+    IpinfoAdapter,
+    VirusTotalAdapter,
+    SecurityTrailsAdapter,
+    NumverifyAdapter,
 )
 
 for _cls in CORE_ADAPTERS:

@@ -48,7 +48,7 @@ def no_search_keys(monkeypatch):
 
 def test_web_search_is_not_configured_without_a_key(no_search_keys):
     reason = WebSearchAdapter().configured()
-    assert "UNMASK_SERPER_KEY" in reason and "UNMASK_BRAVE_API_KEY" in reason
+    assert "Integrations page" in reason and "Serper" in reason and "Brave" in reason
 
 
 def test_provider_order_and_explicit_choice(no_search_keys, monkeypatch):

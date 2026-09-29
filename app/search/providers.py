@@ -141,4 +141,4 @@ def active_provider() -> SearchProvider | None:
 
 
 def setup_hint() -> str:
-    return "No search API key configured. Set one of: " + "; ".join(f"{p.key_hint} ({p.label})" for p in PROVIDERS)
+    return "No search API key configured: add one (Serper, SerpAPI, Google or Brave) on the Integrations page"

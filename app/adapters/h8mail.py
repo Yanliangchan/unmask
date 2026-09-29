@@ -61,7 +61,7 @@ def source_reliability(tag: str) -> str:
 
 def parse_keys(raw: str) -> dict[str, str]:
     keys = {}
-    for pair in raw.split(","):
+    for pair in re.split(r"[,\n]", raw):
         if "=" not in pair:
             continue
         name, value = (p.strip() for p in pair.split("=", 1))
@@ -146,7 +146,7 @@ class H8mailAdapter(ToolAdapter):
 
     def configured(self) -> str | None:
         if not parse_keys(get_settings().h8mail_keys):
-            return "No breach source API key configured (UNMASK_H8MAIL_KEYS)"
+            return "No breach source API key configured: add one under h8mail on the Integrations page"
         return None
 
     def build_config(self) -> str:

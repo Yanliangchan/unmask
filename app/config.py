@@ -77,6 +77,18 @@ class Settings(BaseSettings):
     search_max_queries: int = Field(default=8, alias="UNMASK_SEARCH_MAX_QUERIES")
     search_results_per_query: int = Field(default=10, alias="UNMASK_SEARCH_RESULTS")
 
+    # Optional API keys for lookup tools. Each can also be entered on the
+    # Integrations page, which stores it encrypted and takes precedence.
+    github_token: str = Field(default="", alias="UNMASK_GITHUB_TOKEN")
+    hibp_key: str = Field(default="", alias="UNMASK_HIBP_KEY")
+    hunter_key: str = Field(default="", alias="UNMASK_HUNTER_KEY")
+    shodan_key: str = Field(default="", alias="UNMASK_SHODAN_KEY")
+    ipinfo_token: str = Field(default="", alias="UNMASK_IPINFO_TOKEN")
+    virustotal_key: str = Field(default="", alias="UNMASK_VIRUSTOTAL_KEY")
+    securitytrails_key: str = Field(default="", alias="UNMASK_SECURITYTRAILS_KEY")
+    numverify_key: str = Field(default="", alias="UNMASK_NUMVERIFY_KEY")
+    emailrep_key: str = Field(default="", alias="UNMASK_EMAILREP_KEY")
+
     # Outbound proxy for tools that sites block from cloud IPs (see app/proxy.py).
     proxy_url: str = Field(default="", alias="UNMASK_PROXY_URL")
     proxy_tools: str = Field(default="holehe,sherlock,maigret,verify", alias="UNMASK_PROXY_TOOLS")

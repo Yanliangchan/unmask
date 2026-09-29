@@ -36,7 +36,7 @@ async def test_web_tab_explains_how_to_set_up_search_without_a_key(client, db):
     page = await client.get(f"/cases/{case_id}/web")
     assert page.status_code == 200
     assert "Web search isn&#39;t set up" in page.text or "Web search isn't set up" in page.text
-    assert "UNMASK_SERPER_KEY" in page.text and "Run web search" not in page.text
+    assert 'href="/integrations#serper"' in page.text and "Run web search" not in page.text
 
 
 async def test_web_results_list_keep_and_set_aside(client, db):

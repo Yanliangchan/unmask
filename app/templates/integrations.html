@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Integrations</h1>
+    <p class="muted">Keys for the services that widen what a scan can find. They're stored encrypted, never shown again in full, and take effect for the next scan.{% if not user.is_admin %} Only an administrator can change them.{% endif %}</p>
+  </div>
+</div>
+{% if message %}<p class="alert alert-ok" role="status">{{ message }}</p>{% endif %}
+{% if error %}<p class="alert alert-error" role="alert">{{ error }}</p>{% endif %}
+
+<p class="integ-summary muted small">{{ connected }} of {{ catalog | length }} connected. Tools that don't need a key (Gravatar, GitHub, GitLab, Keybase, Hacker News, LeakCheck, the Wayback Machine and RDAP) run without anything here.</p>
+
+{% for cat in categories %}
+<section class="integ-group" aria-labelledby="cat-{{ loop.index }}">
+  <h2 id="cat-{{ loop.index }}" class="section-title">{{ cat }}</h2>
+  <div class="integ-grid">
+  {% for i in catalog if i.category == cat %}
+  {% set on = integ.is_set(i) %}
+  <article class="card integ-card{% if on %} is-on{% endif %}" id="{{ i.key }}" aria-labelledby="i-{{ i.key }}">
+    <header class="integ-head">
+      <h3 id="i-{{ i.key }}">{{ i.label }}</h3>
+      {% if on %}<span class="flag flag-ok">Connected</span>{% elif i.optional %}<span class="flag">Optional</span>{% else %}<span class="flag flag-review">Not set up</span>{% endif %}
+    </header>
+    <p class="integ-adds">{{ i.adds }}</p>
+    <p class="faint small">{{ i.cost }} · <a href="{{ i.signup }}" target="_blank" rel="noopener noreferrer">Get a key{{ ui.icon("external", "icon") }}</a>{% if i.tools %} · used by {{ i.tools | map("tool_label") | join(", ") }}{% endif %}</p>
+    {% for n in i.notes %}<p class="faint small">{{ n }}</p>{% endfor %}
+    {% if tested == i.key %}
+    <div role="status"><ul class="integ-results">
+      {% for label, ok, detail in test_results %}<li class="{{ 'ok' if ok else 'bad' }}"><strong>{{ label }}</strong>: {{ 'working' if ok else 'not working' }} · <span class="muted">{{ detail }}</span></li>{% else %}<li>No tool to test yet.</li>{% endfor %}
+    </ul></div>
+    {% endif %}
+    {% if user.is_admin %}
+    <form method="post" action="/integrations/{{ i.key }}" class="form integ-form" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      {% for f in i.fields %}
+      {% set src = integ.source_of(f.setting) %}
+      <label class="field">
+        <span>{{ f.label }}{% if src %} <span class="faint small">· {{ integ.masked(f.setting) }} ({{ 'saved here' if src == 'app' else 'from the server environment' }})</span>{% endif %}</span>
+        {% if f.setting == "h8mail_keys" %}
+        <textarea name="{{ f.setting }}" rows="2" spellcheck="false" class="mono" maxlength="{{ f.max_length }}" placeholder="{{ 'Paste new keys to replace the saved ones' if src else 'snusbase_token=…' }}"></textarea>
+        {% else %}
+        <input type="{{ 'password' if f.secret else 'text' }}" name="{{ f.setting }}" class="mono" spellcheck="false" autocomplete="off" maxlength="{{ f.max_length }}"
+               placeholder="{{ ('Paste a new value to replace it' if src else f.placeholder or 'Paste the key') }}">
+        {% endif %}
+        {% if f.help %}<span class="hint">{{ f.help }}</span>{% endif %}
+      </label>
+      {% endfor %}
+      <div class="integ-actions">
+        <button class="btn btn-sm btn-primary" type="submit">Save</button>
+        {% if i.tools %}<button class="btn btn-sm" type="submit" formaction="/integrations/{{ i.key }}/test" formnovalidate>Test</button>{% endif %}
+        {% if integ.source_of(i.fields[0].setting) == 'app' %}<button class="btn btn-sm btn-ghost" type="submit" name="remove" value="1" formnovalidate>Remove</button>{% endif %}
+      </div>
+    </form>
+    {% endif %}
+  </article>
+  {% endfor %}
+  </div>
+</section>
+{% endfor %}
+{% endblock %}

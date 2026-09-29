@@ -61,6 +61,7 @@
         <a href="/cases/new" {% if path == '/cases/new' %}aria-current="page"{% endif %}>{{ ui.icon("plus") }}New case</a>
         <a href="/notifications" {% if path == '/notifications' %}aria-current="page"{% endif %}>{{ ui.icon("bell") }}Notifications<span class="nav-badge-slot" hx-get="/notifications/badge" hx-trigger="load, every 60s, scan-finished from:body" hx-swap="innerHTML"></span></a>
         <a href="/tools" {% if path == '/tools' %}aria-current="page"{% endif %}>{{ ui.icon("tool") }}Tools &amp; accuracy</a>
+        <a href="/integrations" {% if path == '/integrations' %}aria-current="page"{% endif %}>{{ ui.icon("link") }}Integrations</a>
         {% endblock %}
       </nav>
       <div class="side-foot">

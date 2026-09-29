@@ -898,3 +898,20 @@ a.side-email:hover { color: var(--text); }
 .tools-unset { margin-top: 14px; font-size: 13.5px; }
 .tools-unset summary { cursor: pointer; color: var(--muted); }
 .tools-unset p { margin: 6px 0 8px; }
+
+/* --- Integrations -------------------------------------------------------------------------------- */
+.integ-group { margin-bottom: 10px; }
+.integ-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.integ-card { margin: 0; display: flex; flex-direction: column; gap: 6px; scroll-margin-top: 16px; }
+.integ-card.is-on { border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); }
+.integ-card p { margin: 0; }
+.integ-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.integ-head h3 { margin: 0; font-size: 14.5px; }
+.integ-adds { font-size: 13.5px; }
+.integ-form { gap: 8px; margin-top: 6px; }
+.integ-form .field > span { font-size: 12.5px; }
+.integ-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.integ-results { list-style: none; margin: 4px 0; padding: 8px 10px; border-radius: var(--radius); background: var(--bg-sunk); font-size: 12.5px; display: grid; gap: 4px; }
+.integ-results .ok strong { color: var(--ok); }
+.integ-results .bad strong { color: var(--bad); }
+.integ-card .icon { width: 11px; height: 11px; margin-left: 2px; vertical-align: -1px; }

@@ -194,7 +194,7 @@ def test_holehe_never_uses_password_recovery(monkeypatch):
 def test_h8mail_refuses_to_run_without_keys(monkeypatch):
     monkeypatch.setattr(get_settings(), "h8mail_keys", "")
     adapter = H8mailAdapter()
-    assert "No breach source" in adapter.configured()
+    assert "No breach source" in adapter.configured() and "Integrations page" in adapter.configured()
 
 
 def test_h8mail_keys_are_filtered_and_go_to_a_config_file(monkeypatch):
@@ -436,6 +436,6 @@ def test_core_adapters_are_unique_and_cover_target_types():
     from app.adapters.registry import CORE_ADAPTERS
 
     names = [cls.name for cls in CORE_ADAPTERS]
-    assert len(names) == len(set(names)) == 10
+    assert len(names) == len(set(names)) == 26
     covered = {t for cls in CORE_ADAPTERS for t in cls.input_types}
     assert {"username", "email", "domain", "ip"} <= covered

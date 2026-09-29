@@ -96,6 +96,9 @@ async def tool_health(session: AsyncSession) -> list[ToolHealth]:
 
 async def run_health_check(session: AsyncSession, tool_name: str) -> ToolHealth:
     """Re-run a tool against its known-good target; success closes the circuit."""
+    from app.integrations import refresh as refresh_integrations
+
+    await refresh_integrations(session, force=True)
     adapter = get_adapter(tool_name)
     cfg = await session.get(ToolConfig, tool_name)
     if adapter is None or cfg is None:

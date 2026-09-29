@@ -186,6 +186,7 @@ def _tool_label(name: str) -> str:
 
 
 templates.env.globals["tool_label"] = _tool_label
+templates.env.filters["tool_label"] = _tool_label
 
 
 def _explain_failure(tool: str, error: str):

@@ -31,6 +31,8 @@ def available_tool_labels() -> list[str]:
 def _tool_sentence(labels: list[str]) -> str:
     if not labels:
         return "open-source OSINT tools"
+    if len(labels) > 8:
+        return ", ".join(labels[:8]) + f" and {len(labels) - 8} more tools"
     return labels[0] if len(labels) == 1 else ", ".join(labels[:-1]) + " and " + labels[-1]
 
 

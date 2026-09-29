@@ -77,6 +77,22 @@ RULES: list[PivotRule] = [
     PivotRule("domain-amass", "domain found", "domain", 0.0, "amass", own_domain),
     PivotRule("domain-crtsh", "domain found", "domain", 0.0, "crtsh", own_domain),
     PivotRule("domain-spiderfoot", "domain found", "domain", 0.0, "spiderfoot", own_domain),
+    # Direct API lookups: cheap and exact, so they follow up on every likely finding.
+    PivotRule("username-github", "username found (conf > 0.6)", "username", 0.6, "github", same_value("username")),
+    PivotRule("username-keybase", "username found (conf > 0.6)", "username", 0.6, "keybase", same_value("username")),
+    PivotRule("username-gitlab", "username found (conf > 0.6)", "username", 0.6, "gitlab", same_value("username")),
+    PivotRule("email-gravatar", "email found (conf > 0.6)", "email", 0.6, "gravatar", same_value("email")),
+    PivotRule("email-github", "email found (conf > 0.6) → commit authors", "email", 0.6, "github", same_value("email")),
+    PivotRule("email-hibp", "email found (conf > 0.6)", "email", 0.6, "hibp", same_value("email")),
+    PivotRule("email-leakcheck", "email found (conf > 0.6)", "email", 0.6, "leakcheck", same_value("email")),
+    PivotRule("email-emailrep", "email found (conf > 0.6)", "email", 0.6, "emailrep", same_value("email")),
+    PivotRule("domain-rdap", "domain found", "domain", 0.0, "rdap", own_domain),
+    PivotRule("domain-wayback", "domain found", "domain", 0.0, "wayback", own_domain),
+    PivotRule("domain-hunter", "domain found", "domain", 0.0, "hunter", own_domain),
+    PivotRule("domain-virustotal", "domain found", "domain", 0.0, "virustotal", own_domain),
+    PivotRule("domain-securitytrails", "domain found", "domain", 0.0, "securitytrails", own_domain),
+    PivotRule("ip-ipinfo", "IP address found (conf > 0.5)", "ip", 0.5, "ipinfo", same_value("ip")),
+    PivotRule("ip-shodan", "IP address found (conf > 0.5)", "ip", 0.5, "shodan", same_value("ip")),
 ]  # fmt: skip
 
 RULES_BY_ID = {r.id: r for r in RULES}

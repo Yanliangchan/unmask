@@ -516,6 +516,7 @@
     { group: "Go to", label: "Account and notification settings", hint: "", url: "/account" },
     { group: "Go to", label: "New case", hint: "n", url: "/cases/new" },
     { group: "Go to", label: "Tools & accuracy", hint: "g t", url: "/tools" },
+    { group: "Go to", label: "Integrations and API keys", hint: "", url: "/integrations" },
     { group: "Go to", label: "Search everything", hint: "", url: "/search" },
     { group: "Actions", label: "Change theme", hint: "", action: function () { var b = document.querySelector("[data-theme-toggle]"); if (b) b.click(); } },
     { group: "Actions", label: "Keyboard shortcuts", hint: "?", action: function () { openDialog("shortcuts"); } }

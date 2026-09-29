@@ -154,6 +154,35 @@ demand and never stored.
 
 ## Tools
 
+### Integrations and API keys
+
+The **Integrations** page (sidebar) is where an administrator adds the keys some tools need.
+Keys are stored encrypted in the database, shown back only as their last four characters,
+take precedence over the matching environment variable, and reach the scan workers within a
+minute. Each card has a **Test** button that runs the tool's health check with the key.
+
+| Tool | Finds | Key |
+| --- | --- | --- |
+| GitHub | profile, name, location, linked accounts; accounts that committed with an email | optional (`UNMASK_GITHUB_TOKEN`, raises the rate limit) |
+| GitLab, Keybase, Hacker News | profiles and linked accounts (Keybase's are cryptographically proven) | none |
+| Gravatar | the profile, name and linked accounts behind an email | none |
+| LeakCheck | breach sources for an email or username (public API) | none |
+| Wayback Machine | archived about, team and contact pages of a domain | none |
+| RDAP | a domain's registrar, dates and (if public) registrant | none |
+| IPinfo | location and network owner of an IP | optional (`UNMASK_IPINFO_TOKEN`) |
+| Have I Been Pwned | breaches an email appears in | `UNMASK_HIBP_KEY` (paid) |
+| Hunter | published email addresses at a domain | `UNMASK_HUNTER_KEY` (25 free/month) |
+| EmailRep | an address's reputation and the sites it has profiles on | `UNMASK_EMAILREP_KEY` (free on request) |
+| Shodan | open ports and hostnames on an IP | `UNMASK_SHODAN_KEY` |
+| VirusTotal | subdomains and past IPs of a domain | `UNMASK_VIRUSTOTAL_KEY` (500 free/day) |
+| SecurityTrails | subdomains from DNS history | `UNMASK_SECURITYTRAILS_KEY` (50 free/month) |
+| Numverify | phone validity, country, carrier, line type | `UNMASK_NUMVERIFY_KEY` (100 free/month) |
+
+Web search keys (Serper, SerpAPI, Google, Brave), h8mail breach keys and the outbound proxy
+are on the same page. Findings from these lookups feed automatic pivots: a username found on
+one site is looked up on GitHub, GitLab and Keybase; a new email goes to Gravatar, GitHub,
+LeakCheck and the breach services; a domain to RDAP, the Wayback Machine and the DNS sources.
+
 Every tool runs as a subprocess (or HTTP API) from its own virtualenv, and every adapter
 carries a completion check for the way that tool fails silently.
 

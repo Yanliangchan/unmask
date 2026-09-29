@@ -6,7 +6,7 @@
 <div class="web-head">
   <p class="muted small">
     {% if provider %}Several targeted searches per target (exact match, with each context tag, social and developer sites, documents) through {{ provider }}. Keep what's relevant; it joins the case's findings.
-    {% else %}<strong class="text-warn">Web search isn't set up.</strong> {{ setup_hint }}.{% endif %}
+    {% else %}<strong class="text-warn">Web search isn't set up.</strong> Add a Serper, SerpAPI, Google or Brave key on the <a href="/integrations#serper">Integrations page</a>.{% endif %}
   </p>
   <div class="web-actions">
     {% if search_available %}
