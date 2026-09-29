@@ -47,7 +47,7 @@
 
   <section>
     <h2>Findings</h2>
-    <p>{{ r.entity_count }} entities after de-duplication; {{ r.pending_suggestions }} suggested match(es) not yet reviewed by an analyst.</p>
+    <p>{{ r.entity_count }} entities after de-duplication; {{ r.pending_suggestions }} suggested match(es) not yet reviewed by an analyst.{% if r.dismissed_count %} {{ r.dismissed_count }} finding(s) ruled out by the analyst are not listed.{% endif %}</p>
     {% for label, rows in r.tiers %}
     <h3>{{ label }} ({{ rows | length }})</h3>
     {% if rows %}

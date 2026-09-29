@@ -28,8 +28,12 @@ from app.db import sessionmaker
 from app.models import Entity, EntityObservation, Investigation, PivotLog, Relation, ScanRun, Target, ToolConfig
 from app.services.tools import record_failure, record_success, tool_configs
 from app.throttle import tool_slot
+from app.verify import VerificationStats, verify_candidates
 
 log = logging.getLogger(__name__)
+
+CANCELLED = "cancelled"
+ACTIVE = ("queued", "running")
 
 TRIGGER_PRIORITY = {"manual": 0, "pivot_chain": 5, "watch_mode": 10, "health_check": 20}
 
@@ -150,6 +154,7 @@ async def persist_candidates(
                 # engine rescores from, so rescoring is idempotent.
                 field_confidence={**cand.field_confidence, "prior": max(0.0, min(1.0, cand.confidence))},
                 source_reliability=cand.source_reliability,
+                verification=cand.attributes.get("verification"),
                 first_seen=now,
                 last_verified=now,
             )
@@ -161,6 +166,11 @@ async def persist_candidates(
             entity.attributes = {**(entity.attributes or {}), **cand.attributes}
             # Keep the most reliable source class that has reported this value.
             entity.source_reliability = min(entity.source_reliability, cand.source_reliability)
+            # A page that verified once stays verified; a later blocked fetch doesn't undo it.
+            if cand.attributes.get("verification") == "verified" or entity.verification is None:
+                entity.verification = cand.attributes.get("verification") or entity.verification
+            if entity.verification == "verified":
+                entity.attributes = {**entity.attributes, "verification": "verified"}
             prior = max(float((entity.field_confidence or {}).get("prior", 0.0)), cand.confidence)
             entity.field_confidence = {**cand.field_confidence, **(entity.field_confidence or {}), "prior": prior}
         await session.execute(
@@ -232,6 +242,21 @@ async def _record_job_outcome(
         await send_alert(f"circuit breaker opened: {tool} disabled after {tripped} consecutive failures")
 
 
+def _record_verification(run: ScanRun, tool: str, stats: VerificationStats) -> None:
+    """Add this job's page-check counts to the run's notes (summed per tool)."""
+    notes = dict(run.failure_details or {})
+    by_tool = dict(notes.get("_verification") or {})
+    prev = by_tool.get(tool) or {"counts": {}, "reasons": {}}
+    counts = {k: prev["counts"].get(k, 0) + v for k, v in stats.counts.items()}
+    counts = {**prev["counts"], **counts}
+    reasons = dict(prev["reasons"])
+    for k, v in stats.reasons.items():
+        reasons[k] = reasons.get(k, 0) + v
+    by_tool[tool] = {"counts": counts, "reasons": dict(sorted(reasons.items(), key=lambda kv: -kv[1])[:5])}
+    notes["_verification"] = by_tool
+    run.failure_details = notes
+
+
 async def seed_entity(session: AsyncSession, target: Target) -> Entity | None:
     return await session.scalar(
         select(Entity).where(
@@ -298,6 +323,7 @@ async def _run_job(
         timeout = adapter.timeout_seconds or get_settings().tool_timeout_seconds
         candidates: list[EntityCandidate] = []
         errors: list[str] = []
+        verification = VerificationStats()
         for inp in inputs.values:
             try:
                 async with tool_slot(
@@ -313,6 +339,9 @@ async def _run_job(
                 errors.append(str(exc) or exc.__class__.__name__)
                 continue
             found = [c for raw in raws for c in adapter.parse(raw)]
+            if adapter.verify_accounts:
+                found, stats = await verify_candidates(found)
+                verification.merge(stats)
             if inp.guessed and found:
                 found.append(_guess_confirmed(inp, found, adapter.name))
             candidates.extend(found)
@@ -321,8 +350,14 @@ async def _run_job(
             run = await session.get(ScanRun, run_id)
             parent = await session.get(Entity, inputs.parent_id) if inputs.parent_id else None
             assert run is not None
+            if run.status == CANCELLED:
+                return
             await persist_candidates(session, run=run, parent=parent, tool=adapter.name, candidates=candidates)
+            if verification.counts:
+                _record_verification(run, adapter.name, verification)
             await session.commit()
+        if candidates:
+            await _quick_rescore(case_id)
         if errors:
             # Some inputs failed: the pivot did not fully run, so say so.
             raise AdapterError(f"{len(errors)}/{len(inputs.values)} input(s) failed: {errors[0]}")
@@ -362,6 +397,8 @@ async def execute_scan_run(run_id: uuid.UUID) -> None:
     async with sessionmaker()() as session:
         run = await session.get(ScanRun, run_id)
         assert run is not None
+        if run.status == CANCELLED:
+            return
         # Jobs planned at queue time may have been dropped (tool disabled since).
         if run.jobs_done < run.jobs_total:
             details = dict(run.failure_details or {})
@@ -412,6 +449,21 @@ async def _pivot_after_run(run_id: uuid.UUID, case_id: uuid.UUID) -> None:
                 await session.commit()
 
 
+async def _quick_rescore(case_id: uuid.UUID) -> None:
+    """Merge and rescore right after a tool reports, so its results show up scored mid-scan.
+
+    Pass 2 (embeddings) waits for the end of the run. Failures here are only
+    logged: the full correlation after the run is the one that is recorded.
+    """
+    from app.correlation.engine import correlate_and_commit
+
+    try:
+        async with sessionmaker()() as session:
+            await correlate_and_commit(session, case_id, semantic=False)
+    except Exception:
+        log.exception("quick rescore failed for case %s", case_id)
+
+
 async def _correlate_after_run(run_id: uuid.UUID, case_id: uuid.UUID) -> None:
     """Correlate once results are in. A correlation error is recorded, never fatal to the scan."""
     from app.correlation.engine import correlate_and_commit
@@ -429,6 +481,19 @@ async def _correlate_after_run(run_id: uuid.UUID, case_id: uuid.UUID) -> None:
             key, value = ("_correlation", summary) if summary else ("_correlation_error", error)
             run.failure_details = {**(run.failure_details or {}), key: value}
             await session.commit()
+
+
+async def cancel_scan_run(session: AsyncSession, run: ScanRun, *, by: str) -> bool:
+    """Stop a queued or running scan. Results already stored are kept. Caller commits."""
+    if run.status not in ACTIVE:
+        return False
+    run.status = CANCELLED
+    run.completed_at = datetime.now(UTC)
+    run.failure_details = {
+        **(run.failure_details or {}),
+        "_cancelled": f"stopped by {by} after {run.jobs_done} of {run.jobs_total} tool runs",
+    }
+    return True
 
 
 async def fail_interrupted_runs(session: AsyncSession, older_than: timedelta | None = None) -> int:

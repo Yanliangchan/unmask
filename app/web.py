@@ -141,6 +141,7 @@ RUN_NOTE_LABELS = {
     "_crashed": "crashed",
     "_correlation_error": "matching",
     "_pivots_error": "pivots",
+    "_cancelled": "stopped",
 }
 
 
@@ -148,7 +149,7 @@ def _run_issues(details: dict | None) -> dict:
     """Split a run's failure_details into per-tool failures and run-level issues (notes excluded)."""
     tools, other = [], []
     for key, value in sorted((details or {}).items()):
-        if key in ("_correlation", "_pivots"):
+        if key in ("_correlation", "_pivots", "_verification"):
             continue
         if key.startswith("_"):
             other.append((RUN_NOTE_LABELS.get(key, key.lstrip("_")), value))
@@ -161,6 +162,36 @@ templates.env.filters["run_issues"] = _run_issues
 templates.env.globals["SOURCE_RELIABILITY"] = SOURCE_RELIABILITY
 templates.env.globals["search_links"] = search_links
 templates.env.globals["static_url"] = static_url
+
+
+def _tool_label(name: str) -> str:
+    from app.adapters.registry import get_adapter
+
+    adapter = get_adapter(name)
+    return adapter.label if adapter else name
+
+
+templates.env.globals["tool_label"] = _tool_label
+
+
+def _strength(entity) -> tuple[str, str]:
+    """Plain-language match strength; the numeric score stays in tooltips and details."""
+    from app.services.entities import LIKELY, POSSIBLE
+
+    if entity.is_seed:
+        return "target", "Target"
+    if entity.dismissed_flag:
+        return "dismissed", "Not them"
+    if entity.confirmed_flag:
+        return "confirmed", "Confirmed"
+    if entity.confidence >= LIKELY:
+        return "likely", "Likely"
+    if entity.confidence >= POSSIBLE:
+        return "possible", "Possible"
+    return "unlikely", "Unlikely"
+
+
+templates.env.filters["strength"] = _strength
 templates.env.filters["case_tags"] = lambda case: sorted(
     {t for target in (case.targets or []) for t in (target.context_tags or [])}
 )

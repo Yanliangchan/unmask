@@ -1,10 +1,13 @@
 {% import "components/ui.html" as ui %}
+<div id="summary" hx-get="/cases/{{ case.id }}/summary"
+     hx-trigger="load, scan-finished from:body, results-updated from:body, entities-changed from:body" hx-swap="innerHTML"></div>
+
 <div id="suggestions" hx-get="/cases/{{ case.id }}/suggestions"
-     hx-trigger="load, scan-finished from:body, entities-changed from:body" hx-swap="innerHTML"></div>
+     hx-trigger="load, scan-finished from:body, results-updated from:body, entities-changed from:body" hx-swap="innerHTML"></div>
 
 <form class="toolbar" id="entity-filters" role="search"
       hx-get="/cases/{{ case.id }}/entities" hx-target="#entities" hx-swap="innerHTML"
-      hx-trigger="input changed delay:250ms from:input[name=q], change, scan-finished from:body, entities-changed from:body">
+      hx-trigger="input changed delay:250ms from:input[name=q], change, scan-finished from:body, results-updated from:body, entities-changed from:body">
   <label class="visually-hidden" for="entity-q">Filter by value</label>
   <input id="entity-q" type="search" name="q" placeholder="Filter by value" autocomplete="off">
   <label class="visually-hidden" for="entity-type">Type</label>
@@ -12,18 +15,18 @@
     <option value="">All types</option>
     {% for t in entity_types %}<option value="{{ t }}">{{ t | replace('_', ' ') | capitalize }}</option>{% endfor %}
   </select>
-  <label class="visually-hidden" for="entity-conf">Confidence</label>
-  <select id="entity-conf" name="min_confidence">
-    <option value="">Any confidence</option>
-    <option value="0.45">Medium and high</option>
-    <option value="0.75">High only</option>
+  <label class="visually-hidden" for="entity-show">Show</label>
+  <select id="entity-show" name="show">
+    <option value="best">Best findings</option>
+    <option value="all">All findings</option>
+    <option value="confirmed">Confirmed</option>
+    <option value="dismissed">Marked "Not them"</option>
   </select>
   <label class="visually-hidden" for="entity-tool">Source</label>
   <select id="entity-tool" name="tool">
     <option value="">All sources</option>
     {% for name in tool_names %}<option value="{{ name }}">{{ name }}</option>{% endfor %}
   </select>
-  <label class="check small"><input type="checkbox" name="confirmed_only"><span>Confirmed only</span></label>
   <span class="spacer"></span>
   <button class="btn btn-ghost btn-sm" type="button" hx-post="/cases/{{ case.id }}/correlate" hx-swap="none"
           hx-disabled-elt="this" title="Re-run duplicate detection, cross-links and scoring">{{ ui.icon("refresh") }}Re-run matching</button>

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 
 from rapidfuzz import fuzz
@@ -12,6 +12,25 @@ from app.correlation.engine import POSSIBLE_SAME
 from app.correlation.normalize import fold
 from app.models import Entity, EntityObservation, Relation, ScanRun
 
+# Below this, an unconfirmed finding is left out of the default view.
+WEAK_CONFIDENCE = 0.3
+# Plain-language match strength: Likely / Possible / Unlikely.
+LIKELY, POSSIBLE = 0.7, 0.45
+SHOW_MODES = ("best", "all", "confirmed", "dismissed")
+
+
+def hidden_reason(e: Entity) -> str | None:
+    """Why the default ("best") view leaves this entity out, if it does."""
+    if e.dismissed_flag:
+        return "dismissed"
+    if e.is_seed or e.confirmed_flag:
+        return None
+    if e.type == "account" and e.verification == "unverified":
+        return "unverified"
+    if e.confidence < WEAK_CONFIDENCE:
+        return "weak"
+    return None
+
 
 @dataclass
 class EntityFilters:
@@ -20,6 +39,15 @@ class EntityFilters:
     tools: list[str] = field(default_factory=list)
     confirmed_only: bool = False
     q: str = ""  # case-insensitive substring of the value
+    # best: hide unverified accounts and weak findings | all | confirmed | dismissed
+    show: str = "best"
+
+
+@dataclass
+class EntityList:
+    rows: list[EntityRow]
+    # What the chosen view left out, by reason (dismissed / unverified / weak).
+    hidden: Counter = field(default_factory=Counter)
 
 
 @dataclass
@@ -49,6 +77,10 @@ async def _sources_by_owner(session: AsyncSession, entities: list[Entity]) -> di
 
 
 async def list_entities(session: AsyncSession, case_id: uuid.UUID, filters: EntityFilters) -> list[EntityRow]:
+    return (await list_entities_view(session, case_id, filters)).rows
+
+
+async def list_entities_view(session: AsyncSession, case_id: uuid.UUID, filters: EntityFilters) -> EntityList:
     all_entities = list((await session.scalars(select(Entity).where(Entity.case_id == case_id))).all())
     sources = await _sources_by_owner(session, all_entities)
     merged_count: dict[uuid.UUID, int] = defaultdict(int)
@@ -67,8 +99,18 @@ async def list_entities(session: AsyncSession, case_id: uuid.UUID, filters: Enti
         suggestions[b] += 1
 
     rows = []
+    hidden: Counter = Counter()
     for e in all_entities:
         if e.merged_into_id is not None:
+            continue
+        reason = hidden_reason(e)
+        if filters.show == "dismissed":
+            if reason != "dismissed":
+                continue
+        elif reason == "dismissed" or (filters.show == "best" and reason):
+            hidden[reason] += 1
+            continue
+        if filters.show == "confirmed" and not (e.confirmed_flag or e.is_seed):
             continue
         if filters.type and e.type != filters.type:
             continue
@@ -87,16 +129,19 @@ async def list_entities(session: AsyncSession, case_id: uuid.UUID, filters: Enti
         select(ScanRun).where(ScanRun.case_id == case_id).order_by(ScanRun.run_number.desc()).limit(1)
     )
     failed = set(latest_run.tools_failed) if latest_run else set()
-    return [
-        EntityRow(
-            entity=e,
-            sources=sorted(sources[e.id]),
-            failed_sources=sorted(sources[e.id] & failed),
-            merged_count=merged_count[e.id],
-            suggestion_count=suggestions[e.id],
-        )
-        for e in rows
-    ]
+    return EntityList(
+        rows=[
+            EntityRow(
+                entity=e,
+                sources=sorted(sources[e.id]),
+                failed_sources=sorted(sources[e.id] & failed),
+                merged_count=merged_count[e.id],
+                suggestion_count=suggestions[e.id],
+            )
+            for e in rows
+        ],
+        hidden=hidden,
+    )
 
 
 @dataclass

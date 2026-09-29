@@ -4,8 +4,8 @@
 {% set notes = run.failure_details or {} %}
 {% set split = notes | run_issues %}
 {% set issues = split.tools + split.other %}
-<div id="scan-status" class="runline" role="status" aria-live="polite"
-     {% if active %}hx-get="/cases/{{ case.id }}/scan-status?was_running=1" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+<div id="scan-status" class="runline" role="status" aria-live="polite" data-active="{{ 1 if active else 0 }}"
+     {% if active %}hx-get="/cases/{{ case.id }}/scan-status?was_running=1&amp;seen={{ run.jobs_done }}" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
   {{ ui.run_status(run.status) }}
   <span>
     Scan {{ run.run_number }}{% if run.triggered_by == 'pivot_chain' %} (automatic follow-up){% elif run.triggered_by == 'watch_mode' %} (watch mode){% endif %}
@@ -18,6 +18,19 @@
     {% endif %}
   </span>
   {% if active and run.jobs_total %}<progress max="{{ run.jobs_total }}" value="{{ run.jobs_done }}" aria-label="Scan progress"></progress>{% endif %}
+  {% if run.status == 'running' and run.tools_included %}
+  <ul class="tool-states" aria-label="Tools in this scan">
+    {% for t in run.tools_included %}
+    {% set state = 'failed' if t in run.tools_failed else 'done' if t in run.tools_completed else 'running' %}
+    <li class="tool-state {{ state }}">{{ tool_label(t) }}<span class="visually-hidden">: {{ state }}</span></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if active %}
+  <button class="btn btn-ghost btn-xs" type="button" hx-post="/cases/{{ case.id }}/scans/{{ run.id }}/cancel"
+          hx-target="#scan-status" hx-swap="outerHTML" hx-disabled-elt="this"
+          hx-confirm="Stop this scan? Results found so far are kept.">Stop</button>
+  {% endif %}
   {% if issues or notes.get('_correlation') or notes.get('_pivots') %}
   <details>
     <summary>{% if split.tools %}{{ split.tools | length }} tool{{ 's' if split.tools | length != 1 }} failed{% if split.other %}, {{ split.other | length }} other issue{{ 's' if split.other | length != 1 }}{% endif %}{% elif split.other %}{{ split.other | length }} issue{{ 's' if split.other | length != 1 }}{% else %}Details{% endif %}</summary>

@@ -18,9 +18,9 @@
       {% if not auto_pivot %}Automatic pivots off{% endif %}
     </div>
     {% endif %}
-    <button class="btn btn-primary" type="button"
-            hx-post="/cases/{{ case.id }}/scans" hx-target="#scan-status" hx-swap="outerHTML"
-            hx-disabled-elt="this">{{ ui.icon("play") }}Run scan</button>
+    {% set scanning = run and run.status in ('queued', 'running') %}
+    <button class="btn btn-primary" type="button" data-run-scan {% if scanning %}disabled title="A scan is already running"{% endif %}
+            hx-post="/cases/{{ case.id }}/scans" hx-target="#scan-status" hx-swap="outerHTML">{{ ui.icon("play") }}Run scan</button>
   </div>
 </header>
 

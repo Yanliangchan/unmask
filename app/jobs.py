@@ -79,6 +79,28 @@ def enqueue_scan(run_id: uuid.UUID, triggered_by: str = "manual") -> str:
     return job_id
 
 
+def stop_scan(run_id: uuid.UUID) -> None:
+    """Stop the job running a scan, wherever it runs. Best effort: the run is already marked cancelled."""
+    job_id = scan_job_id(run_id)
+    if not uses_rq():
+        for task in list(_running):
+            if task.get_name() == job_id:
+                task.cancel()
+        return
+    try:
+        from rq.command import send_stop_job_command
+        from rq.job import Job
+
+        conn = redis_connection()
+        job = Job.fetch(job_id, connection=conn)
+        if job.get_status() == "started":
+            send_stop_job_command(conn, job_id)
+        else:
+            job.cancel()
+    except Exception:
+        log.warning("could not stop job %s", job_id, exc_info=True)
+
+
 def enqueue_correlation(case_id: uuid.UUID) -> None:
     from rq import Queue
 

@@ -56,6 +56,7 @@ class Report:
     pivots_skipped: int
     diff_summary: str | None
     entity_count: int
+    dismissed_count: int = 0
     reliability_scale: dict = field(default_factory=lambda: SOURCE_RELIABILITY)
 
 
@@ -110,7 +111,9 @@ async def build_report(session: AsyncSession, case: Investigation, user: User) -
     if not assessment_ready(case):
         raise AssessmentRequired
     entities = list((await session.scalars(select(Entity).where(Entity.case_id == case.id))).all())
-    active = [e for e in entities if e.merged_into_id is None]
+    dismissed = sum(1 for e in entities if e.merged_into_id is None and e.dismissed_flag)
+    # Findings the analyst ruled out are counted in the report, not listed.
+    active = [e for e in entities if e.merged_into_id is None and not e.dismissed_flag]
     members: dict[uuid.UUID, list[Entity]] = defaultdict(list)
     for e in entities:
         if e.merged_into_id:
@@ -177,6 +180,7 @@ async def build_report(session: AsyncSession, case: Investigation, user: User) -
         pivots_skipped=sum(1 for p in pivots if not p.scan_run_id),
         diff_summary=diff_summary,
         entity_count=len(active),
+        dismissed_count=dismissed,
     )
 
 
@@ -231,7 +235,8 @@ def render_markdown(r: Report) -> str:
         "## Findings",
         "",
         f"{r.entity_count} entities after de-duplication; {r.pending_suggestions} suggested match(es) not yet "
-        "reviewed by an analyst.",
+        "reviewed by an analyst."
+        + (f" {r.dismissed_count} finding(s) ruled out by the analyst are not listed." if r.dismissed_count else ""),
         "",
     ]
     for label, rows in r.tiers:

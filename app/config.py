@@ -52,7 +52,9 @@ class Settings(BaseSettings):
 
     # Per-tool settings. API keys are written to a 0600 config file inside the
     # tool's throwaway working directory, never passed on the command line.
-    maigret_top_sites: int = Field(default=500, alias="UNMASK_MAIGRET_TOP_SITES")
+    # Sites Maigret checks, most popular first. Beyond ~200 the extra sites add
+    # minutes and mostly false positives.
+    maigret_top_sites: int = Field(default=200, alias="UNMASK_MAIGRET_TOP_SITES")
     # h8mail keys as comma-separated name=value pairs, e.g. "hibp=...,snusbase_token=..."
     h8mail_keys: str = Field(default="", alias="UNMASK_H8MAIL_KEYS")
     harvester_sources: str = Field(
@@ -63,6 +65,13 @@ class Settings(BaseSettings):
     brave_api_key: str = Field(default="", alias="UNMASK_BRAVE_API_KEY")
     # Result pages per Brave query (20 results each); each costs one API call.
     brave_max_results: int = Field(default=20, alias="UNMASK_BRAVE_MAX_RESULTS")
+
+    # Account verification: each account hit's profile page is fetched once and
+    # checked before it is shown (see app/verify.py).
+    verify_accounts: bool = Field(default=True, alias="UNMASK_VERIFY_ACCOUNTS")
+    verify_timeout_seconds: float = Field(default=8, alias="UNMASK_VERIFY_TIMEOUT")
+    verify_concurrency: int = Field(default=12, alias="UNMASK_VERIFY_CONCURRENCY")
+    verify_max_per_job: int = Field(default=250, alias="UNMASK_VERIFY_MAX")
 
     # Automatic pivots. Depth = how many pivot runs may chain off each other;
     # budget = most pivots one evaluation may start. Anything over is logged

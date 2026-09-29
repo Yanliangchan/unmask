@@ -36,10 +36,15 @@ from app.web import render
 router = APIRouter()
 
 
-def _changed(message: str) -> Response:
-    """Empty response that tells the page to refresh the entity views."""
+def _changed(message: str, undo: str | None = None) -> Response:
+    """Empty response that tells the page to refresh the entity views.
+
+    ``undo`` is a POST endpoint that reverses the action; the toast offers it
+    as a button instead of asking "are you sure?" up front.
+    """
+    toast = {"message": message, **({"undo": undo} if undo else {})}
     # ensure_ascii: header values must be latin-1; names can be any script.
-    trigger = json.dumps({"entities-changed": True, "toast": {"message": message}}, ensure_ascii=True)
+    trigger = json.dumps({"entities-changed": True, "toast": toast}, ensure_ascii=True)
     return HTMLResponse("", headers={"HX-Trigger": trigger})
 
 
@@ -114,7 +119,8 @@ async def merge(
     )  # fmt: skip
     await rescore_case(session, case.id)
     await session.commit()
-    return _changed("Entities merged")
+    loser = b if winner.id == a.id else a
+    return _changed("Merged", undo=f"/cases/{case.id}/entities/{loser.id}/split")
 
 
 @router.post("/cases/{case_id}/entities/{entity_id}/split", dependencies=[Depends(verify_csrf)])
@@ -142,6 +148,44 @@ async def split(
     await rescore_case(session, case.id)
     await session.commit()
     return _changed("Entity split out; it will not be merged again automatically")
+
+
+@router.post("/cases/{case_id}/entities/{entity_id}/dismiss", dependencies=[Depends(verify_csrf)])
+async def dismiss_entity(
+    request: Request,
+    case_id: uuid.UUID,
+    entity_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(current_user),
+):
+    """ "Not them": hide a finding from views, graph and reports, keeping it on record."""
+    case = await get_case_for_user(session, case_id, user)
+    entity = await _entity(session, case.id, entity_id)
+    if entity.is_seed:
+        raise HTTPException(status_code=400, detail="A target can't be ruled out; edit the case instead")
+    entity.dismissed_flag = True
+    entity.confirmed_flag = False
+    log_access(session, "dismiss_entity", user_id=user.id, case_id=case.id, ip=client_ip(request),
+               entity_id=str(entity.id))  # fmt: skip
+    await session.commit()
+    return _changed(f"Marked as not them: {entity.value[:60]}", undo=f"/cases/{case.id}/entities/{entity.id}/restore")
+
+
+@router.post("/cases/{case_id}/entities/{entity_id}/restore", dependencies=[Depends(verify_csrf)])
+async def restore_entity(
+    request: Request,
+    case_id: uuid.UUID,
+    entity_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(current_user),
+):
+    case = await get_case_for_user(session, case_id, user)
+    entity = await _entity(session, case.id, entity_id)
+    entity.dismissed_flag = False
+    log_access(session, "restore_entity", user_id=user.id, case_id=case.id, ip=client_ip(request),
+               entity_id=str(entity.id))  # fmt: skip
+    await session.commit()
+    return _changed(f"Restored: {entity.value[:60]}")
 
 
 async def _suggestion(session: AsyncSession, case_id: uuid.UUID, relation_id: uuid.UUID) -> Relation:

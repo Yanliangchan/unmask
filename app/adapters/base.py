@@ -78,6 +78,8 @@ class ToolAdapter(ABC):
     health_check_target: ClassVar[str | None] = None
     # Upper bound for one run of this tool (None = UNMASK_TOOL_TIMEOUT).
     timeout_seconds: ClassVar[int | None] = None
+    # Fetch each reported account's page before keeping it (app/verify.py).
+    verify_accounts: ClassVar[bool] = False
 
     def configured(self) -> str | None:
         """Return why the tool can't run yet (e.g. a missing API key), or None.
@@ -200,6 +202,11 @@ async def run_tool_subprocess(
             proc.kill()
             await proc.wait()
             raise AdapterError(f"{os.path.basename(argv[0])} timed out after {timeout:.0f}s") from exc
+        except asyncio.CancelledError:
+            # The scan was stopped: never leave the tool running on its own.
+            proc.kill()
+            await asyncio.shield(proc.wait())
+            raise
         files = await asyncio.to_thread(_collect_outputs, workdir, collect or [])
     return ProcessResult(
         returncode=proc.returncode or 0,

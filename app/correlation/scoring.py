@@ -9,7 +9,10 @@ Confidence answers "does this belong to the subject?". It is built from:
   (an email whose handle matches the username, a profile name matching the
   target's name, ...),
 * **context-tag match**: how many of the case's context tags appear in the
-  entity's own details.
+  entity's own details,
+* **page verification** (accounts only): a profile page that names the
+  username counts as evidence; one that could not be checked (bot wall,
+  login wall) weakens the prior instead.
 
 Evidence is combined with a noisy-OR, so each piece raises confidence with
 diminishing returns and no single weak signal can push a finding to certainty.
@@ -27,6 +30,8 @@ EXTRA_SOURCE_WEIGHT = 0.2
 CORROBORATION_WEIGHT = 0.25
 MAX_CORROBORATIONS = 3
 TAG_MATCH_WEIGHT = 0.3
+VERIFIED_WEIGHT = 0.35
+UNVERIFIED_FACTOR = 0.55
 
 
 @dataclass
@@ -38,6 +43,7 @@ class Evidence:
     tag_match: float | None = None
     is_seed: bool = False
     confirmed: bool = False
+    verification: str | None = None
 
 
 @dataclass
@@ -56,7 +62,13 @@ def score(ev: Evidence) -> Score:
     # Reliability scales the prior between 60% and 100% of its value.
     base = max(0.0, min(1.0, ev.prior)) * (0.6 + 0.4 * w)
     explanation = [f"prior {ev.prior:.2f} from the source, weighted by reliability {ev.reliability} → {base:.2f}"]
+    if ev.verification == "unverified":
+        base *= UNVERIFIED_FACTOR
+        explanation.append(f"profile page could not be checked, so the prior is reduced to {base:.2f}")
     residual = 1.0 - base
+    if ev.verification == "verified":
+        residual *= 1.0 - VERIFIED_WEIGHT
+        explanation.append("profile page checked: it exists and names the username")
 
     extra = max(0, ev.sources - 1)
     for _ in range(extra):
@@ -82,6 +94,8 @@ def score(ev: Evidence) -> Score:
     }
     if ev.tag_match is not None:
         components["evidence.tag_match"] = round(ev.tag_match, 4)
+    if ev.verification:
+        components["evidence.verified"] = 1.0 if ev.verification == "verified" else 0.0
     return Score(overall, components, explanation)
 
 

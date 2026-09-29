@@ -9,9 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.registry import all_adapters, get_adapter
 from app.audit import log_access
-from app.correlation.engine import lock_case, rescore_case
+from app.correlation.engine import correlate_and_commit, lock_case, rescore_case
 from app.db import get_session
-from app.jobs import enqueue_health_check, enqueue_scan, uses_rq, worker_count
+from app.jobs import enqueue_health_check, enqueue_scan, stop_scan, uses_rq, worker_count
 from app.models import TARGET_TYPES, Entity, ScanRun, User
 from app.routes.public import render_landing
 from app.routes.shell import case_shell
@@ -25,9 +25,10 @@ from app.services.cases import (
     mark_reviewed,
     parse_tags,
 )
-from app.services.entities import EntityFilters, entity_detail, list_entities
+from app.services.entities import SHOW_MODES, EntityFilters, entity_detail, list_entities, list_entities_view
 from app.services.graph import case_graph
-from app.services.scans import create_scan_run
+from app.services.scans import cancel_scan_run, create_scan_run
+from app.services.summary import case_summary
 from app.services.tools import run_health_check, tool_configs, tool_health
 from app.web import Seo, render
 
@@ -265,6 +266,7 @@ def _filters_from_query(request: Request) -> EntityFilters:
         tools=[t for t in q.getlist("tool") if t],
         confirmed_only=q.get("confirmed_only") in ("on", "true", "1"),
         q=(q.get("q") or "").strip()[:200],
+        show=q.get("show") if q.get("show") in SHOW_MODES else "best",
     )
 
 
@@ -276,10 +278,26 @@ async def entities_partial(
     user: User = Depends(current_user),
 ):
     case = await get_case_for_user(session, case_id, user)
-    rows = await list_entities(session, case.id, _filters_from_query(request))
+    filters = _filters_from_query(request)
+    view = await list_entities_view(session, case.id, filters)
     await mark_reviewed(session, case)
     await session.commit()
-    return render(request, "cases/_entities_table.html", {"case": case, "rows": rows})
+    return render(
+        request,
+        "cases/_entities_table.html",
+        {"case": case, "rows": view.rows, "hidden": view.hidden, "show": filters.show},
+    )
+
+
+@router.get("/cases/{case_id}/summary")
+async def summary_partial(
+    request: Request,
+    case_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(current_user),
+):
+    case = await get_case_for_user(session, case_id, user)
+    return render(request, "cases/_summary.html", {"case": case, "s": await case_summary(session, case.id)})
 
 
 @router.get("/cases/{case_id}/entities/{entity_id}")
@@ -322,7 +340,7 @@ async def toggle_confirm(
     await lock_case(session, case.id)
     await rescore_case(session, case.id)
     await session.commit()
-    rows = await list_entities(session, case.id, EntityFilters())
+    rows = await list_entities(session, case.id, EntityFilters(show="all"))
     row = next((r for r in rows if r.entity.id == entity.id), None)
     return render(request, "cases/_entity_row.html", {"case": case, "row": row})
 
@@ -353,6 +371,37 @@ async def run_scan(
     return RedirectResponse(f"/cases/{case.id}", status_code=303)
 
 
+@router.post("/cases/{case_id}/scans/{run_id}/cancel", dependencies=[Depends(verify_csrf)])
+async def cancel_scan(
+    request: Request,
+    case_id: uuid.UUID,
+    run_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(current_user),
+):
+    case = await get_case_for_user(session, case_id, user)
+    run = await session.scalar(select(ScanRun).where(ScanRun.id == run_id, ScanRun.case_id == case.id))
+    if run is None:
+        raise HTTPException(status_code=404, detail="Scan not found")
+    if await cancel_scan_run(session, run, by=user.email):
+        log_access(session, "cancel_scan", user_id=user.id, case_id=case.id, ip=client_ip(request),
+                   run_number=run.run_number)  # fmt: skip
+        await session.commit()
+        stop_scan(run.id)
+        # Score whatever was found before the stop; embeddings wait for the next full scan.
+        await correlate_and_commit(session, case.id, semantic=False)
+    response = render(request, "partials/scan_status.html", {"case": case, "run": run, "workers": worker_count()})
+    response.headers["HX-Trigger"] = "scan-finished"
+    return response
+
+
+def _int(value: str | None) -> int:
+    try:
+        return int(value or 0)
+    except ValueError:
+        return 0
+
+
 @router.get("/cases/{case_id}/scan-status")
 async def scan_status(
     request: Request,
@@ -368,6 +417,9 @@ async def scan_status(
     if run is not None and run.status not in ("queued", "running") and request.query_params.get("was_running"):
         # Tell the page to refresh the entity table now that results are in.
         response.headers["HX-Trigger"] = "scan-finished"
+    elif run is not None and run.jobs_done > _int(request.query_params.get("seen")):
+        # Another tool reported mid-scan: its results are already scored and stored.
+        response.headers["HX-Trigger"] = "results-updated"
     return response
 
 

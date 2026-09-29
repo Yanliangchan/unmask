@@ -143,7 +143,7 @@ async def evaluate_pivots(session: AsyncSession, case_id: uuid.UUID, source_run_
     entities = (
         await session.scalars(
             select(Entity)
-            .where(Entity.case_id == case_id, Entity.merged_into_id.is_(None))
+            .where(Entity.case_id == case_id, Entity.merged_into_id.is_(None), Entity.dismissed_flag.is_(False))
             .order_by(Entity.confidence.desc(), Entity.first_seen)
         )
     ).all()

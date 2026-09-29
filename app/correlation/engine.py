@@ -47,7 +47,18 @@ HANDLE_SUGGEST_RATIO = 90
 PROFILE_NAME_RATIO = 90
 
 # Internal/echo keys that must not count as "details" when matching context tags.
-_TAG_IGNORE = {"origin", "context_tags", "_score_explanation", "url", "host", "email", "domain", "username"}
+_TAG_IGNORE = {
+    "origin",
+    "context_tags",
+    "_score_explanation",
+    "url",
+    "host",
+    "email",
+    "domain",
+    "username",
+    "verification",
+    "verification_reason",
+}
 
 
 @dataclass
@@ -232,8 +243,12 @@ def _profile_names(entity: Entity) -> list[str]:
     return [str(profile[k]) for k in ("fullname", "name") if profile.get(k)]
 
 
-async def correlate_case(session: AsyncSession, case_id: uuid.UUID) -> CorrelationResult:
-    """Run both passes and rescore every entity. Caller commits."""
+async def correlate_case(session: AsyncSession, case_id: uuid.UUID, *, semantic: bool = True) -> CorrelationResult:
+    """Run both passes and rescore every entity. Caller commits.
+
+    ``semantic=False`` skips pass 2 (embeddings): used for the quick rescore
+    after each tool finishes, so results show up scored while a scan runs.
+    """
     await lock_case(session, case_id)
     result = CorrelationResult()
     # Deterministic order: the oldest entity of a duplicate group survives.
@@ -327,7 +342,7 @@ async def correlate_case(session: AsyncSession, case_id: uuid.UUID) -> Correlati
                         result.linked += 1
 
     # Pass 2 — semantic similarity for names and usernames the rules missed.
-    embedder, reason = get_embedder()
+    embedder, reason = get_embedder() if semantic else (None, "runs when the scan finishes")
     candidates = by_type.get("name", []) + by_type.get("username", [])
     if embedder is None:
         result.pass2 = f"skipped ({reason})"
@@ -403,6 +418,7 @@ async def rescore_case(session: AsyncSession, case_id: uuid.UUID) -> int:
             tag_match=None if e.is_seed else tag_match_score(tags, _detail_text(e)),
             is_seed=e.is_seed,
             confirmed=e.confirmed_flag,
+            verification=e.verification,
         )
         s = score(ev)
         adapter_fields = {k: v for k, v in (e.field_confidence or {}).items() if not k.startswith("evidence.")}
@@ -414,7 +430,9 @@ async def rescore_case(session: AsyncSession, case_id: uuid.UUID) -> int:
     return len(active)
 
 
-async def correlate_and_commit(session: AsyncSession, case_id: uuid.UUID) -> CorrelationResult:
-    result = await correlate_case(session, case_id)
+async def correlate_and_commit(
+    session: AsyncSession, case_id: uuid.UUID, *, semantic: bool = True
+) -> CorrelationResult:
+    result = await correlate_case(session, case_id, semantic=semantic)
     await session.commit()
     return result

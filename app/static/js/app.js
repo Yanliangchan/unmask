@@ -142,7 +142,7 @@
   });
 
   // --- Toasts for failed htmx requests ---------------------------------------
-  function toast(message, kind) {
+  function toast(message, kind, undoUrl) {
     var host = document.getElementById("toasts");
     if (!host) return;
     var el = document.createElement("div");
@@ -157,13 +157,24 @@
     close.setAttribute("data-dismiss-toast", "");
     close.textContent = "×";
     el.appendChild(span);
+    if (undoUrl && window.htmx) {
+      var undo = document.createElement("button");
+      undo.type = "button";
+      undo.className = "toast-undo";
+      undo.textContent = "Undo";
+      undo.addEventListener("click", function () {
+        el.remove();
+        window.htmx.ajax("POST", undoUrl, { source: document.body, swap: "none" });
+      });
+      el.appendChild(undo);
+    }
     el.appendChild(close);
     host.appendChild(el);
     setTimeout(function () { el.remove(); }, 8000);
   }
   window.unmaskToast = toast;
   // Server-sent notices arrive as an HX-Trigger "toast" event (script is deferred, so <body> exists).
-  document.body.addEventListener("toast", function (e) { toast(e.detail.message); });
+  document.body.addEventListener("toast", function (e) { toast(e.detail.message, "info", e.detail.undo); });
 
   document.addEventListener("htmx:responseError", function (e) {
     var xhr = e.detail.xhr;
@@ -185,6 +196,18 @@
   }
   document.addEventListener("htmx:afterSettle", focusPending);
   if (location.hash.indexOf("#ent-") === 0) pendingFocus = location.hash.slice(5);
+
+  // "Evidence" links in the case summary open that row, switching to "All findings" if it's hidden.
+  document.addEventListener("click", function (e) {
+    var link = e.target.closest && e.target.closest("[data-focus-entity]");
+    if (!link) return;
+    e.preventDefault();
+    pendingFocus = link.dataset.focusEntity;
+    var select = document.getElementById("entity-show");
+    if (document.getElementById("ent-" + pendingFocus) || !select) { focusPending(); return; }
+    select.value = "all";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
 
   // --- Menus: one open at a time; close on outside click, Escape, or picking an item ------------
   function closeMenus(except) {
@@ -232,6 +255,26 @@
       initTargets(f);
     });
   }
-  document.addEventListener("DOMContentLoaded", function () { init(document); });
+  // "Show all" / "View" links under the entity table switch the Show filter.
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest && e.target.closest("[data-show]");
+    var select = document.getElementById("entity-show");
+    if (!btn || !select) return;
+    select.value = btn.dataset.show;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+
+  // "Run scan" stays disabled while the case already has a scan in progress.
+  function syncRunButton() {
+    var status = document.getElementById("scan-status");
+    var active = status && status.dataset.active === "1";
+    qsa(document, "[data-run-scan]").forEach(function (btn) {
+      btn.disabled = active;
+      btn.title = active ? "A scan is already running" : "";
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () { init(document); syncRunButton(); });
   document.addEventListener("htmx:load", function (e) { init(e.detail.elt); });
+  document.addEventListener("htmx:afterSettle", syncRunButton);
 })();

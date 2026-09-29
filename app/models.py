@@ -217,6 +217,10 @@ class Entity(Base):
     first_seen: Mapped[datetime] = _now()
     last_verified: Mapped[datetime] = _now()
     confirmed_flag: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    # An analyst said "not them": hidden from views and reports, kept for the record.
+    dismissed_flag: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    # Account hits only: verified | unverified (see app/verify.py). Null for other types.
+    verification: Mapped[str | None] = mapped_column(String(12))
     is_seed: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     merged_into_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("entities.id", ondelete="SET NULL"), index=True)
 

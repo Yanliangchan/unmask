@@ -1,0 +1,40 @@
+{% import "components/ui.html" as ui %}
+<section class="summary" aria-labelledby="summary-title">
+  <div class="summary-head">
+    <div>
+      <h2 id="summary-title">{{ s.headline }}</h2>
+      <p class="muted">{{ s.detail }}</p>
+    </div>
+    <dl class="summary-stats">
+      <div><dt>Shown</dt><dd>{{ s.shown }}</dd></div>
+      {% if s.to_review %}<div><dt>To review</dt><dd class="text-warn">{{ s.to_review }}</dd></div>{% endif %}
+      {% if s.hidden %}<div><dt>Hidden</dt><dd><button type="button" class="link-btn" data-show="all" title="Unchecked profile pages and weak results">{{ s.hidden }}</button></dd></div>{% endif %}
+      {% if s.discarded %}<div><dt title="Profile pages that said the account does not exist">Discarded</dt><dd>{{ s.discarded }}</dd></div>{% endif %}
+    </dl>
+  </div>
+  {% if s.cards %}
+  <ul class="profile-cards" role="list">
+    {% for c in s.cards %}
+    {% set st = c.entity | strength %}
+    <li class="profile-card">
+      <span class="avatar" aria-hidden="true">{{ c.site[:1] | upper }}</span>
+      <div class="profile-main">
+        <p class="profile-site"><strong>{{ c.site }}</strong>{% if c.handle %} <span class="mono faint">{{ c.handle }}</span>{% endif %}</p>
+        {% if c.title %}<p class="profile-title">{{ c.title }}</p>{% endif %}
+        {% if c.about or c.location %}<p class="profile-about muted">{% if c.location %}{{ c.location }}{% if c.about %} · {% endif %}{% endif %}{{ c.about }}</p>{% endif %}
+        <p class="profile-foot">
+          <span class="strength-label s-{{ st[0] }}">{{ st[1] }}</span>
+          {% if c.entity.attributes.get('url') %}<a href="{{ c.entity.attributes.url }}" target="_blank" rel="noopener noreferrer nofollow">Open profile{{ ui.icon("external", "icon") }}</a>{% endif %}
+          <a href="#ent-{{ c.entity.id }}" data-focus-entity="{{ c.entity.id }}">Evidence</a>
+        </p>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if s.other_likely %}
+  <p class="summary-also"><span class="muted">Also likely:</span>
+    {% for e in s.other_likely %}<a href="#ent-{{ e.id }}" data-focus-entity="{{ e.id }}" class="mono">{{ e.value | truncate(48) }}</a>{% if not loop.last %}, {% endif %}{% endfor %}
+  </p>
+  {% endif %}
+</section>

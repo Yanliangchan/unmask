@@ -103,8 +103,9 @@ class SherlockAdapter(ToolAdapter):
     input_types = ["username"]
     description = "Checks whether a username is registered on several hundred sites."
     health_check_target = "torvalds"
+    verify_accounts = True
 
-    site_timeout_seconds = 15
+    site_timeout_seconds = 10
 
     def build_argv(self, username: str, sites: list[str] | None = None) -> list[str]:
         validate_username(username)

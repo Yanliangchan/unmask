@@ -16,6 +16,15 @@
 </svg>
 {%- endmacro %}
 
+{% macro strength(entity) -%}
+{% set s = entity | strength %}
+{% set pct = ((entity.confidence or 0) * 100) | round | int %}
+<span class="strength s-{{ s[0] }}" title="Score {{ '%.2f' | format(entity.confidence or 0) }}">
+  <span class="strength-label">{{ s[1] }}</span>
+  {% if s[0] not in ("target", "dismissed") %}<span class="conf-track" aria-hidden="true"><span class="conf-fill" style="width: {{ pct }}%"></span></span>{% endif %}
+</span>
+{%- endmacro %}
+
 {% macro confidence_bar(value, label="Confidence") -%}
 {% set tier = value | confidence_tier %}
 {% set pct = ((value or 0) * 100) | round | int %}
@@ -39,7 +48,7 @@
 
 {% macro run_status(status) -%}
 {% set m = {"completed": ("ok", "Completed"), "partial": ("warn", "Some tools failed"), "failed": ("bad", "Failed"),
-            "running": ("live", "Running"), "queued": ("live", "Queued")} %}
+            "running": ("live", "Running"), "queued": ("live", "Queued"), "cancelled": ("off", "Stopped")} %}
 {% set s = m.get(status, ("off", status)) %}
 {{ status_dot(s[0], s[1]) }}
 {%- endmacro %}

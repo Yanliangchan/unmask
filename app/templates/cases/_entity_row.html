@@ -16,10 +16,10 @@
       {% else %}
       <span class="ident ident-cut" title="{{ e.value }}">{{ e.value }}</span>
       {% endif %}
-      <span class="flags"><span class="flag-type show-xs">{{ e.type | replace('_', ' ') }}</span>{% if e.is_seed %}<span class="flag">Target</span>{% endif %}{% if row.merged_count %}<span class="flag" title="{{ row.merged_count }} duplicate value(s) merged into this one">+{{ row.merged_count }} merged</span>{% endif %}{% if row.suggestion_count %}<span class="flag flag-review" title="Possible duplicate waiting for your review">{{ row.suggestion_count }} to review</span>{% endif %}</span>
+      <span class="flags"><span class="flag-type show-xs">{{ e.type | replace('_', ' ') }}</span>{% if e.is_seed %}<span class="flag">Target</span>{% endif %}{% if row.merged_count %}<span class="flag" title="{{ row.merged_count }} duplicate value(s) merged into this one">+{{ row.merged_count }} merged</span>{% endif %}{% if row.suggestion_count %}<span class="flag flag-review" title="Possible duplicate waiting for your review">{{ row.suggestion_count }} to review</span>{% endif %}{% if e.verification == 'verified' %}<span class="flag flag-ok" title="{{ e.attributes.get('verification_reason', 'Profile page checked') }}">Page checked</span>{% elif e.verification == 'unverified' %}<span class="flag flag-review" title="{{ e.attributes.get('verification_reason', '') }}">Not checked</span>{% endif %}</span>
     </td>
     <td class="muted hide-xs">{{ e.type | replace('_', ' ') }}</td>
-    <td>{{ ui.confidence_bar(e.confidence) }}</td>
+    <td>{{ ui.strength(e) }}</td>
     <td class="hide-xs">{{ ui.reliability(e.source_reliability) }}</td>
     <td class="hide-sm">{{ ui.sources(row.sources, row.failed_sources) }}</td>
     <td class="hide-sm faint small nowrap"><time datetime="{{ e.last_verified.isoformat() }}" title="First seen {{ e.first_seen | isodate }}, last seen {{ e.last_verified | isodate }}">{{ e.last_verified | timeago }}</time></td>
@@ -30,6 +30,13 @@
           <button type="button" role="menuitem" data-open-row="#ent-{{ e.id }}">Show evidence</button>
           <button type="button" role="menuitem" data-stop hx-get="/cases/{{ case.id }}/entities/{{ e.id }}/merge"
                   hx-target="#merge-{{ e.id }}" data-reveal="#merge-row-{{ e.id }}">{{ ui.icon("merge") }}Merge with…</button>
+          {% if not e.is_seed %}
+          {% if e.dismissed_flag %}
+          <button type="button" role="menuitem" hx-post="/cases/{{ case.id }}/entities/{{ e.id }}/restore" hx-swap="none">Restore</button>
+          {% else %}
+          <button type="button" role="menuitem" hx-post="/cases/{{ case.id }}/entities/{{ e.id }}/dismiss" hx-swap="none">Not them</button>
+          {% endif %}
+          {% endif %}
           <div class="menu-sep"></div>
           {{ ui.search_items(e.type, e.value, case | case_tags) }}
         </div>

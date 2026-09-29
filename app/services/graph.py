@@ -46,7 +46,8 @@ def _label(value: str) -> str:
 async def case_graph(session: AsyncSession, case_id: uuid.UUID) -> dict:
     entities = (await session.scalars(select(Entity).where(Entity.case_id == case_id))).all()
     owner = {e.id: (e.merged_into_id or e.id) for e in entities}
-    active = {e.id: e for e in entities if e.merged_into_id is None}
+    # Findings the analyst ruled out ("Not them") are left off the graph.
+    active = {e.id: e for e in entities if e.merged_into_id is None and not e.dismissed_flag}
     merged_count: dict[uuid.UUID, int] = defaultdict(int)
     for e in entities:
         if e.merged_into_id:
@@ -75,7 +76,7 @@ async def case_graph(session: AsyncSession, case_id: uuid.UUID) -> dict:
         if r.relation_type in (SAME_AS, NOT_SAME):
             continue
         a, b = owner.get(r.entity_a_id), owner.get(r.entity_b_id)
-        if a is None or b is None or a == b:
+        if a is None or b is None or a == b or a not in active or b not in active:
             continue
         key = (a, b, r.relation_type)
         if key not in edges:

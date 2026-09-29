@@ -90,8 +90,9 @@ class MaigretAdapter(ToolAdapter):
     description = "Username search across thousands of sites, extracting profile details where public."
     health_check_target = "torvalds"
     timeout_seconds = 900
+    verify_accounts = True
 
-    site_timeout_seconds = 15
+    site_timeout_seconds = 10
 
     def build_argv(self, username: str, sites: list[str] | None = None) -> list[str]:
         validate_username(username)

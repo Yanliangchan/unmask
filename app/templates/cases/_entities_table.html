@@ -1,3 +1,8 @@
+{% macro hidden_note(hidden, show) -%}
+{% set total = hidden.get('unverified', 0) + hidden.get('weak', 0) %}
+{% if show == "best" and total %} {{ total }} more hidden ({% if hidden.get('unverified') %}{{ hidden.unverified }} with a profile page that couldn't be checked{% endif %}{% if hidden.get('unverified') and hidden.get('weak') %}, {% endif %}{% if hidden.get('weak') %}{{ hidden.weak }} weak{% endif %}). <button type="button" class="link-btn" data-show="all">Show all</button>{% endif %}
+{%- if hidden.get('dismissed') %} {{ hidden.dismissed }} marked "Not them". <button type="button" class="link-btn" data-show="dismissed">View</button>{% endif %}
+{%- endmacro %}
 {% if rows %}
 <div class="table-wrap">
 <table class="table entities">
@@ -7,7 +12,7 @@
       <th class="col-confirm"><span class="visually-hidden">Confirmed</span></th>
       <th>Value</th>
       <th class="hide-xs">Type</th>
-      <th>Confidence</th>
+      <th>Match</th>
       <th class="hide-xs"><abbr title="Source reliability, A (best) to F">Rel.</abbr></th>
       <th class="hide-sm">Sources</th>
       <th class="hide-sm">Last seen</th>
@@ -17,10 +22,16 @@
   {% for row in rows %}{% include "cases/_entity_row.html" %}{% endfor %}
 </table>
 </div>
-<p class="table-foot">{{ rows | length }} entit{{ 'y' if rows | length == 1 else 'ies' }}. Select a row for the evidence behind it.</p>
+{% set found = rows | rejectattr("entity.is_seed") | list | length %}
+<p class="table-foot">{{ found }} finding{{ 's' if found != 1 }}{% if found != rows | length %} and {{ rows | length - found }} target{{ 's' if rows | length - found != 1 }}{% endif %}. Select a row for the evidence behind it.{{ hidden_note(hidden or {}, show or "best") }}</p>
 {% else %}
 <div class="empty">
-  <h2>Nothing here yet</h2>
-  <p>No entities match these filters. Findings appear as tools finish.</p>
+  {% if show == "dismissed" %}
+  <h2>Nothing marked "Not them"</h2>
+  <p>Findings you rule out appear here, so you can restore them.</p>
+  {% else %}
+  <h2>{{ "No strong findings yet" if hidden else "Nothing here yet" }}</h2>
+  <p>{% if hidden %}Weak and unchecked results are hidden.{% else %}No findings match these filters. Results appear as each tool finishes.{% endif %}{{ hidden_note(hidden or {}, show or "best") }}</p>
+  {% endif %}
 </div>
 {% endif %}
