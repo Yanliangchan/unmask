@@ -12,8 +12,10 @@ from app.adapters.registry import all_adapters, get_adapter
 from app.audit import log_access
 from app.correlation.engine import correlate_and_commit, lock_case, rescore_case
 from app.db import get_session
+from app.identifiers import split_identifiers
 from app.jobs import enqueue_health_check, enqueue_scan, stop_scan, uses_rq, worker_count
 from app.models import TARGET_TYPES, Entity, ScanRun, User
+from app.proxy import describe as describe_proxy
 from app.routes.public import render_landing
 from app.routes.shell import case_shell
 from app.security import client_ip, current_user, current_user_optional, verify_csrf
@@ -91,6 +93,7 @@ async def tools_page(
             "health": await tool_health(session),
             "workers": worker_count(),
             "acc": await accuracy_report(session, await visible_case_ids(session, user)),
+            "proxy": describe_proxy(),
             "site_factor": site_factor,
             "reason_labels": DISMISS_REASONS,
         },
@@ -144,6 +147,7 @@ async def _tool_choices(session: AsyncSession) -> list[dict]:
             "label": a.label,
             "description": a.description,
             "input_types": a.input_types,
+            "speed": a.speed,
             "enabled": bool(cfgs.get(a.name) and cfgs[a.name].enabled) and a.configured() is None,
             "unavailable_reason": a.configured()
             or (None if cfgs.get(a.name) and cfgs[a.name].enabled else "currently disabled"),
@@ -170,7 +174,9 @@ async def new_case_form(
     return render(
         request,
         "cases/new.html",
-        _new_case_context(user, tools, form={"targets": [{"value": "", "type": "username", "tags": ""}]}),
+        _new_case_context(
+            user, tools, form={"depth": "quick", "targets": [{"value": "", "type": "username", "tags": ""}]}
+        ),
     )
 
 
@@ -186,8 +192,23 @@ async def create_case_submit(
         TargetInput(value=str(v), type=str(t), context_tags=parse_tags(str(g)))
         for v, t, g in zip(values, types, tags + [""] * (len(values) - len(tags)), strict=False)
     ]
+    # Pasted identifiers (when the page's script didn't already turn them into rows).
+    seen = {(t.type, t.value.strip().casefold()) for t in targets}
+    for value, kind in split_identifiers(str(form.get("paste", ""))):
+        if (kind, value.casefold()) not in seen:
+            targets.append(TargetInput(value=value, type=kind, context_tags=[]))
+            seen.add((kind, value.casefold()))
+    if any(t.value.strip() for t in targets):
+        targets = [t for t in targets if t.value.strip()]
+    # "What else do you know?" applies to every target.
+    shared = parse_tags(str(form.get("context", "")))
+    for t in targets:
+        t.context_tags = list(dict.fromkeys([*t.context_tags, *shared]))
     tools = await _tool_choices(session)
     selected = set(map(str, form.getlist("tools")))
+    depth = "quick" if form.get("depth") == "quick" else "deep"
+    if depth == "quick":
+        selected -= {t["name"] for t in tools if t["speed"] == "slow"}
     disabled = [t["name"] for t in tools if t["enabled"] and t["name"] not in selected]
     try:
         case = await create_case(
@@ -204,6 +225,8 @@ async def create_case_submit(
         # Validation runs before anything is added to the session, so there is
         # nothing to roll back (and rolling back would expire `user`).
         echo = {
+            "depth": depth,
+            "context": form.get("context", ""),
             "name": form.get("name", ""),
             "authorization_note": form.get("authorization_note", ""),
             "notes": form.get("notes", ""),

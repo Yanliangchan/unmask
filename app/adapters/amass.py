@@ -83,6 +83,7 @@ def parse_output(domain: str, json_lines: str | None, output: str, log: str | No
 class AmassAdapter(ToolAdapter):
     name = "amass"
     label = "Amass"
+    speed = "slow"
     input_types = ["domain"]
     description = "Passive subdomain enumeration from dozens of public data sources."
     health_check_target = "example.com"
@@ -110,7 +111,7 @@ class AmassAdapter(ToolAdapter):
     async def run(self, target_value: str, context_tags: list[str]) -> list[RawResult]:
         domain = validate_domain(target_value)
         proc = await run_tool_subprocess(
-            self.build_argv(domain), timeout=self.timeout_seconds, collect=["names.json", "amass.log"]
+            self.build_argv(domain), timeout=self.timeout_seconds, collect=["names.json", "amass.log"], tool=self.name
         )
         if proc.returncode != 0:
             tail = (proc.stderr or proc.stdout).strip().splitlines()[-1:] or ["no output"]

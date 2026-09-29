@@ -37,8 +37,22 @@
   </section>
 
   <section class="form-section">
-    <h2>Targets</h2>
-    <p class="hint">What you're starting from. Context tags (a city, an employer) help rank findings that mention them.</p>
+    <h2>Who are you looking into?</h2>
+    <label class="field">
+      <span>Paste what you have</span>
+      <textarea name="paste" rows="3" data-paste-targets class="mono" spellcheck="false" autocomplete="off"
+        placeholder="One per line: a username, email address, full name, domain, phone number or IP address"></textarea>
+      <span class="hint">Each line becomes a target below, with its type detected. Fix any type that's wrong.</span>
+    </label>
+    <div class="field">
+      <span id="context-label">What else do you know? <span class="faint">(optional)</span></span>
+      <div class="tag-input" data-tag-input>
+        <input type="hidden" name="context" value="{{ form.context or '' }}">
+        <input type="text" class="tag-entry" aria-labelledby="context-label" placeholder="A city, an employer, a school… then comma">
+      </div>
+      <span class="hint">Applied to every target. Findings that mention these rank higher.</span>
+    </div>
+    <p class="subhead">Targets</p>
     <div id="target-rows" class="target-rows">
       {% for t in form.targets %}
       <div class="target-row">
@@ -53,7 +67,7 @@
           <input type="text" name="target_value" value="{{ t.value }}" class="mono" autocomplete="off" spellcheck="false" placeholder="e.g. janedoe">
         </label>
         <div class="field grow">
-          <span id="tags-label-{{ loop.index }}">Context tags</span>
+          <span id="tags-label-{{ loop.index }}">Extra context for this one</span>
           <div class="tag-input" data-tag-input>
             <input type="hidden" name="target_tags" value="{{ t.tags }}">
             <input type="text" class="tag-entry" aria-labelledby="tags-label-{{ loop.index }}" placeholder="Type, then comma">
@@ -67,14 +81,28 @@
   </section>
 
   <section class="form-section">
+    <h2>How thorough?</h2>
+    {% set depth = form.depth or "deep" %}
+    <div class="depth-choice" role="radiogroup" aria-label="Scan depth">
+      <label class="depth-option">
+        <input type="radio" name="depth" value="quick" data-depth {% if depth == "quick" %}checked{% endif %}>
+        <span><strong>Quick</strong> <span class="faint">about 1–3 minutes</span><br>
+          <span class="muted small">Username check on ~120 major sites, web search, email registrations, certificates. Good for a first look.</span></span>
+      </label>
+      <label class="depth-option">
+        <input type="radio" name="depth" value="deep" data-depth {% if depth == "deep" %}checked{% endif %}>
+        <span><strong>Deep</strong> <span class="faint">10–30 minutes</span><br>
+          <span class="muted small">Adds {{ tools | selectattr("speed", "equalto", "slow") | map(attribute="label") | join(", ") }}. Slower and noisier, finds more.</span></span>
+      </label>
+    </div>
     <details class="tools-pick">
-      <summary><h2>Tools</h2> <span class="muted small">All available tools run. Open to leave some out.</span></summary>
+      <summary><span class="pick-link">Choose tools yourself</span> <span class="faint small">· set by the choice above</span></summary>
       <ul class="tool-picks" role="list">
         {% for t in tools %}
         <li>
           <label class="check">
-            <input type="checkbox" name="tools" value="{{ t.name }}"
-              {% if not t.enabled %}disabled{% elif (t.checked if t.checked is defined else True) %}checked{% endif %}>
+            <input type="checkbox" name="tools" value="{{ t.name }}" data-speed="{{ t.speed }}"
+              {% if not t.enabled %}disabled{% elif (t.checked if t.checked is defined else (t.speed != "slow" or depth == "deep")) %}checked{% endif %}>
             <span>
               <strong>{{ t.label }}</strong> <span class="faint small">{{ t.input_types | join(', ') }}</span>
               {% if not t.enabled %}<span class="text-warn small"> · {{ t.unavailable_reason or 'currently disabled' }}</span>{% endif %}
@@ -106,7 +134,7 @@
       <input type="text" name="target_value" class="mono" autocomplete="off" spellcheck="false">
     </label>
     <div class="field grow">
-      <span>Context tags</span>
+      <span>Extra context for this one</span>
       <div class="tag-input" data-tag-input>
         <input type="hidden" name="target_tags" value="">
         <input type="text" class="tag-entry" aria-label="Context tags" placeholder="Type, then comma">

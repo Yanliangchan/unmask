@@ -77,6 +77,7 @@ def parse_output(domain: str, stdout: str, report_json: str | None) -> Harvester
 class TheHarvesterAdapter(ToolAdapter):
     name = "theharvester"
     label = "theHarvester"
+    speed = "slow"
     input_types = ["domain"]
     description = "Collects emails, subdomains and IPs for a domain from public sources."
     health_check_target = "example.com"
@@ -96,7 +97,7 @@ class TheHarvesterAdapter(ToolAdapter):
     async def run(self, target_value: str, context_tags: list[str], sources: str | None = None) -> list[RawResult]:
         domain = validate_domain(target_value)
         proc = await run_tool_subprocess(
-            self.build_argv(domain, sources), timeout=self.timeout_seconds, collect=["report.json"]
+            self.build_argv(domain, sources), timeout=self.timeout_seconds, collect=["report.json"], tool=self.name
         )
         if proc.returncode != 0:
             tail = (proc.stderr or proc.stdout).strip().splitlines()[-1:] or ["no output"]

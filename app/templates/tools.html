@@ -4,6 +4,7 @@
   <div>
     <h1>Tools</h1>
     <p class="muted small">Each tool is checked against a known result. A tool that fails three times in a row is switched off until a check passes.</p>
+    <p class="small proxy-line">{% if proxy %}<span class="dot dot-ok" aria-hidden="true"></span> Proxy: <span class="mono">{{ proxy }}</span>{% else %}<span class="faint">No proxy set. Sites often block tools running on cloud servers (Holehe especially); set <span class="mono">UNMASK_PROXY_URL</span> to route them through one.</span>{% endif %}</p>
   </div>
 </div>
 <div id="tool-health">{% include "partials/tool_health.html" %}</div>

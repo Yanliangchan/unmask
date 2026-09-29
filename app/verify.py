@@ -245,8 +245,11 @@ async def verify_candidates(candidates: list[EntityCandidate]) -> tuple[list[Ent
     per_host: dict[str, asyncio.Semaphore] = {}
     verdicts: dict[int, Verdict] = {}
 
+    from app.proxy import proxy_for
+
     async with httpx.AsyncClient(
         transport=transport,
+        proxy=proxy_for("verify") if transport is None else None,
         headers=BROWSER_HEADERS,
         timeout=settings.verify_timeout_seconds,
         follow_redirects=True,

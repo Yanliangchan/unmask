@@ -91,7 +91,7 @@ class HoleheAdapter(ToolAdapter):
 
     async def run(self, target_value: str, context_tags: list[str]) -> list[RawResult]:
         email = validate_email(target_value)
-        proc = await run_tool_subprocess(self.build_argv(email), timeout=self.timeout_seconds)
+        proc = await run_tool_subprocess(self.build_argv(email), timeout=self.timeout_seconds, tool=self.name)
         if proc.returncode != 0:
             tail = (proc.stderr or proc.stdout).strip().splitlines()[-1:] or ["no output"]
             raise AdapterError(f"holehe exited with code {proc.returncode}: {strip_ansi(tail[0])[:300]}")

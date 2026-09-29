@@ -167,6 +167,7 @@ class H8mailAdapter(ToolAdapter):
             timeout=self.timeout_seconds,
             files_in={"h8mail_config.ini": self.build_config()},
             collect=["report.json"],
+            tool=self.name,
         )
         if proc.returncode != 0:
             tail = (proc.stderr or proc.stdout).strip().splitlines()[-1:] or ["no output"]

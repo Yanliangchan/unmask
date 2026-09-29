@@ -15,7 +15,7 @@
     <tr>
       <td><strong class="nowrap">{{ t.label }}</strong>{% if t.detail %}<span class="show-xs muted small tool-detail-xs">{{ t.detail }}</span>{% endif %}</td>
       <td class="nowrap">{{ ui.status_dot(t.status, t.status_label) }}</td>
-      <td class="muted small hide-xs">{{ t.detail }}</td>
+      <td class="small hide-xs">{% if t.status in ("degraded", "down") %}{% set x = explain_failure(t.name, t.detail) %}<span class="failure-hint-inline">{{ x.hint }}</span><br>{% endif %}<span class="muted">{{ t.detail }}</span></td>
       <td class="shrink">
         <button class="btn btn-sm" type="button"
                 hx-post="/tools/{{ t.name }}/health-check" hx-target="#tool-health" hx-swap="innerHTML"

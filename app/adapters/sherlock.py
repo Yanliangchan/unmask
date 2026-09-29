@@ -124,7 +124,7 @@ class SherlockAdapter(ToolAdapter):
 
     async def run(self, target_value: str, context_tags: list[str], sites: list[str] | None = None) -> list[RawResult]:
         sites = sites or focused_sites(self.name)
-        proc = await run_tool_subprocess(self.build_argv(target_value.strip(), sites))
+        proc = await run_tool_subprocess(self.build_argv(target_value.strip(), sites), tool=self.name)
         if proc.returncode != 0:
             tail = (proc.stderr or proc.stdout).strip().splitlines()[-1:] or ["no output"]
             raise AdapterError(f"sherlock exited with code {proc.returncode}: {tail[0][:300]}")

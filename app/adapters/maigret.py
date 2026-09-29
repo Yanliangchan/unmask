@@ -87,6 +87,7 @@ def parse_output(stdout: str, ndjson: str) -> MaigretReport:
 class MaigretAdapter(ToolAdapter):
     name = "maigret"
     label = "Maigret"
+    speed = "slow"
     input_types = ["username"]
     description = "Username search across thousands of sites, extracting profile details where public."
     health_check_target = "torvalds"
@@ -122,7 +123,10 @@ class MaigretAdapter(ToolAdapter):
         username = target_value.strip()
         sites = sites or focused_sites(self.name)
         proc = await run_tool_subprocess(
-            self.build_argv(username, sites), timeout=self.timeout_seconds, collect=["out/*ndjson*.json"]
+            self.build_argv(username, sites),
+            timeout=self.timeout_seconds,
+            collect=["out/*ndjson*.json"],
+            tool=self.name,
         )
         if proc.returncode != 0:
             tail = (proc.stderr or proc.stdout).strip().splitlines()[-1:] or ["no output"]

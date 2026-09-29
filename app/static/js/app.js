@@ -65,16 +65,68 @@
     check();
   }
 
+  // Same rules as app/identifiers.py guess_type, so rows match what the server would decide.
+  function guessType(v) {
+    v = v.trim();
+    if (/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(v)) return "email";
+    if (/^(\d{1,3}\.){3}\d{1,3}$/.test(v) || (/^[0-9a-f:]+$/i.test(v) && v.indexOf("::") !== -1)) return "ip";
+    if (/^\+?[\d\s().\-]{7,}$/.test(v) && (v.match(/\d/g) || []).length >= 7) return "phone";
+    if (/^https?:\/\//i.test(v)) return "domain";
+    if (/^([a-z0-9-]+\.)+[a-z]{2,}$/i.test(v)) return "domain";
+    return v.indexOf(" ") !== -1 ? "name" : "username";
+  }
+
   function initTargets(form) {
     var rows = form.querySelector("#target-rows");
     var tpl = document.getElementById("target-row-template");
     var add = form.querySelector("[data-add-target]");
     if (!rows || !tpl || !add) return;
-    add.addEventListener("click", function () {
+    function addRow(value, type) {
       var node = tpl.content.firstElementChild.cloneNode(true);
       rows.appendChild(node);
       qsa(node, "[data-tag-input]").forEach(initTagInput);
-      node.querySelector('input[name="target_value"]').focus();
+      if (type) node.querySelector('select[name="target_type"]').value = type;
+      if (value) node.querySelector('input[name="target_value"]').value = value;
+      return node;
+    }
+    add.addEventListener("click", function () {
+      addRow().querySelector('input[name="target_value"]').focus();
+    });
+
+    // Pasted lines become rows; the first empty row is reused.
+    var paste = form.querySelector("[data-paste-targets]");
+    function takePaste() {
+      if (!paste || !paste.value.trim()) return;
+      var have = qsa(rows, 'input[name="target_value"]').map(function (i) { return i.value.trim().toLowerCase(); });
+      paste.value.split(/[\n,;]+/).forEach(function (raw) {
+        var value = raw.trim().replace(/^["']|["']$/g, "");
+        if (!value || have.indexOf(value.toLowerCase()) !== -1) return;
+        var type = guessType(value);
+        if (type === "domain") value = value.replace(/^https?:\/\/(www\.)?/i, "").split("/")[0];
+        have.push(value.toLowerCase());
+        var empty = qsa(rows, ".target-row").filter(function (r) {
+          return !r.querySelector('input[name="target_value"]').value.trim();
+        })[0];
+        if (empty) {
+          empty.querySelector('input[name="target_value"]').value = value;
+          empty.querySelector('select[name="target_type"]').value = type;
+        } else {
+          addRow(value, type);
+        }
+      });
+      paste.value = "";
+    }
+    if (paste) {
+      paste.addEventListener("blur", takePaste);
+      paste.addEventListener("paste", function () { setTimeout(takePaste, 0); });
+    }
+
+    // Quick / Deep ticks or unticks the slow tools.
+    qsa(form, "[data-depth]").forEach(function (radio) {
+      radio.addEventListener("change", function () {
+        var deep = radio.value === "deep";
+        qsa(form, 'input[name="tools"][data-speed="slow"]').forEach(function (box) { if (!box.disabled) box.checked = deep; });
+      });
     });
     rows.addEventListener("click", function (e) {
       var btn = e.target.closest("[data-remove-target]");

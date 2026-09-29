@@ -34,10 +34,31 @@
   {% if issues or notes.get('_correlation') or notes.get('_pivots') %}
   <details>
     <summary>{% if split.tools %}{{ split.tools | length }} tool{{ 's' if split.tools | length != 1 }} failed{% if split.other %}, {{ split.other | length }} other issue{{ 's' if split.other | length != 1 }}{% endif %}{% elif split.other %}{{ split.other | length }} issue{{ 's' if split.other | length != 1 }}{% else %}Details{% endif %}</summary>
-    {% if issues %}
+    {% if split.tools %}
+    <ul class="failures">
+      {% for tool, reason in split.tools %}
+      {% set x = explain_failure(tool, reason) %}
+      <li class="failure">
+        <div class="failure-text">
+          <p class="failure-summary">{{ x.summary }}</p>
+          <p class="failure-hint">{{ x.hint }}</p>
+          <details class="failure-detail"><summary>Technical detail</summary><p class="mono">{{ reason | truncate(600) }}</p></details>
+        </div>
+        <div class="failure-acts">
+          {% if x.retry and not active %}
+          <button class="btn btn-sm" type="button" hx-post="/cases/{{ case.id }}/scans" hx-vals='{"only": "{{ tool }}"}'
+                  hx-target="#scan-status" hx-swap="outerHTML">{{ ui.icon("refresh") }}Retry {{ tool_label(tool) }}</button>
+          {% endif %}
+          {% if x.fix == "tools" %}<a class="btn btn-ghost btn-sm" href="/tools">Tools page</a>{% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% if split.other %}
     <ul class="run-issues">
-      {% for tool, reason in issues %}
-      <li><span class="tool">{{ tool }}</span><span class="why" title="{{ reason }}">{{ reason | truncate(220) }}</span></li>
+      {% for label, reason in split.other %}
+      <li><span class="tool">{{ label }}</span><span class="why" title="{{ reason }}">{{ reason | truncate(220) }}</span></li>
       {% endfor %}
     </ul>
     {% endif %}

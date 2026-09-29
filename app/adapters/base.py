@@ -80,6 +80,8 @@ class ToolAdapter(ABC):
     timeout_seconds: ClassVar[int | None] = None
     # Fetch each reported account's page before keeping it (app/verify.py).
     verify_accounts: ClassVar[bool] = False
+    # "fast" tools run in a Quick scan (about a minute or two); "slow" ones only in Deep.
+    speed: ClassVar[str] = "fast"
 
     def configured(self) -> str | None:
         """Return why the tool can't run yet (e.g. a missing API key), or None.
@@ -162,11 +164,15 @@ async def run_tool_subprocess(
     timeout: float | None = None,  # noqa: ASYNC109 — also bounds process cleanup
     files_in: dict[str, str] | None = None,
     collect: list[str] | None = None,
+    tool: str | None = None,
 ) -> ProcessResult:
     """Run a third-party tool with a scrubbed environment in a throwaway cwd.
 
     The child never inherits DATABASE_URL, encryption keys or the session
     secret. No shell is involved, so target values cannot inject commands.
+
+    ``tool`` names the adapter, so a configured proxy can be applied to it
+    (through the environment, never argv; see app/proxy.py).
 
     ``files_in`` are written into the working directory before the run (e.g. a
     config file holding API keys, which keeps them out of the process list);
@@ -185,6 +191,10 @@ async def run_tool_subprocess(
         for passthrough in ("HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "SSL_CERT_FILE", "REQUESTS_CA_BUNDLE"):
             if passthrough in os.environ:
                 env[passthrough] = os.environ[passthrough]
+        if tool:
+            from app.proxy import proxy_env
+
+            env.update(proxy_env(tool))
         try:
             proc = await asyncio.create_subprocess_exec(
                 *argv,

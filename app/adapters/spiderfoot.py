@@ -78,6 +78,7 @@ def parse_output(target: str, stdout: str, stderr: str) -> SpiderFootReport:
 class SpiderFootAdapter(ToolAdapter):
     name = "spiderfoot"
     label = "SpiderFoot"
+    speed = "slow"
     input_types = ["domain", "ip"]
     description = "Runs SpiderFoot's module set (passive by default) against a domain or IP."
     health_check_target = "example.com"
@@ -106,7 +107,7 @@ class SpiderFootAdapter(ToolAdapter):
         self, target_value: str, context_tags: list[str], modules: list[str] | None = None
     ) -> list[RawResult]:
         target = self.validate(target_value)
-        proc = await run_tool_subprocess(self.build_argv(target, modules), timeout=self.timeout_seconds)
+        proc = await run_tool_subprocess(self.build_argv(target, modules), timeout=self.timeout_seconds, tool=self.name)
         if proc.returncode != 0:
             tail = (proc.stderr or proc.stdout).strip().splitlines()[-1:] or ["no output"]
             raise AdapterError(f"spiderfoot exited with code {proc.returncode}: {strip_ansi(tail[0])[:300]}")

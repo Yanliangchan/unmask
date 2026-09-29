@@ -77,6 +77,10 @@ class Settings(BaseSettings):
     search_max_queries: int = Field(default=8, alias="UNMASK_SEARCH_MAX_QUERIES")
     search_results_per_query: int = Field(default=10, alias="UNMASK_SEARCH_RESULTS")
 
+    # Outbound proxy for tools that sites block from cloud IPs (see app/proxy.py).
+    proxy_url: str = Field(default="", alias="UNMASK_PROXY_URL")
+    proxy_tools: str = Field(default="holehe,sherlock,maigret,verify", alias="UNMASK_PROXY_TOOLS")
+
     # Account verification: each account hit's profile page is fetched once and
     # checked before it is shown (see app/verify.py).
     verify_accounts: bool = Field(default=True, alias="UNMASK_VERIFY_ACCOUNTS")

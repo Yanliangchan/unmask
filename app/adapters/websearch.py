@@ -22,6 +22,7 @@ from app.adapters.base import (
     ToolAdapter,
 )
 from app.config import get_settings
+from app.identifiers import guess_type
 from app.search.profiles import match_profile
 from app.search.providers import active_provider, setup_hint
 from app.search.queries import Query, build_queries
@@ -60,22 +61,7 @@ def _mention(url: str, title: str, snippet: str, query: str, source: str, reliab
 
 _EMAIL_IN_TEXT = re.compile(r"\b[A-Za-z0-9._%+\-]{1,64}@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,24}\b")
 _TRACKING = re.compile(r"^(?:utm_|fbclid|gclid|ref$|ref_src$)")
-_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[a-z]{2,}$", re.I)
-_DOMAIN = re.compile(r"^(?:[a-z0-9-]+\.)+[a-z]{2,}$", re.I)
-_PHONE = re.compile(r"^\+?[\d\s().\-]{7,}$")
 QUERY_CONCURRENCY = 4
-
-
-def guess_type(value: str) -> str:
-    """Adapters receive bare values (targets and pivot inputs alike); recover the type."""
-    v = value.strip()
-    if _EMAIL.match(v):
-        return "email"
-    if _PHONE.match(v) and sum(c.isdigit() for c in v) >= 7:
-        return "phone"
-    if _DOMAIN.match(v):
-        return "domain"
-    return "name" if " " in v else "username"
 
 
 def normalize_url(url: str) -> str:

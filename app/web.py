@@ -174,6 +174,15 @@ def _tool_label(name: str) -> str:
 templates.env.globals["tool_label"] = _tool_label
 
 
+def _explain_failure(tool: str, error: str):
+    from app.services.failures import explain
+
+    return explain(tool, error)
+
+
+templates.env.globals["explain_failure"] = _explain_failure
+
+
 def _strength(entity) -> tuple[str, str]:
     """Plain-language match strength; the numeric score stays in tooltips and details."""
     from app.services.entities import LIKELY, POSSIBLE
