@@ -107,7 +107,7 @@ async def _start_watch_scans(session: AsyncSession, now: datetime, limit: int) -
     from app.services.scans import create_scan_run
 
     due = []
-    for case in (await session.scalars(select(Investigation))).all():
+    for case in (await session.scalars(select(Investigation).where(Investigation.is_sample.is_(False)))).all():
         state = watch_state(case)
         if state["enabled"] and state["next_run_at"] and state["next_run_at"] <= now:
             due.append(case)

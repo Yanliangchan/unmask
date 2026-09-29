@@ -107,6 +107,13 @@ class Settings(BaseSettings):
     healthcheck_interval_hours: int = Field(default=24, alias="UNMASK_HEALTHCHECK_HOURS")
     alert_webhook_url: str = Field(default="", alias="UNMASK_ALERT_WEBHOOK_URL")
 
+    # Email notifications (optional). Port 465 uses implicit TLS; any other port uses STARTTLS.
+    smtp_host: str = Field(default="", alias="UNMASK_SMTP_HOST")
+    smtp_port: int = Field(default=587, alias="UNMASK_SMTP_PORT")
+    smtp_user: str = Field(default="", alias="UNMASK_SMTP_USER")
+    smtp_password: str = Field(default="", alias="UNMASK_SMTP_PASSWORD")
+    smtp_from: str = Field(default="", alias="UNMASK_SMTP_FROM")
+
     # Correlation. The model must already be on disk (the Docker image bakes it
     # in); set UNMASK_EMBEDDING_MODEL="" to turn pass 2 off.
     embedding_model: str = Field(default="sentence-transformers/all-MiniLM-L6-v2", alias="UNMASK_EMBEDDING_MODEL")

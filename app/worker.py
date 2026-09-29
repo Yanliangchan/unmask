@@ -25,6 +25,7 @@ def _configure() -> None:
 
 
 async def _scan(run_id: uuid.UUID) -> None:
+    from app.services.notifications import drain
     from app.services.scans import execute_scan_run, mark_run_crashed
 
     try:
@@ -33,6 +34,8 @@ async def _scan(run_id: uuid.UUID) -> None:
         await mark_run_crashed(run_id, f"{exc.__class__.__name__}: {exc}")
         raise
     finally:
+        # Email and webhook copies are sent after commit; let them finish before the loop closes.
+        await drain()
         await dispose_engine()
 
 

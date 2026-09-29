@@ -95,6 +95,10 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     created_at: Mapped[datetime] = _now()
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Notification channels and small UI choices (onboarding dismissed, ...).
+    preferences: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default=text("'{}'::jsonb"))
+    # Incoming-webhook URL for Slack (or a compatible service). It is a credential, so encrypted.
+    slack_webhook: Mapped[str | None] = mapped_column(EncryptedText)
 
 
 class Investigation(Base):
@@ -124,6 +128,10 @@ class Investigation(Base):
     permanently_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     disabled_tools: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, server_default=text("'{}'::text[]"))
     last_reviewed_run_number: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    # Built from made-up data to show how the app works; it can't be scanned.
+    is_sample: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    # Which case template it started from, if any.
+    template: Mapped[str | None] = mapped_column(String(40))
     created_at: Mapped[datetime] = _now()
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
@@ -362,6 +370,7 @@ class Notification(Base):
     """Something a user should know about: a scan finished, a mention, a watched case changed."""
 
     __tablename__ = "notifications"
+    __table_args__ = (Index("ix_notifications_user_unread", "user_id", "read_at"),)
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)

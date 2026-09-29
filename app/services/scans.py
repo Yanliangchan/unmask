@@ -429,7 +429,22 @@ async def execute_scan_run(run_id: uuid.UUID) -> None:
         await session.commit()
 
     await _correlate_after_run(run_id, case_id)
+    await _notify_after_run(run_id)
     await _pivot_after_run(run_id, case_id)
+
+
+async def _notify_after_run(run_id: uuid.UUID) -> None:
+    """Notifications are a courtesy: a failure here never fails the scan."""
+    from app.services.notifications import notify_scan_finished
+
+    try:
+        async with sessionmaker()() as session:
+            run = await session.get(ScanRun, run_id)
+            if run is not None:
+                await notify_scan_finished(session, run)
+                await session.commit()
+    except Exception:
+        log.exception("scan notifications failed for run %s", run_id)
 
 
 async def _pivot_after_run(run_id: uuid.UUID, case_id: uuid.UUID) -> None:

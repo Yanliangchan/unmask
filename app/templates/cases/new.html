@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-head">
   <div>
-    <p class="crumb"><a href="/">Cases</a> /</p>
+    <p class="crumb"><a href="/">Home</a> /</p>
     <h1>New case</h1>
   </div>
 </div>
@@ -15,19 +15,37 @@
 </div>
 {% endif %}
 
+<nav class="template-picker" aria-labelledby="template-title">
+  <h2 id="template-title" class="subhead">Start from a template <span class="faint">(optional)</span></h2>
+  <ul role="list">
+    <li><a class="template-card" href="/cases/new" {% if not template %}aria-current="true"{% endif %}><strong>Blank case</strong><span>Choose everything yourself.</span></a></li>
+    {% for t in templates %}
+    <li><a class="template-card" href="/cases/new?template={{ t.key }}" {% if template and template.key == t.key %}aria-current="true"{% endif %}><strong>{{ t.label }}</strong><span>{{ t.summary }}</span></a></li>
+    {% endfor %}
+  </ul>
+</nav>
+
+{% if template and template.tips %}
+<aside class="alert alert-info template-tips" aria-label="Tips for this template">
+  <p><strong>{{ template.label }}</strong>{% if template.watch %} · watch mode will re-scan {{ template.watch }}{% endif %}</p>
+  <ul>{% for tip in template.tips %}<li>{{ tip }}</li>{% endfor %}</ul>
+</aside>
+{% endif %}
+
 <form method="post" action="/cases" class="form case-form" id="case-form" data-require-gate>
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {% if template %}<input type="hidden" name="template" value="{{ template.key }}">{% endif %}
 
   <section class="form-section">
     <h2>Case</h2>
     <label class="field">
       <span>Name</span>
-      <input type="text" name="name" value="{{ form.name or '' }}" maxlength="200" required placeholder="e.g. Vendor due diligence, Acme Ltd">
+      <input type="text" name="name" value="{{ form.name or '' }}" maxlength="200" required placeholder="{{ template.name_hint if template else 'e.g. Vendor due diligence, Acme Ltd' }}">
     </label>
     <label class="field">
       <span>Authorization <span class="req" aria-hidden="true">*</span></span>
       <textarea name="authorization_note" rows="3" required data-gate
-        placeholder="Who authorized this, for what purpose, and a reference such as an engagement ID or written consent.">{{ form.authorization_note or '' }}</textarea>
+        placeholder="{{ template.authorization_hint if template else 'Who authorized this, for what purpose, and a reference such as an engagement ID or written consent.' }}">{{ form.authorization_note or '' }}</textarea>
       <span class="hint">Shown at the top of every report from this case.</span>
     </label>
     <label class="check lawful">
@@ -48,7 +66,7 @@
       <span id="context-label">What else do you know? <span class="faint">(optional)</span></span>
       <div class="tag-input" data-tag-input>
         <input type="hidden" name="context" value="{{ form.context or '' }}">
-        <input type="text" class="tag-entry" aria-labelledby="context-label" placeholder="A city, an employer, a school… then comma">
+        <input type="text" class="tag-entry" aria-labelledby="context-label" placeholder="{{ template.context_hint if template else 'A city, an employer, a school… then comma' }}">
       </div>
       <span class="hint">Applied to every target. Findings that mention these rank higher.</span>
     </div>
@@ -64,7 +82,7 @@
         </label>
         <label class="field grow">
           <span>Value</span>
-          <input type="text" name="target_value" value="{{ t.value }}" class="mono" autocomplete="off" spellcheck="false" placeholder="e.g. janedoe">
+          <input type="text" name="target_value" value="{{ t.value }}" class="mono" autocomplete="off" spellcheck="false" placeholder="{{ {'username': 'e.g. janedoe', 'email': 'e.g. jane@example.com', 'name': 'e.g. Jane Doe', 'domain': 'e.g. example.com', 'phone': 'e.g. +44 20 7946 0000', 'ip': 'e.g. 203.0.113.7', 'image': 'e.g. https://…/photo.jpg'}.get(t.type, 'e.g. janedoe') }}">
         </label>
         <div class="field grow">
           <span id="tags-label-{{ loop.index }}">Extra context for this one</span>

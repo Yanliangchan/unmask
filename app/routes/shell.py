@@ -18,6 +18,7 @@ TABS = [
     ("graph", "Graph", "/graph"),
     ("timeline", "Timeline", "/timeline"),
     ("pivots", "Pivots", "/pivots"),
+    ("activity", "Activity", "/activity"),
     ("settings", "Settings", "/settings"),
 ]
 

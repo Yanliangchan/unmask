@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block main_class %}container reading{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Account</h1>
+    <p class="muted">Signed in as {{ user.email }}.</p>
+  </div>
+</div>
+{% if saved %}<div class="alert alert-ok" role="status"><p>{{ saved }}</p></div>{% endif %}
+{% if error %}<div class="alert alert-error" role="alert"><p>{{ error }}</p></div>{% endif %}
+
+<form class="form settings-form" method="post" action="/account/notifications">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <h2>Notifications</h2>
+  <p class="muted small">Notifications always appear in the app. Copies sent by email or Slack say only what happened and link back here: they never include case names, targets or findings, because a mailbox or a channel isn't protected by unmask's access control.</p>
+
+  <fieldset>
+    <legend>Tell me when</legend>
+    {% for key, (label, _) in kinds.items() %}
+    <label class="check"><input type="checkbox" name="kinds" value="{{ key }}" {% if key in prefs.kinds %}checked{% endif %}><span>{{ label }}</span></label>
+    {% endfor %}
+  </fieldset>
+
+  <fieldset>
+    <legend>Also send a copy</legend>
+    <label class="check"><input type="checkbox" name="email" {% if prefs.email %}checked{% endif %} {% if not email_ready %}disabled aria-describedby="email-off"{% endif %}><span>By email to {{ user.email }}</span></label>
+    {% if not email_ready %}<p class="hint" id="email-off">Email isn't set up on this server yet. An administrator can add the UNMASK_SMTP_* settings.</p>{% endif %}
+    <label class="check"><input type="checkbox" name="slack" {% if prefs.slack and webhook_set %}checked{% endif %}><span>To Slack</span></label>
+    <label class="field">
+      <span>Slack incoming-webhook URL</span>
+      <input type="url" name="slack_webhook" inputmode="url" autocomplete="off" spellcheck="false"
+             placeholder="{{ 'A webhook is saved. Paste a new one to replace it.' if webhook_set else 'https://hooks.slack.com/services/…' }}">
+      <span class="hint">Create one in Slack under Apps → Incoming Webhooks. It's stored encrypted and never shown again.</span>
+    </label>
+    {% if webhook_set %}<label class="check"><input type="checkbox" name="remove_webhook"><span>Remove the saved webhook</span></label>{% endif %}
+  </fieldset>
+  <button class="btn btn-primary" type="submit">Save</button>
+</form>
+
+<section class="form-section">
+  <h2>Getting started</h2>
+  <form method="post" action="/account/checklist">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <p class="muted small">Bring back the getting-started checklist on Home.</p>
+    <button class="btn btn-sm" type="submit">Show the checklist</button>
+  </form>
+</section>
+{% endblock %}

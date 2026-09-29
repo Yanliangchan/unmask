@@ -3,7 +3,7 @@
 {% block content %}
 <header class="case-head">
   <div class="case-head-main">
-    <p class="crumb"><a href="/">Cases</a> /</p>
+    <p class="crumb"><a href="/">Home</a> /</p>
     <h1>{{ case.name }}</h1>
     <div class="targets" aria-label="Targets">
       {% for t in case.targets %}
@@ -19,10 +19,20 @@
     </div>
     {% endif %}
     {% set scanning = run and run.status in ('queued', 'running') %}
+    {% if case.is_sample %}
+    <span class="flag" title="Sample cases use made-up data and can't be scanned">Sample</span>
+    {% else %}
     <button class="btn btn-primary" type="button" data-run-scan {% if scanning %}disabled title="A scan is already running"{% endif %}
             hx-post="/cases/{{ case.id }}/scans" hx-target="#scan-status" hx-swap="outerHTML">{{ ui.icon("play") }}Run scan</button>
+    {% endif %}
   </div>
 </header>
+
+{% if case.is_sample %}
+<div class="alert alert-info sample-banner">
+  <p><strong>This is a sample case.</strong> The person and every finding are made up, so you can try things safely: open a finding, confirm or rule it out, add a note, look at the graph. Delete it from Settings when you're done.</p>
+</div>
+{% endif %}
 
 {% include "partials/scan_status.html" %}
 

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block main_class %}container reading{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Notifications</h1>
+    <p class="muted">Scans finishing, watch mode changes, mentions and shared cases. Choose email or Slack copies in <a href="/account">your settings</a>.</p>
+  </div>
+</div>
+{% if items %}
+<ul class="notif-list" role="list">
+  {% for n in items %}
+  <li class="{% if n.id in unread %}is-unread{% endif %}">
+    <span class="notif-dot" aria-hidden="true"></span>
+    <div>
+      <p>{% if n.url %}<a href="{{ n.url }}">{{ n.text }}</a>{% else %}{{ n.text }}{% endif %}{% if n.id in unread %}<span class="visually-hidden"> (new)</span>{% endif %}</p>
+      <p class="faint small"><time datetime="{{ n.created_at.isoformat() }}" title="{{ n.created_at | isodate }}">{{ n.created_at | timeago }}</time></p>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="empty">
+  <h2>Nothing yet</h2>
+  <p>You'll hear here when a scan finishes, watch mode finds something new, a colleague mentions you in a note, or shares a case with you.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -57,8 +57,9 @@
       </button>
       <nav class="side-nav" aria-label="Primary">
         {% block nav %}
-        <a href="/" {% if path == '/' or (path.startswith('/cases/') and path != '/cases/new') %}aria-current="page"{% endif %}>{{ ui.icon("folder") }}Cases</a>
+        <a href="/" {% if path == '/' or (path.startswith('/cases/') and path != '/cases/new') %}aria-current="page"{% endif %}>{{ ui.icon("inbox") }}Home</a>
         <a href="/cases/new" {% if path == '/cases/new' %}aria-current="page"{% endif %}>{{ ui.icon("plus") }}New case</a>
+        <a href="/notifications" {% if path == '/notifications' %}aria-current="page"{% endif %}>{{ ui.icon("bell") }}Notifications<span class="nav-badge-slot" hx-get="/notifications/badge" hx-trigger="load, every 60s, scan-finished from:body" hx-swap="innerHTML"></span></a>
         <a href="/tools" {% if path == '/tools' %}aria-current="page"{% endif %}>{{ ui.icon("tool") }}Tools &amp; accuracy</a>
         {% endblock %}
       </nav>
@@ -69,7 +70,7 @@
         <button class="side-btn" type="button" data-shortcuts-open>{{ ui.icon("keyboard") }}<span>Keyboard shortcuts</span><kbd>?</kbd></button>
         <div class="side-user">
           <span class="avatar sm" aria-hidden="true">{{ user.email[:1] | upper }}</span>
-          <span class="side-email" title="{{ user.email }}">{{ user.email }}</span>
+          <a class="side-email" href="/account" title="Account and notification settings for {{ user.email }}">{{ user.email }}</a>
           <form method="post" action="/logout">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button class="btn btn-ghost btn-xs" type="submit">Log out</button>
@@ -97,7 +98,8 @@
     <dl class="shortcut-list">
       <div><dt><kbd data-mod-key>Ctrl K</kbd></dt><dd>Search and jump anywhere</dd></div>
       <div><dt><kbd>/</kbd></dt><dd>Search</dd></div>
-      <div><dt><kbd>g</kbd> <kbd>c</kbd></dt><dd>Go to cases</dd></div>
+      <div><dt><kbd>g</kbd> <kbd>h</kbd></dt><dd>Go home</dd></div>
+      <div><dt><kbd>g</kbd> <kbd>i</kbd></dt><dd>Go to notifications</dd></div>
       <div><dt><kbd>g</kbd> <kbd>t</kbd></dt><dd>Go to tools</dd></div>
       <div><dt><kbd>n</kbd></dt><dd>New case</dd></div>
       <div><dt><kbd>r</kbd></dt><dd>Review queue (in a case)</dd></div>

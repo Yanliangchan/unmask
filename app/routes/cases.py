@@ -18,6 +18,7 @@ from app.models import TARGET_TYPES, Entity, ScanRun, User
 from app.proxy import describe as describe_proxy
 from app.routes.public import render_landing
 from app.routes.shell import case_shell
+from app.scheduler import set_watch
 from app.security import client_ip, current_user, current_user_optional, verify_csrf
 from app.services.accuracy import DISMISS_REASONS, accuracy_report, site_factor
 from app.services.cases import (
@@ -34,6 +35,7 @@ from app.services.entities import SHOW_MODES, EntityFilters, entity_detail, list
 from app.services.graph import case_graph
 from app.services.scans import cancel_scan_run, create_scan_run
 from app.services.summary import case_summary
+from app.services.templates import TEMPLATES, form_for, get_template
 from app.services.tools import run_health_check, tool_configs, tool_health
 from app.web import Seo, render
 
@@ -65,17 +67,27 @@ async def dashboard(
 ):
     if user is None:
         return render_landing(request)
+    from app.services.home import attention, checklist, show_checklist
+    from app.services.notifications import recent
+
     cards = await list_cases_for_user(session, user)
     health = await tool_health(session)
+    steps = await checklist(session, user)
+    news = [n for n in await recent(session, user.id, limit=20) if n.read_at is None][:5]
     return render(
         request,
         "dashboard.html",
         {
-            "seo": Seo(title="Cases", path="/"),
+            "seo": Seo(title="Home", path="/"),
             "user": user,
             "cards": cards,
             "health": health,
             "workers": worker_count(),
+            "attention": await attention(session, user),
+            "steps": steps,
+            "show_steps": show_checklist(user, steps),
+            "news": news,
+            "has_sample": any(c.case.is_sample for c in cards),
         },
     )
 
@@ -162,6 +174,7 @@ def _new_case_context(user: User, tools: list[dict], **extra) -> dict:
         "user": user,
         "target_types": [(t, TARGET_TYPE_LABELS[t]) for t in TARGET_TYPES],
         "tools": tools,
+        "templates": TEMPLATES,
         **extra,
     }
 
@@ -171,13 +184,14 @@ async def new_case_form(
     request: Request, session: AsyncSession = Depends(get_session), user: User = Depends(current_user)
 ):
     tools = await _tool_choices(session)
-    return render(
-        request,
-        "cases/new.html",
-        _new_case_context(
-            user, tools, form={"depth": "quick", "targets": [{"value": "", "type": "username", "tags": ""}]}
-        ),
-    )
+    template = get_template(request.query_params.get("template"))
+    form = {"depth": "quick", "targets": [{"value": "", "type": "username", "tags": ""}]}
+    if template is not None:
+        form = form_for(template)
+        if template.tools is not None:
+            for t in tools:
+                t["checked"] = t["name"] in template.tools
+    return render(request, "cases/new.html", _new_case_context(user, tools, form=form, template=template))
 
 
 @router.post("/cases", dependencies=[Depends(verify_csrf)])
@@ -207,6 +221,7 @@ async def create_case_submit(
     tools = await _tool_choices(session)
     selected = set(map(str, form.getlist("tools")))
     depth = "quick" if form.get("depth") == "quick" else "deep"
+    template = get_template(str(form.get("template") or ""))
     if depth == "quick":
         selected -= {t["name"] for t in tools if t["speed"] == "slow"}
     disabled = [t["name"] for t in tools if t["enabled"] and t["name"] not in selected]
@@ -226,6 +241,7 @@ async def create_case_submit(
         # nothing to roll back (and rolling back would expire `user`).
         echo = {
             "depth": depth,
+            "template": template.key if template else None,
             "context": form.get("context", ""),
             "name": form.get("name", ""),
             "authorization_note": form.get("authorization_note", ""),
@@ -238,12 +254,17 @@ async def create_case_submit(
         return render(
             request,
             "cases/new.html",
-            _new_case_context(user, tools, form=echo, errors=exc.errors),
+            _new_case_context(user, tools, form=echo, errors=exc.errors, template=template),
             status_code=422,
         )
+    if template is not None:
+        case.template = template.key
+        if template.watch:
+            set_watch(case, enabled=True, frequency=template.watch)
     run = await create_scan_run(session, case, triggered_by="manual")
     ip = client_ip(request)
-    log_access(session, "create_case", user_id=user.id, case_id=case.id, ip=ip, targets=len(targets))
+    log_access(session, "create_case", user_id=user.id, case_id=case.id, ip=ip, targets=len(targets),
+               template=case.template)  # fmt: skip
     log_access(session, "run_scan", user_id=user.id, case_id=case.id, ip=ip, run_number=run.run_number)
     await session.commit()
     enqueue_scan(run.id, run.triggered_by)
@@ -398,6 +419,8 @@ async def run_scan(
     user: User = Depends(current_user),
 ):
     case = await get_case_for_user(session, case_id, user)
+    if case.is_sample:
+        raise HTTPException(status_code=400, detail="Sample cases use made-up data and can't be scanned")
     form = await request.form()
     only = [str(form["only"])] if form.get("only") else None
     active = [r for r in case.scan_runs if r.status in ("queued", "running")]

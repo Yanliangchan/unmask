@@ -176,6 +176,10 @@ async def share(
         return _back(case, error="no_user")
     if other.id != case.owner_id and other.id not in (case.shared_with or []):
         case.shared_with = [*(case.shared_with or []), other.id]
+        from app.services.notifications import notify
+
+        await notify(session, other.id, kind="shared", case_id=case.id, url=f"/cases/{case.id}",
+                     text=f"{user.email} shared the case {case.name} with you")  # fmt: skip
     log_access(session, "share_case", user_id=user.id, case_id=case.id, ip=client_ip(request), with_user=str(other.id))
     await session.commit()
     return _back(case, "shared")

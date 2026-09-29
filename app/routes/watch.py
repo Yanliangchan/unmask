@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -71,6 +71,8 @@ async def toggle_watch(
     user: User = Depends(current_user),
 ):
     case = await get_case_for_user(session, case_id, user)
+    if case.is_sample:
+        raise HTTPException(status_code=400, detail="Sample cases can't be watched")
     enabled = not watch_state(case)["enabled"]
     set_watch(case, enabled=enabled)
     log_access(

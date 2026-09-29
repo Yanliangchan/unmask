@@ -1,0 +1,26 @@
+{% extends "cases/_layout.html" %}
+{% block tab %}
+{% if days %}
+<p class="muted small">Who did what in this case, newest first. Opening the case isn't listed here, but it is kept in the audit log.</p>
+{% for day, events in days %}
+<h2 class="day-head">{{ day }}</h2>
+<ol class="activity" role="list">
+  {% for e in events %}
+  <li>
+    <span class="activity-icon" aria-hidden="true">{{ ui.icon(e.icon) }}</span>
+    <div>
+      <p><strong>{{ e.actor }}</strong> {{ e.text }}{% if e.entity %}: {% if e.url %}<a class="ident" href="{{ e.url }}">{{ e.entity }}</a>{% else %}<span class="ident">{{ e.entity }}</span>{% endif %}{% elif e.url %} · <a href="{{ e.url }}">View</a>{% endif %}</p>
+      {% if e.quote %}<p class="quote">{{ e.quote | mentions }}</p>{% endif %}
+      <p class="faint small"><time datetime="{{ e.at.isoformat() }}" title="{{ e.at | isodate }}">{{ e.at.strftime('%H:%M') }} UTC</time></p>
+    </div>
+  </li>
+  {% endfor %}
+</ol>
+{% endfor %}
+{% else %}
+<div class="empty">
+  <h2>No activity yet</h2>
+  <p>Scans, decisions on findings, notes and settings changes appear here as they happen.</p>
+</div>
+{% endif %}
+{% endblock %}

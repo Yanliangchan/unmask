@@ -506,7 +506,9 @@
   });
 
   var COMMANDS = [
-    { group: "Go to", label: "Cases", hint: "g c", url: "/" },
+    { group: "Go to", label: "Home", hint: "g h", url: "/" },
+    { group: "Go to", label: "Notifications", hint: "g i", url: "/notifications" },
+    { group: "Go to", label: "Account and notification settings", hint: "", url: "/account" },
     { group: "Go to", label: "New case", hint: "n", url: "/cases/new" },
     { group: "Go to", label: "Tools & accuracy", hint: "g t", url: "/tools" },
     { group: "Go to", label: "Search everything", hint: "", url: "/search" },
@@ -610,7 +612,8 @@
     var key = e.key.toLowerCase();
     if (pendingG) {
       pendingG = false; clearTimeout(gTimer);
-      if (key === "c") window.location.href = "/";
+      if (key === "c" || key === "h") window.location.href = "/";
+      else if (key === "i") window.location.href = "/notifications";
       else if (key === "t") window.location.href = "/tools";
       return;
     }

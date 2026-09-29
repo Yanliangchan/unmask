@@ -52,7 +52,9 @@ async def test_notes_escape_html_and_notify_only_case_members(client, db):
     assert r.status_code == 200
     assert f'<span class="mention">@{email}</span>' in r.text
     assert "&lt;b&gt;x&lt;/b&gt;" in r.text and "<b>x</b>" not in r.text
-    notes = (await db.scalars(select(Notification).where(Notification.case_id == case_id))).all()
+    notes = (
+        await db.scalars(select(Notification).where(Notification.case_id == case_id, Notification.kind == "mention"))
+    ).all()
     assert [n.user_id for n in notes] == [member.id] and notes[0].kind == "mention"
     url = f"/cases/{case_id}/entities/{acc['alpha'].id}/notes"
     empty = await client.post(url, data={"body": "  "}, headers=headers)
