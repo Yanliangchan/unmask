@@ -25,7 +25,9 @@ async def _fresh_user(client, db):
 async def test_new_user_home_has_the_checklist_and_a_sample_case(client, db):
     email, csrf = await _fresh_user(client, db)
     home = (await client.get("/")).text
-    assert "Getting started" in home and "0 of 5 done" in home and "Explore a sample case" in home
+    assert "Getting started" in home and 'aria-label="0 of 5 done"' in home
+    assert "Start your first investigation" in home and "Explore a sample case" in home
+    assert "Needs you" not in home and "stat-value" not in home
 
     r = await client.post("/onboarding/sample", data={"csrf_token": csrf})
     case_url = r.headers["location"]
@@ -39,12 +41,54 @@ async def test_new_user_home_has_the_checklist_and_a_sample_case(client, db):
     assert (await client.post(case_url + "/watch", data={"csrf_token": csrf})).status_code == 400
 
     home = (await client.get("/")).text
-    assert "Open the sample case" in home and "0 of 5 done" in home  # the sample doesn't count as your first case
-    assert "to review" in home  # its undecided findings show under Needs you
+    # The sample sits apart from real cases, and doesn't count as your first case.
+    assert "Remove sample" in home and "made-up data, removed automatically" in home
+    assert 'aria-label="0 of 5 done"' in home and "Explore a sample case" not in home
     await client.post("/onboarding/dismiss", data={"csrf_token": csrf})
     assert "Getting started" not in (await client.get("/")).text
     await client.post("/account/checklist", data={"csrf_token": csrf})
     assert "Getting started" in (await client.get("/")).text
+
+    # Removing it by hand works too.
+    await client.post("/onboarding/sample/remove", data={"csrf_token": csrf})
+    assert "Remove sample" not in (await client.get("/")).text
+
+
+async def test_home_puts_each_case_status_on_its_row_with_one_next_action(client, db):
+    from sqlalchemy import update
+
+    from app.models import AccessLog, Entity
+
+    email, csrf = await _fresh_user(client, db)
+    await client.post("/onboarding/sample", data={"csrf_token": csrf})
+    user = await db.scalar(select(User).where(User.email == email))
+    user_id = user.id
+
+    r = await client.post("/cases", data=case_form_data(csrf, name="Home layout case", tools=["fake_ok"]))
+    case_id = uuid.UUID(r.headers["location"].rsplit("/", 1)[1])
+    await jobs.wait_for_all()
+    await notifications.drain()
+    await db.execute(update(Entity).where(Entity.case_id == case_id, Entity.type == "account").values(confidence=0.8))
+    await db.commit()
+
+    # The first real scan finished: the sample case has been retired, with a notice and an audit row.
+    assert await db.scalar(select(Investigation.id).where(Investigation.owner_id == user_id,
+                                                          Investigation.is_sample.is_(True))) is None  # fmt: skip
+    assert await db.scalar(select(AccessLog.id).where(AccessLog.user_id == user_id,
+                                                      AccessLog.action == "sample_retired"))  # fmt: skip
+    note = await db.scalar(select(Notification).where(Notification.user_id == user_id, Notification.kind == "system"))
+    assert "sample case was removed" in note.text
+
+    home = (await client.get("/")).text
+    assert "Home layout case" in home and "janedoe" in home  # target chip on the row
+    assert "findings to review" in home and "Resume review: 2 findings" in home
+    assert f'href="/cases/{case_id}/review"' in home and "Remove sample" not in home
+    assert (await client.post("/onboarding/sample", data={"csrf_token": csrf})).headers["location"] == "/"
+
+    only_review = (await client.get("/?view=review")).text
+    assert "Home layout case" in only_review
+    watching = (await client.get("/?view=watching")).text
+    assert "No cases match this view" in watching
 
 
 async def test_templates_prefill_the_form_and_turn_on_watch_mode(client, db):

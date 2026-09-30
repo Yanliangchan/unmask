@@ -1,141 +1,176 @@
 {% extends "base.html" %}
+{% block main_class %}container wide{% endblock %}
+
+{% macro case_row(r, sample=False) -%}
+{% set c = r.case %}
+<li class="case-row{% if sample %} is-sample{% endif %}">
+  <a class="case-main" href="/cases/{{ c.id }}">
+    <span class="case-name">{{ c.name }}</span>
+    <span class="case-targets">
+      {% for type, value in r.targets %}<span class="chip-target" title="{{ type | capitalize }}: {{ value }}"><span class="visually-hidden">{{ type }} </span><span class="mono">{{ value }}</span></span>{% endfor %}
+      {% if r.more_targets %}<span class="chip-more">+{{ r.more_targets }}</span>{% endif %}
+    </span>
+    {% if r.card.purge_soon and not sample %}<span class="case-purge text-warn small" title="{{ r.card.purge_at | isodate }}">Deleted on {{ r.card.purge_at.strftime('%-d %b') }} unless scanned again</span>{% endif %}
+  </a>
+  <div class="case-status">
+    {% if r.running %}
+      <span class="status-line">{{ ui.run_status(r.run.status) }}<span class="faint small">{{ r.run.jobs_done }}/{{ r.run.jobs_total }} tools</span></span>
+      <span class="run-bar" role="progressbar" aria-label="Scan progress for {{ c.name }}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ r.progress }}"><span style="width: {{ r.progress }}%"></span></span>
+    {% elif r.failed_tools %}
+      <a class="status-line status-warn" href="/cases/{{ c.id }}">{{ ui.status_dot("warn", r.failed_tools ~ " tool" ~ ("s" if r.failed_tools != 1 else "") ~ " failed") }}</a>
+      <span class="faint small">{{ r.card.last_scan_at | timeago }}</span>
+    {% elif r.card.last_scan_status %}
+      <span class="status-line">{{ ui.run_status(r.card.last_scan_status) }}</span>
+      <span class="faint small" title="{{ r.card.last_scan_at | isodate }}">{{ r.card.last_scan_at | timeago }}</span>
+    {% else %}<span class="faint small">Not scanned</span>{% endif %}
+  </div>
+  <div class="case-review">
+    {% if r.to_review %}
+    <span class="review-pill" title="{{ r.to_review }} undecided finding{{ 's' if r.to_review != 1 }}">{{ r.to_review }}<span class="visually-hidden"> to review</span></span>
+    <a class="btn btn-xs" href="/cases/{{ c.id }}/review">Review<span class="visually-hidden"> {{ c.name }}</span></a>
+    {% else %}<span class="faint" aria-hidden="true">–</span><span class="visually-hidden">Nothing to review</span>{% endif %}
+  </div>
+  <div class="case-meta">
+    {% if sample %}
+    <form method="post" action="/onboarding/sample/remove">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn btn-ghost btn-xs" type="submit">Remove sample</button>
+    </form>
+    {% else %}
+    {% if r.card.watch_active %}<span class="meta-tag">{{ ui.icon("refresh") }}{{ c.watch_config.get('frequency', 'weekly') | capitalize }}</span>{% endif %}
+    {% endif %}
+  </div>
+</li>
+{%- endmacro %}
+
 {% block content %}
-<div class="page-head">
+<header class="home-head">
   <div>
-    <h1>Home</h1>
-    <p class="muted">{% if attention %}{{ attention | length }} thing{{ 's' if attention | length != 1 }} need{{ 's' if attention | length == 1 }} you.{% elif cards %}Nothing needs you right now.{% else %}Welcome to UNMASK.{% endif %}</p>
+    <h1>{{ greeting }}</h1>
+    <p class="home-summary">
+      {%- if not all_rows %}Start your first investigation, or explore the sample case.
+      {%- else %}
+        {%- set parts = [] %}
+        {%- if sum.to_review %}{% set _ = parts.append(sum.to_review ~ " finding" ~ ("s" if sum.to_review != 1 else "") ~ " to review" ~ (" across " ~ sum.review_cases ~ " cases" if sum.review_cases > 1 else "")) %}{% endif %}
+        {%- if sum.running %}{% set _ = parts.append(sum.running ~ " scan" ~ ("s" if sum.running != 1 else "") ~ " running") %}{% endif %}
+        {%- if sum.watching %}{% set _ = parts.append(sum.watching ~ " case" ~ ("s" if sum.watching != 1 else "") ~ " watched") %}{% endif %}
+        {{- parts | join(" · ") if parts else "All caught up." }}
+      {%- endif %}
+    </p>
   </div>
-  <a class="btn btn-primary" href="/cases/new">{{ ui.icon("plus") }}New case</a>
-</div>
-
-{% if cards %}
-{% set review_total = attention | selectattr("kind", "equalto", "review") | sum(attribute="count") %}
-{% set running = attention | selectattr("kind", "equalto", "running") | list | length %}
-<div class="stat-row" role="list" aria-label="At a glance">
-  <div class="stat" role="listitem"><span class="stat-label">Cases</span><span class="stat-value">{{ cards | length }}</span></div>
-  <div class="stat" role="listitem"><span class="stat-label">Findings to review</span><span class="stat-value">{{ review_total }}</span></div>
-  <div class="stat" role="listitem"><span class="stat-label">Scans running</span><span class="stat-value">{{ running }}</span></div>
-  <div class="stat" role="listitem"><span class="stat-label">Watching</span><span class="stat-value">{{ cards | selectattr("watch_active") | list | length }}</span></div>
-</div>
-{% endif %}
-
-{% if show_steps %}
-{% set done = steps | selectattr("done") | list | length %}
-<section class="card onboarding" aria-labelledby="onboarding-title">
-  <div class="onboarding-head">
-    <div>
-      <h2 id="onboarding-title">Getting started</h2>
-      <p class="muted small">{{ done }} of {{ steps | length }} done</p>
-    </div>
-    <form method="post" action="/onboarding/dismiss">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <button class="btn btn-ghost btn-sm" type="submit">Hide</button>
-    </form>
+  <div class="home-actions">
+    <button class="palette-trigger home-search" type="button" data-palette-open>{{ ui.icon("search") }}<span>Search cases and findings</span><kbd data-mod-key>Ctrl K</kbd></button>
+    <a class="btn btn-primary" href="/cases/new">{{ ui.icon("plus") }}New case</a>
   </div>
-  <div class="progress" role="progressbar" aria-label="Getting started" aria-valuemin="0" aria-valuemax="{{ steps | length }}" aria-valuenow="{{ done }}"><span style="width: {{ (100 * done / steps | length) | round }}%"></span></div>
-  <ol class="steps" role="list">
-    {% for s in steps %}
-    <li class="step{% if s.done %} is-done{% endif %}">
-      <span class="step-mark" aria-hidden="true">{% if s.done %}{{ ui.icon("check") }}{% else %}{{ loop.index }}{% endif %}</span>
-      <div>
-        <p class="step-label">{% if s.url and not s.done %}<a href="{{ s.url }}">{{ s.label }}</a>{% else %}{{ s.label }}{% endif %}<span class="visually-hidden">{{ ': done' if s.done else ': to do' }}</span></p>
-        <p class="step-hint">{{ s.hint }}</p>
-      </div>
-    </li>
-    {% endfor %}
-  </ol>
-  <div class="onboarding-foot">
-    <form method="post" action="/onboarding/sample">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <button class="btn btn-sm" type="submit">{{ ui.icon("folder") }}{{ "Open the sample case" if has_sample else "Explore a sample case" }}</button>
-    </form>
-    <span class="faint small">A finished case about a made-up person, to try every screen without running a scan.</span>
-  </div>
-</section>
-{% endif %}
+</header>
 
-{% if attention or news %}
-<div class="home-grid">
-  {% if attention %}
-  <section class="card" aria-labelledby="attention-title">
-    <h2 id="attention-title" class="card-title">Needs you</h2>
-    <ul class="attention" role="list">
-      {% for a in attention %}
-      <li class="attention-item kind-{{ a.kind }}">
-        <span class="attention-icon" aria-hidden="true">{{ ui.icon({"review": "check", "running": "refresh", "failed": "x"}[a.kind]) }}</span>
-        <div>
-          <a href="{{ a.url }}">{{ a.text }}</a>
-          <p class="faint small">{{ a.case.name }}</p>
-        </div>
-      </li>
-      {% endfor %}
-    </ul>
-  </section>
-  {% endif %}
-  {% if news %}
-  <section class="card" aria-labelledby="news-title">
-    <h2 id="news-title" class="card-title">New for you <a class="small" href="/notifications">All notifications</a></h2>
-    <ul class="news" role="list">
-      {% for n in news %}
-      <li><a href="{{ n.url or '/notifications' }}">{{ n.text }}</a> <span class="faint small" title="{{ n.created_at | isodate }}">{{ n.created_at | timeago }}</span></li>
-      {% endfor %}
-    </ul>
-  </section>
-  {% endif %}
-</div>
-{% endif %}
-
-{% set attention = health | rejectattr("status", "equalto", "ok") | rejectattr("status_label", "equalto", "Not configured") | list %}
 {% if workers == 0 %}
-<div class="alert alert-error tools-notice" role="alert">
-  <p><strong>No scan worker is running.</strong> Queued scans will not start until one is.</p>
-</div>
-{% elif attention %}
-<div class="alert alert-warn tools-notice">
-  <p>{{ attention | length }} of {{ health | length }} tools need attention{% if attention | selectattr("status", "equalto", "down") | list %}, including some the circuit breaker switched off{% endif %}.</p>
-  <a class="btn btn-sm" href="/tools">View tools</a>
-</div>
+<div class="alert alert-error" role="alert"><p><strong>No scan worker is running.</strong> Queued scans won't start until one is. <a href="/tools">Check tools</a></p></div>
 {% endif %}
 
-{% if cards %}
-<h2 class="section-title">Cases</h2>
-<div class="table-wrap">
-<table class="table cases">
-  <thead>
-    <tr>
-      <th>Case</th>
-      <th class="hide-sm">Targets</th>
-      <th>Last scan</th>
-      <th class="hide-sm">Watch</th>
-      <th class="shrink num"><span class="visually-hidden">Unreviewed</span></th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for card in cards %}
-    <tr class="row-link" data-href="/cases/{{ card.case.id }}">
-      <td>
-        <a href="/cases/{{ card.case.id }}">{{ card.case.name }}</a>{% if card.case.is_sample %} <span class="flag">Sample</span>{% endif %}
-        {% if card.purge_soon %}<div class="case-row-sub text-warn" title="{{ card.purge_at | isodate }}">Deleted on {{ card.purge_at.strftime('%-d %b') }} unless scanned again</div>{% endif %}
-      </td>
-      <td class="hide-sm muted">{{ card.target_count }}</td>
-      <td>
-        {% if card.last_scan_status %}{{ ui.run_status(card.last_scan_status) }}
-        <span class="faint small" title="{{ card.last_scan_at | isodate }}">· {{ card.last_scan_at | timeago }}</span>
-        {% else %}<span class="faint">Not scanned</span>{% endif %}
-      </td>
-      <td class="hide-sm">{% if card.watch_active %}<span class="small">{{ card.case.watch_config.get('frequency', 'weekly') | capitalize }}</span>{% else %}<span class="faint small">Off</span>{% endif %}</td>
-      <td class="num">{% if card.new_count %}<span class="count count-strong" title="{{ card.new_count }} new since you last looked">{{ card.new_count }} new</span>{% endif %}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-</div>
-{% else %}
-<div class="empty">
-  {{ ui.mark("empty-art") }}
-  <h2>No cases yet</h2>
-  <p>A case holds the people or identifiers you're authorized to research, every scan run against them, and your conclusions.</p>
-  <p class="empty-actions"><a class="btn btn-primary" href="/cases/new">{{ ui.icon("plus") }}New case</a></p>
-</div>
+{% if next %}
+<a class="continue-bar kind-{{ next.kind }}" href="{{ next.url }}">
+  <span class="continue-icon" aria-hidden="true">{{ ui.icon({"running": "refresh", "review": "check", "failed": "x"}[next.kind]) }}</span>
+  <span class="continue-text"><strong>{{ next.title }}</strong><span>{{ next.detail }}</span></span>
+  <span class="btn btn-sm {{ 'btn-primary' if next.kind == 'review' else '' }}">{{ next.action }}</span>
+</a>
 {% endif %}
+
+<div class="home-layout">
+  <section class="home-main" aria-labelledby="cases-title">
+    {% if all_rows %}
+    <div class="cases-head">
+      <h2 id="cases-title">Cases</h2>
+      <nav class="view-tabs" aria-label="Filter cases">
+        {% for key, (label, _) in views.items() %}
+        <a href="/?view={{ key }}" {% if key == view %}aria-current="page"{% endif %}>{{ label }}<span class="count">{{ sum.counts[key] }}</span></a>
+        {% endfor %}
+      </nav>
+    </div>
+    {% if rows %}
+    <ul class="case-list" role="list">
+      {% for r in rows %}{{ case_row(r) }}{% endfor %}
+    </ul>
+    {% else %}
+    <p class="case-list-empty muted">No cases match this view. <a href="/">Show all cases</a></p>
+    {% endif %}
+    {% else %}
+    <div class="home-empty">
+      {{ ui.mark("empty-art", "g-empty") }}
+      <h2 id="cases-title">Start your first investigation</h2>
+      <p>A case holds the people or identifiers you're authorised to research, every scan against them, and your conclusions.</p>
+      <div class="empty-actions">
+        <a class="btn btn-primary" href="/cases/new">{{ ui.icon("plus") }}New case</a>
+        {% if not sample %}
+        <form method="post" action="/onboarding/sample">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn" type="submit">{{ ui.icon("folder") }}Explore a sample case</button>
+        </form>
+        {% endif %}
+      </div>
+      <p class="template-quick faint small">Or start from a template:
+        <a href="/cases/new?template=due_diligence">Person due diligence</a> ·
+        <a href="/cases/new?template=username_sweep">Username sweep</a> ·
+        <a href="/cases/new?template=domain_footprint">Domain footprint</a></p>
+    </div>
+    {% endif %}
+
+    {% if sample %}
+    <h2 class="sample-head">Sample <span class="faint small">made-up data, removed automatically once your first case has results</span></h2>
+    <ul class="case-list" role="list">{{ case_row(sample, sample=True) }}</ul>
+    {% endif %}
+  </section>
+
+  <aside class="home-rail" aria-label="Updates">
+    {% if show_steps %}
+    {% set done = steps | selectattr("done") | list | length %}
+    {% set pct = (100 * done / steps | length) | round | int %}
+    <section class="rail-card" aria-labelledby="gs-title">
+      <div class="rail-head">
+        <span class="progress-ring" style="--p: {{ pct }}" role="img" aria-label="{{ done }} of {{ steps | length }} done"><span>{{ done }}/{{ steps | length }}</span></span>
+        <h2 id="gs-title">Getting started</h2>
+        <form method="post" action="/onboarding/dismiss">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="link-btn small" type="submit">Hide</button>
+        </form>
+      </div>
+      {% set todo = steps | rejectattr("done") | list %}
+      <ol class="rail-steps" role="list">
+        {% for s in todo[:2] %}
+        <li><a href="{{ s.url or '#' }}">{{ s.label }}</a><span class="faint small">{{ s.hint }}</span></li>
+        {% endfor %}
+      </ol>
+      {% if todo | length > 2 or done %}
+      <details class="rail-more">
+        <summary class="small">All steps</summary>
+        <ul class="rail-all" role="list">
+          {% for s in steps %}<li class="{{ 'is-done' if s.done }}">{{ ui.icon("check") if s.done else '' }}{{ s.label }}<span class="visually-hidden">{{ ': done' if s.done else ': to do' }}</span></li>{% endfor %}
+        </ul>
+      </details>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    {% if news %}
+    <section class="rail-card" aria-labelledby="news-title">
+      <div class="rail-head"><h2 id="news-title">Recent</h2><a class="small" href="/notifications">All</a></div>
+      <ul class="rail-list" role="list">
+        {% for n in news %}
+        <li><a href="{{ n.url or '/notifications' }}">{{ n.text }}</a><span class="faint small" title="{{ n.created_at | isodate }}">{{ n.created_at | timeago }}</span></li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+
+    <a class="sys-line{% if tools.down %} is-bad{% endif %}" href="/tools">
+      <span class="dot {{ 'dot-bad' if tools.down else ('dot-warn' if tools.degraded else 'dot-ok') }}" aria-hidden="true"></span>
+      <span class="sys-text">
+        <span class="sys-main">{{ tools.ready }} tools ready</span>
+        {% if tools.degraded or tools.setup %}<span class="sys-sub">{% if tools.degraded %}{{ tools.degraded }} degraded{% endif %}{% if tools.degraded and tools.setup %} · {% endif %}{% if tools.setup %}{{ tools.setup }} to set up{% endif %}</span>{% endif %}
+        {% if tools.down %}<strong>The circuit breaker switched off {{ tools.down | length }} tool{{ 's' if tools.down | length != 1 }}</strong>{% endif %}
+      </span>
+      {{ ui.icon("chevron", "icon sys-chev") }}
+    </a>
+  </aside>
+</div>
 {% endblock %}

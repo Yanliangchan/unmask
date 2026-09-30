@@ -250,6 +250,14 @@ async def notify_scan_finished(session: AsyncSession, run: ScanRun) -> None:
     case = await session.get(Investigation, run.case_id)
     if case is None or case.is_sample:
         return
+    if run.status in ("completed", "partial") and case.owner_id:
+        # The owner's own work has results now: the made-up sample case has done its job.
+        from app.services.home import retire_sample
+
+        if await retire_sample(session, case.owner_id):
+            # "system" isn't a user-selectable kind, so it stays in the app (no email or Slack copy).
+            await notify(session, case.owner_id, kind="system", url="/",
+                         text="The sample case was removed now that your first case has results")  # fmt: skip
     since = run.started_at or run.created_at
     new = int(
         await session.scalar(

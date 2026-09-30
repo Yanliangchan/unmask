@@ -26,7 +26,6 @@ from app.services.cases import (
     TargetInput,
     create_case,
     get_case_for_user,
-    list_cases_for_user,
     mark_reviewed,
     parse_tags,
     visible_case_ids,
@@ -71,27 +70,42 @@ async def dashboard(
 
     if needs_acceptance(user):
         return RedirectResponse("/legal/accept", status_code=303)
-    from app.services.home import attention, checklist, show_checklist
+    from datetime import UTC, datetime
+
+    from app.services.home import VIEWS, case_rows, checklist, greeting, next_up, show_checklist, summary
     from app.services.notifications import recent
 
-    cards = await list_cases_for_user(session, user)
+    rows, sample = await case_rows(session, user)
+    view = request.query_params.get("view", "all")
+    view = view if view in VIEWS else "all"
     health = await tool_health(session)
     steps = await checklist(session, user)
-    news = [n for n in await recent(session, user.id, limit=20) if n.read_at is None][:5]
+    news = [n for n in await recent(session, user.id, limit=20) if n.read_at is None][:4]
+    tools = {
+        "ready": sum(1 for h in health if h.status == "ok"),
+        "setup": sum(1 for h in health if h.status_label == "Not configured"),
+        "down": [h for h in health if h.status == "down"],
+        "degraded": sum(1 for h in health if h.status == "degraded"),
+    }
     return render(
         request,
         "dashboard.html",
         {
             "seo": Seo(title="Home", path="/"),
             "user": user,
-            "cards": cards,
-            "health": health,
+            "greeting": greeting(datetime.now(UTC)),
+            "rows": [r for r in rows if VIEWS[view][1](r)],
+            "all_rows": rows,
+            "sample": sample,
+            "view": view,
+            "views": VIEWS,
+            "sum": summary(rows),
+            "next": next_up(rows),
+            "tools": tools,
             "workers": worker_count(),
-            "attention": await attention(session, user),
             "steps": steps,
             "show_steps": show_checklist(user, steps),
             "news": news,
-            "has_sample": any(c.case.is_sample for c in cards),
         },
     )
 

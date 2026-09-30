@@ -53,10 +53,24 @@ async def open_sample_case(
     existing = await sample_case_id(session, user)
     if existing:
         return RedirectResponse(f"/cases/{existing}", status_code=303)
+    from app.services.home import has_real_case
+
+    if await has_real_case(session, user):
+        # The sample is for getting started; once there's real work it isn't offered again.
+        return RedirectResponse("/", status_code=303)
     case = await create_sample_case(session, user)
     log_access(session, "create_case", user_id=user.id, case_id=case.id, ip=client_ip(request), sample=True)
     await session.commit()
     return RedirectResponse(f"/cases/{case.id}", status_code=303)
+
+
+@router.post("/onboarding/sample/remove", dependencies=[Depends(verify_csrf)])
+async def remove_sample_case(session: AsyncSession = Depends(get_session), user: User = Depends(current_user)):
+    from app.services.home import retire_sample
+
+    await retire_sample(session, user.id, reason="sample_removed")
+    await session.commit()
+    return RedirectResponse("/", status_code=303)
 
 
 # --- Notifications ------------------------------------------------------------------------------

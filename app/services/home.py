@@ -6,7 +6,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import and_, func, not_, or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +16,10 @@ from app.services.cases import TargetInput, create_case, visible_case_ids
 from app.services.entities import WEAK_CONFIDENCE
 
 SAMPLE_NAME = "Sample case: Alex Rivera (made-up data)"
+
+# Hidden from the default view, so not counted as waiting for review. NULL-safe: a finding
+# whose page was never checked (verification IS NULL) must still count.
+_NOT_UNCHECKED_ACCOUNT = or_(Entity.type != "account", Entity.verification.is_distinct_from("unverified"))
 
 
 # --- What needs you --------------------------------------------------------------------------
@@ -48,7 +52,7 @@ async def attention(session: AsyncSession, user: User, limit: int = 8) -> list[A
                 Entity.dismissed_flag.is_(False),
                 Entity.type != "web_mention",
                 Entity.confidence >= WEAK_CONFIDENCE,
-                not_(and_(Entity.type == "account", Entity.verification == "unverified")),
+                _NOT_UNCHECKED_ACCOUNT,
             )
             .group_by(Entity.case_id)
         )
@@ -79,6 +83,148 @@ async def attention(session: AsyncSession, user: User, limit: int = 8) -> list[A
     order = {"running": 0, "review": 1, "failed": 2}
     items.sort(key=lambda i: order[i.kind])
     return items[:limit]
+
+
+# --- Case rows: everything about a case on one line ---------------------------------------------
+
+
+@dataclass
+class CaseRow:
+    card: object  # CaseCard from app.services.cases
+    targets: list  # (type, value) pairs, first few
+    more_targets: int
+    to_review: int
+    run: ScanRun | None
+
+    @property
+    def case(self) -> Investigation:
+        return self.card.case
+
+    @property
+    def running(self) -> bool:
+        return bool(self.run and self.run.status in ("queued", "running"))
+
+    @property
+    def failed_tools(self) -> int:
+        if not self.run or self.running:
+            return 0
+        return len(self.run.tools_failed or [])
+
+    @property
+    def progress(self) -> int:
+        """Percent of the running scan's tools that have reported."""
+        if not self.run or not self.run.jobs_total:
+            return 0
+        return round(100 * self.run.jobs_done / self.run.jobs_total)
+
+
+async def _review_counts(session: AsyncSession, ids: list[uuid.UUID]) -> dict[uuid.UUID, int]:
+    """Undecided findings per case, by the same rule as the review queue."""
+    rows = await session.execute(
+        select(Entity.case_id, func.count())
+        .where(
+            Entity.case_id.in_(ids),
+            Entity.merged_into_id.is_(None),
+            Entity.is_seed.is_(False),
+            Entity.confirmed_flag.is_(False),
+            Entity.dismissed_flag.is_(False),
+            Entity.type != "web_mention",
+            Entity.confidence >= WEAK_CONFIDENCE,
+            _NOT_UNCHECKED_ACCOUNT,
+        )
+        .group_by(Entity.case_id)
+    )
+    return dict(rows.all())
+
+
+async def case_rows(session: AsyncSession, user: User) -> tuple[list[CaseRow], CaseRow | None]:
+    """The user's real cases, newest first, and their sample case (if any) kept apart."""
+    from app.models import Target
+    from app.services.cases import list_cases_for_user
+
+    cards = await list_cases_for_user(session, user)
+    if not cards:
+        return [], None
+    ids = [c.case.id for c in cards]
+    reviews = await _review_counts(session, ids)
+    runs = {
+        r.case_id: r
+        for r in (
+            await session.scalars(
+                select(ScanRun)
+                .where(ScanRun.case_id.in_(ids), ScanRun.triggered_by != "health_check")
+                .order_by(ScanRun.case_id, ScanRun.run_number.desc())
+                .ext(distinct_on(ScanRun.case_id))
+            )
+        ).all()
+    }
+    targets: dict[uuid.UUID, list] = {}
+    for t in (await session.scalars(select(Target).where(Target.case_id.in_(ids)).order_by(Target.created_at))).all():
+        targets.setdefault(t.case_id, []).append((t.type, t.value))
+    rows, sample = [], None
+    for card in cards:
+        ts = targets.get(card.case.id, [])
+        row = CaseRow(card, ts[:3], max(0, len(ts) - 3), reviews.get(card.case.id, 0), runs.get(card.case.id))
+        if card.case.is_sample:
+            sample = sample or row
+        else:
+            rows.append(row)
+    return rows, sample
+
+
+VIEWS = {
+    "all": ("All", lambda r: True),
+    "review": ("Needs review", lambda r: r.to_review > 0),
+    "running": ("Running", lambda r: r.running),
+    "watching": ("Watching", lambda r: r.card.watch_active),
+}
+
+
+@dataclass
+class NextUp:
+    kind: str  # running | review | failed
+    title: str
+    detail: str
+    url: str
+    action: str
+
+
+def next_up(rows: list[CaseRow]) -> NextUp | None:
+    """The single most useful thing to pick up: a live scan, then the biggest review queue, then a failure."""
+    running = [r for r in rows if r.running]
+    if running:
+        r = running[0]
+        tools = f"{r.run.jobs_done} of {r.run.jobs_total} tools reported" if r.run.jobs_total else "starting"
+        return NextUp("running", f"Scan running in {r.case.name}", tools, f"/cases/{r.case.id}", "Watch results")
+    reviewing = sorted((r for r in rows if r.to_review), key=lambda r: -r.to_review)
+    if reviewing:
+        r = reviewing[0]
+        n = r.to_review
+        return NextUp("review", f"Resume review: {n} finding{'s' if n != 1 else ''}", r.case.name,
+                      f"/cases/{r.case.id}/review", "Review")  # fmt: skip
+    failed = [r for r in rows if r.failed_tools]
+    if failed:
+        r = failed[0]
+        n = r.failed_tools
+        return NextUp("failed", f"{n} tool{'s' if n != 1 else ''} failed in the last scan", r.case.name,
+                      f"/cases/{r.case.id}", "See what failed")  # fmt: skip
+    return None
+
+
+def summary(rows: list[CaseRow]) -> dict:
+    to_review = sum(r.to_review for r in rows)
+    return {
+        "to_review": to_review,
+        "review_cases": sum(1 for r in rows if r.to_review),
+        "running": sum(1 for r in rows if r.running),
+        "watching": sum(1 for r in rows if r.card.watch_active),
+        "counts": {key: sum(1 for r in rows if test(r)) for key, (_, test) in VIEWS.items()},
+    }
+
+
+def greeting(now: datetime) -> str:
+    hour = now.hour
+    return "Good morning" if 5 <= hour < 12 else "Good afternoon" if 12 <= hour < 18 else "Good evening"
 
 
 # --- Getting started ---------------------------------------------------------------------------
@@ -224,4 +370,30 @@ async def create_sample_case(session: AsyncSession, user: User) -> Investigation
 async def sample_case_id(session: AsyncSession, user: User) -> uuid.UUID | None:
     return await session.scalar(
         select(Investigation.id).where(Investigation.owner_id == user.id, Investigation.is_sample.is_(True)).limit(1)
+    )
+
+
+async def retire_sample(session: AsyncSession, user_id: uuid.UUID, *, reason: str = "sample_retired") -> int:
+    """Delete the user's sample case(s). Called once their own work has results, or on request."""
+    from app.services.cases import delete_case
+
+    ids = list(
+        (
+            await session.scalars(
+                select(Investigation.id).where(Investigation.owner_id == user_id, Investigation.is_sample.is_(True))
+            )
+        ).all()
+    )
+    for case_id in ids:
+        await delete_case(session, case_id, user_id=user_id, action=reason)
+    return len(ids)
+
+
+async def has_real_case(session: AsyncSession, user: User) -> bool:
+    return bool(
+        await session.scalar(
+            select(Investigation.id)
+            .where(Investigation.owner_id == user.id, Investigation.is_sample.is_(False))
+            .limit(1)
+        )
     )
