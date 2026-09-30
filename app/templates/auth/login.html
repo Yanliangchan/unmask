@@ -1,21 +1,38 @@
 {% extends "base.html" %}
-{% block main_class %}container narrow{% endblock %}
+{% block main_class %}auth-main{% endblock %}
+{% block footer %}{% endblock %}
 {% block content %}
-<section class="auth" aria-labelledby="login-title">
-  <h1 id="login-title">Sign in</h1>
-  {% if error %}<p class="alert alert-error" role="alert">{{ error }}</p>{% endif %}
-  <form method="post" action="/login" class="form">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <input type="hidden" name="next" value="{{ next }}">
-    <label class="field">
-      <span>Email</span>
-      <input type="email" name="email" value="{{ email or '' }}" autocomplete="username" required autofocus>
-    </label>
-    <label class="field">
-      <span>Password</span>
-      <input type="password" name="password" autocomplete="current-password" required>
-    </label>
-    <button class="btn btn-primary" type="submit" data-full>Sign in</button>
-  </form>
-</section>
+<div class="auth-split">
+  <div class="auth-form">
+    <section class="auth" aria-labelledby="login-title">
+      <h1 id="login-title">Welcome back</h1>
+      <p class="lead">Sign in to your {{ brand.NAME }} workspace.</p>
+      {% if error %}<p class="alert alert-error" role="alert">{{ error }}</p>{% endif %}
+      <form method="post" action="/login" class="form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="next" value="{{ next }}">
+        <label class="field">
+          <span>Email</span>
+          <input type="email" name="email" value="{{ email or '' }}" autocomplete="username" required autofocus>
+        </label>
+        <label class="field">
+          <span>Password</span>
+          <input type="password" name="password" autocomplete="current-password" required>
+        </label>
+        <button class="btn btn-primary" type="submit" data-full>Sign in</button>
+      </form>
+      <p class="faint small auth-legal">By signing in you agree to the <a href="/terms">Terms</a> and <a href="/acceptable-use">Acceptable Use Policy</a>.</p>
+    </section>
+  </div>
+  <aside class="auth-panel" aria-label="About {{ brand.NAME }}">
+    {{ ui.mark("mark", "g-auth") }}
+    <h2>{{ brand.TAGLINE }}</h2>
+    <p>{{ brand.SHORT_PITCH }}</p>
+    <ul class="auth-points" role="list">
+      <li>{{ ui.icon("shield") }}Identifiers encrypted at rest</li>
+      <li>{{ ui.icon("check") }}Every decision and export on the record</li>
+      <li>{{ ui.icon("link") }}Findings linked, scored and explained</li>
+    </ul>
+  </aside>
+</div>
 {% endblock %}

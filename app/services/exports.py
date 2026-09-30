@@ -260,7 +260,7 @@ async def export_stix(session: AsyncSession, case: Investigation, scope: str = "
     grouping = {
         "type": "grouping", "spec_version": "2.1", "id": _sdo_id("grouping", case.id, "case"),
         "created": created, "modified": now, "name": case.name, "context": "unspecified",
-        "description": "Open-source findings exported from an unmask case. Confidence estimates whether a finding "
+        "description": "Open-source findings exported from an UNMASK case. Confidence estimates whether a finding "
         "relates to the subject; it is not a conclusion.",
         "object_refs": [o["id"] for o in objects] or [_sdo_id("note", case.id, "empty")],
         "object_marking_refs": [TLP_AMBER],

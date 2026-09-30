@@ -1,39 +1,177 @@
 {% extends "base.html" %}
 {% block body_class %}landing{% endblock %}
+{% block main_class %}landing-main{% endblock %}
+{% block head %}<link rel="stylesheet" href="{{ static_url('css/landing.css') }}">{% endblock %}
+
+{% block topbar %}
+<header class="l-nav">
+  <div class="l-wrap l-nav-inner">
+    <a class="brand" href="/" aria-label="{{ brand.NAME }} home">{{ ui.lockup("g-nav") }}</a>
+    <nav class="l-links" aria-label="Sections">
+      <a href="#features">Features</a>
+      <a href="#how">How it works</a>
+      <a href="/trust">Trust</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="btn btn-primary btn-sm" href="/login">Sign in</a>
+  </div>
+</header>
+{% endblock %}
+
 {% block content %}
-<section class="hero" aria-labelledby="hero-title">
-  <h1 id="hero-title">Run OSINT tools as a case, and keep the evidence straight.</h1>
-  <p>
-    unmask runs {{ tools_sentence }} from one place.
-    Findings are de-duplicated, scored and linked, scans are compared over time, and every automatic step is
-    logged. The conclusion stays yours to write.
-  </p>
-  <div class="hero-actions">
-    <a class="btn btn-primary" href="/login">Sign in</a>
+<section class="l-hero" aria-labelledby="hero-title">
+  <div class="l-glow" aria-hidden="true"></div>
+  <div class="l-wrap l-hero-inner">
+    <p class="l-eyebrow">{{ ui.mark("mark mark-xs", "g-eyebrow") }}{{ brand.DESCRIPTOR }}</p>
+    <h1 id="hero-title">Discover. <span class="l-grad">Correlate.</span> Investigate.</h1>
+    <p class="l-sub">{{ brand.SHORT_PITCH }} {{ brand.NAME }} runs {{ tools_sentence }} as one case, and shows you why every finding scored the way it did.</p>
+    <div class="l-cta">
+      <a class="btn btn-primary btn-lg" href="/login">Sign in to your workspace</a>
+      <a class="btn btn-lg" href="#how">See how it works</a>
+    </div>
+    <ul class="l-chips" role="list">
+      <li>{{ ui.icon("shield") }}Self-hosted</li>
+      <li>{{ ui.icon("check") }}Encrypted at rest</li>
+      <li>{{ ui.icon("note") }}Every step audited</li>
+    </ul>
+  </div>
+  <div class="l-wrap">
+    <figure class="l-shot">
+      <div class="l-shot-bar" aria-hidden="true"><span></span><span></span><span></span></div>
+      <picture>
+        <source type="image/webp" sizes="(max-width: 1180px) 100vw, 1120px"
+                srcset="{{ static_url('img/screenshot-case-720.webp') }} 720w, {{ static_url('img/screenshot-case.webp') }} 1440w">
+        <img src="{{ static_url('img/screenshot-case.png') }}" width="1440" height="900" decoding="async" fetchpriority="high"
+             alt="A case in {{ brand.NAME }}: a summary of the likely matches above findings listed with their match strength, source reliability and the tools that reported them.">
+      </picture>
+    </figure>
   </div>
 </section>
 
-<figure class="shot">
-  <picture>
-    <source type="image/webp" sizes="(max-width: 1100px) 100vw, 1032px"
-            srcset="{{ static_url('img/screenshot-case-720.webp') }} 720w, {{ static_url('img/screenshot-case.webp') }} 1440w">
-    <img src="{{ static_url('img/screenshot-case.png') }}" width="1440" height="900" decoding="async"
-         alt="A case in unmask: findings listed with confidence, source reliability and the tools that reported them.">
-  </picture>
-</figure>
-
-<section class="facts" aria-label="How it works">
-  <div>
-    <h2>Failures are reported, not hidden</h2>
-    <p>When a site blocks a tool or a run is cut short, unmask says so. A blocked run never shows up as "nothing found".</p>
-  </div>
-  <div>
-    <h2>Every step is on the record</h2>
-    <p>Authorization is written down before the first lookup. Automatic follow-ups, merges, exports and deletions are all logged.</p>
-  </div>
-  <div>
-    <h2>Self-hosted, encrypted, time-limited</h2>
-    <p>Identifiers are encrypted at rest with keys kept away from the database, and cases are deleted once their retention period ends.</p>
+<section class="l-tools" aria-labelledby="tools-title">
+  <div class="l-wrap">
+    <h2 id="tools-title" class="l-kicker">{{ tool_labels | length }} tools, one case</h2>
+    <ul class="l-tool-list" role="list">
+      {% for t in tool_labels %}<li>{{ t }}</li>{% endfor %}
+    </ul>
   </div>
 </section>
+
+<section class="l-section" id="how" aria-labelledby="how-title">
+  <div class="l-wrap">
+    <p class="l-kicker">How it works</p>
+    <h2 id="how-title" class="l-h2">From a username to a defensible answer</h2>
+    <ol class="l-steps" role="list">
+      <li>
+        <span class="l-step-num" aria-hidden="true">1</span>
+        <h3>Add what you know</h3>
+        <p>Paste usernames, emails, names, domains, phones or IPs. Record who authorised the case and why, or start from a template.</p>
+      </li>
+      <li>
+        <span class="l-step-num" aria-hidden="true">2</span>
+        <h3>Scan and correlate</h3>
+        <p>Tools run in parallel. Account hits are checked against their profile pages, duplicates merged, and every lead followed up automatically.</p>
+      </li>
+      <li>
+        <span class="l-step-num" aria-hidden="true">3</span>
+        <h3>Review and report</h3>
+        <p>Confirm or rule out findings one key at a time, write your assessment, and export a report, CSV, JSON or STIX 2.1.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="l-section l-alt" id="features" aria-labelledby="features-title">
+  <div class="l-wrap">
+    <p class="l-kicker">Features</p>
+    <h2 id="features-title" class="l-h2">Built for investigators who have to show their work</h2>
+    <div class="l-features">
+      <article><span class="l-ico" aria-hidden="true">{{ ui.icon("check") }}</span><h3>Scores you can explain</h3><p>Each finding shows its match strength, the sources behind it and the reasons it scored the way it did. No black box.</p></article>
+      <article><span class="l-ico" aria-hidden="true">{{ ui.icon("keyboard") }}</span><h3>One-key review queue</h3><p>Same person, different person, not a profile: decide in a keystroke. Your decisions teach it which sites to trust.</p></article>
+      <article><span class="l-ico" aria-hidden="true">{{ ui.icon("link") }}</span><h3>Relationship graph</h3><p>See how accounts, emails and domains connect, focus on one node, and export the picture for your report.</p></article>
+      <article><span class="l-ico" aria-hidden="true">{{ ui.icon("refresh") }}</span><h3>Timeline and watch mode</h3><p>Re-scan on a schedule and see exactly what's new, what changed and what disappeared since the last run.</p></article>
+      <article><span class="l-ico" aria-hidden="true">{{ ui.icon("camera") }}</span><h3>Evidence that lasts</h3><p>Save a page as it is today with a SHA-256 fingerprint, so your evidence survives when the profile changes.</p></article>
+      <article><span class="l-ico" aria-hidden="true">{{ ui.icon("download") }}</span><h3>Share and export</h3><p>Reports led by your assessment, CSV, JSON and STIX 2.1 exports, and read-only links that expire.</p></article>
+    </div>
+  </div>
+</section>
+
+<section class="l-section" aria-labelledby="honest-title">
+  <div class="l-wrap l-split">
+    <div>
+      <p class="l-kicker">Honest by design</p>
+      <h2 id="honest-title" class="l-h2">A blocked tool never reads as "nothing found"</h2>
+      <p class="l-p">When a site blocks a request or a tool is cut short, {{ brand.NAME }} tells you, says what to do about it, and keeps what it did find. Unchecked accounts stay out of your best findings, and a site's own social links are never mistaken for the person's.</p>
+    </div>
+    <div class="l-demo" aria-hidden="true">
+      <div class="l-demo-row"><span class="l-dot ok"></span><strong>Sherlock</strong><span>14 accounts, 9 page-checked</span></div>
+      <div class="l-demo-row"><span class="l-dot ok"></span><strong>GitHub</strong><span>profile, 2 linked accounts</span></div>
+      <div class="l-demo-row warn"><span class="l-dot warn"></span><strong>Holehe</strong><span>blocked from this server: set a proxy</span></div>
+      <div class="l-demo-row"><span class="l-dot ok"></span><strong>crt.sh</strong><span>23 hostnames</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="l-section l-alt" aria-labelledby="trust-title">
+  <div class="l-wrap">
+    <p class="l-kicker">Trust and responsibility</p>
+    <h2 id="trust-title" class="l-h2">Careful use is the default</h2>
+    <div class="l-trust">
+      <div><h3>Authorised first</h3><p>No case without a written authorisation and a lawful basis. The database itself enforces it.</p></div>
+      <div><h3>Encrypted at rest</h3><p>Identifiers, findings, notes and API keys are encrypted, with keys kept away from the database.</p></div>
+      <div><h3>Everything on the record</h3><p>Every decision, export and share-link view is logged against a named person.</p></div>
+      <div><h3>Nothing kept forever</h3><p>Each case has a retention period and is deleted when it ends.</p></div>
+    </div>
+    <p class="l-more"><a href="/trust">How we protect your data</a> · <a href="/acceptable-use">Acceptable use</a></p>
+  </div>
+</section>
+
+<section class="l-section" aria-labelledby="uses-title">
+  <div class="l-wrap">
+    <p class="l-kicker">Who it's for</p>
+    <h2 id="uses-title" class="l-h2">One platform, many investigations</h2>
+    <div class="l-uses">
+      <div><h3>Due diligence</h3><p>Check that a person or supplier is who they say they are before you sign.</p></div>
+      <div><h3>Security teams</h3><p>Map an organisation's exposed accounts, hosts and leaked credentials.</p></div>
+      <div><h3>Brand protection</h3><p>Watch for accounts and pages impersonating your people or brand.</p></div>
+      <div><h3>Investigations</h3><p>Fraud, trust-and-safety and research work that needs evidence, not guesses.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="l-section l-alt" id="faq" aria-labelledby="faq-title">
+  <div class="l-wrap l-faq-wrap">
+    <p class="l-kicker">FAQ</p>
+    <h2 id="faq-title" class="l-h2">Questions, answered</h2>
+    <div class="l-faq">
+      {% for q, a in faq %}
+      <details><summary>{{ q }}</summary><p>{{ a }}</p></details>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="l-final" aria-labelledby="final-title">
+  <div class="l-wrap l-final-inner">
+    {{ ui.mark("mark mark-lg", "g-final") }}
+    <h2 id="final-title">{{ brand.TAGLINE }}</h2>
+    <p>Sign in to open your first case, or explore the sample case with made-up data.</p>
+    <a class="btn btn-primary btn-lg" href="/login">Sign in</a>
+  </div>
+</section>
+{% endblock %}
+
+{% block footer %}
+<footer class="l-footer">
+  <div class="l-wrap l-footer-inner">
+    <div class="l-footer-brand">
+      {{ ui.lockup("g-foot", descriptor=True) }}
+      <p>For authorised investigations with a documented lawful basis.</p>
+    </div>
+    <nav aria-label="Product"><h2>Product</h2><a href="#features">Features</a><a href="#how">How it works</a><a href="#faq">FAQ</a><a href="/login">Sign in</a></nav>
+    <nav aria-label="Legal"><h2>Legal</h2><a href="/trust">Trust</a><a href="/terms">Terms of Service</a><a href="/acceptable-use">Acceptable Use</a><a href="/privacy">Privacy</a></nav>
+    <nav aria-label="Contact"><h2>Contact</h2><a href="/trust#disclosure">Report a vulnerability</a><a href="/acceptable-use#a7">Report misuse</a></nav>
+  </div>
+  <div class="l-wrap l-footer-base"><span>© {{ now.year }} {{ brand.NAME }}</span><span>{{ brand.TAGLINE }}</span></div>
+</footer>
 {% endblock %}

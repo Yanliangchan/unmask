@@ -187,7 +187,7 @@ async def create_sample_case(session: AsyncSession, user: User) -> Investigation
         session,
         owner=user,
         name=SAMPLE_NAME,
-        authorization_note="Sample case with invented data, created to show how unmask works. "
+        authorization_note="Sample case with invented data, created to show how UNMASK works. "
         "No real person is researched and it cannot be scanned.",
         lawful_basis_confirmed=True,
         targets=[

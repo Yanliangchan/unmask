@@ -1,6 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="unmask">
-  <rect width="32" height="32" rx="7" fill="#16181b"/>
-  <path d="M5 12.4C8.4 8.8 12 7 16 7s7.6 1.8 11 5.4c0 8-5 13.6-11 13.6S5 20.4 5 12.4Z" fill="none" stroke="#eceef0" stroke-width="2.2"/>
-  <circle cx="12" cy="14.4" r="1.9" fill="#eceef0"/>
-  <circle cx="20" cy="14.4" r="1.9" fill="#eceef0"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#10B981"/><stop offset="1" stop-color="#0EA5E9"/></linearGradient></defs><path fill="url(#g)" fill-rule="evenodd" d="M16 2.2c.5 0 1 .1 1.5.3l8.6 3.3c1.1.4 1.9 1.5 1.9 2.7v6.8c0 7.1-4.6 12.6-11.1 14.9-.6.2-1.2.2-1.8 0C8.6 27.9 4 22.4 4 15.3V8.5c0-1.2.8-2.3 1.9-2.7l8.6-3.3c.5-.2 1-.3 1.5-.3zM6.4 14.3c1.9-3.4 6.4-4.1 9.2-1.4-1.7 4-6.7 5-9.2 1.4zm19.2 0c-1.9-3.4-6.4-4.1-9.2-1.4 1.7 4 6.7 5 9.2 1.4z"/><circle fill="url(#g)" cx="20.7" cy="13.9" r="1.75"/></svg>

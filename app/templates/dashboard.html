@@ -3,10 +3,21 @@
 <div class="page-head">
   <div>
     <h1>Home</h1>
-    <p class="muted">{% if attention %}{{ attention | length }} thing{{ 's' if attention | length != 1 }} need{{ 's' if attention | length == 1 }} you.{% elif cards %}Nothing needs you right now.{% else %}Welcome to unmask.{% endif %}</p>
+    <p class="muted">{% if attention %}{{ attention | length }} thing{{ 's' if attention | length != 1 }} need{{ 's' if attention | length == 1 }} you.{% elif cards %}Nothing needs you right now.{% else %}Welcome to UNMASK.{% endif %}</p>
   </div>
   <a class="btn btn-primary" href="/cases/new">{{ ui.icon("plus") }}New case</a>
 </div>
+
+{% if cards %}
+{% set review_total = attention | selectattr("kind", "equalto", "review") | sum(attribute="count") %}
+{% set running = attention | selectattr("kind", "equalto", "running") | list | length %}
+<div class="stat-row" role="list" aria-label="At a glance">
+  <div class="stat" role="listitem"><span class="stat-label">Cases</span><span class="stat-value">{{ cards | length }}</span></div>
+  <div class="stat" role="listitem"><span class="stat-label">Findings to review</span><span class="stat-value">{{ review_total }}</span></div>
+  <div class="stat" role="listitem"><span class="stat-label">Scans running</span><span class="stat-value">{{ running }}</span></div>
+  <div class="stat" role="listitem"><span class="stat-label">Watching</span><span class="stat-value">{{ cards | selectattr("watch_active") | list | length }}</span></div>
+</div>
+{% endif %}
 
 {% if show_steps %}
 {% set done = steps | selectattr("done") | list | length %}
@@ -121,6 +132,7 @@
 </div>
 {% else %}
 <div class="empty">
+  {{ ui.mark("empty-art") }}
   <h2>No cases yet</h2>
   <p>A case holds the people or identifiers you're authorized to research, every scan run against them, and your conclusions.</p>
   <p class="empty-actions"><a class="btn btn-primary" href="/cases/new">{{ ui.icon("plus") }}New case</a></p>

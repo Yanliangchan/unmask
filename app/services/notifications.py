@@ -4,7 +4,7 @@ In-app notifications may name the case ("3 new findings in Vendor check"),
 because only people who can open the case see them. Copies sent outside the
 app (email, Slack) never carry case names or identifiers: case names often
 contain the subject's name, and a Slack channel or a mailbox is not
-access-controlled by unmask. They say what happened and link back in.
+access-controlled by UNMASK. They say what happened and link back in.
 
 Outside delivery runs after the database commit, in the background, so a slow
 mail server or webhook never holds up a scan or a request.
@@ -153,13 +153,13 @@ async def deliver(outbox: list[Outgoing]) -> None:
         prefs = prefs_for(user)
         if item.kind not in prefs["kinds"]:
             continue
-        text = KINDS.get(item.kind, ("", "There is something new in unmask."))[1]
+        text = KINDS.get(item.kind, ("", "There is something new in UNMASK."))[1]
         link = f"{base}{item.url}" if item.url else base
         if prefs["slack"] and user.slack_webhook:
             await send_slack(user.slack_webhook, f"{text} {link}")
         if prefs["email"] and email_configured():
-            await send_email(user.email, text, f"{text}\n\nOpen unmask: {link}\n\n"
-                             "You get this because of your notification settings in unmask.")  # fmt: skip
+            await send_email(user.email, text, f"{text}\n\nOpen UNMASK: {link}\n\n"
+                             "You get this because of your notification settings in UNMASK.")  # fmt: skip
 
 
 async def send_slack(url: str, text: str) -> bool:
@@ -178,7 +178,7 @@ async def send_slack(url: str, text: str) -> bool:
 async def send_email(to: str, subject: str, body: str) -> bool:
     s = get_settings()
     msg = EmailMessage()
-    msg["From"], msg["To"], msg["Subject"] = s.smtp_from, to, f"[unmask] {subject}"
+    msg["From"], msg["To"], msg["Subject"] = s.smtp_from, to, f"[UNMASK] {subject}"
     msg.set_content(body)
     if sent_mail is not None:
         sent_mail.append(msg)

@@ -4,7 +4,7 @@
 <div class="page-head">
   <div>
     <h1>{{ "Our terms have changed" if updated else "Before you start" }}</h1>
-    <p class="muted">unmask researches real people. Please read and accept the terms that govern how you use it{% if updated %}. The new version takes effect on {{ L.effective }}{% endif %}.</p>
+    <p class="muted">UNMASK researches real people. Please read and accept the terms that govern how you use it{% if updated %}. The new version takes effect on {{ L.effective }}{% endif %}.</p>
   </div>
 </div>
 {% if error %}<div class="alert alert-error" role="alert"><p>{{ error }}</p></div>{% endif %}
@@ -12,7 +12,7 @@
 <div class="card accept-card">
   <h2 class="card-title">What you're agreeing to</h2>
   <ul class="legal-list">
-    <li>You'll use unmask only for investigations that are <strong>authorised, lawful and proportionate</strong>, and you're responsible for that decision every time.</li>
+    <li>You'll use UNMASK only for investigations that are <strong>authorised, lawful and proportionate</strong>, and you're responsible for that decision every time.</li>
     <li>Findings are <strong>leads, not facts</strong>. You'll verify them before relying on them, and people, not the software, make decisions about people.</li>
     <li>You'll never use it to stalk, harass, expose or discriminate against anyone, or to access accounts or data you're not entitled to.</li>
     <li>You are the controller of the personal data in your cases, and you'll respect the rights of the people you research.</li>
@@ -23,7 +23,7 @@
   <form method="post" action="/legal/accept" class="form accept-form">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="next" value="{{ next }}">
-    <label class="check lawful"><input type="checkbox" name="agree_terms" required><span>I have read and agree to the Terms of Service and the Acceptable Use Policy, on my own behalf and for the organisation I use unmask for.</span></label>
+    <label class="check lawful"><input type="checkbox" name="agree_terms" required><span>I have read and agree to the Terms of Service and the Acceptable Use Policy, on my own behalf and for the organisation I use UNMASK for.</span></label>
     <label class="check lawful"><input type="checkbox" name="agree_responsibility" required><span>I understand that I am responsible for having a lawful basis and authorisation for every investigation, for checking findings before relying on them, and for how I use the results.</span></label>
     <div class="form-actions split">
       <button class="btn btn-primary" type="submit">Accept and continue</button>

@@ -38,7 +38,7 @@ def details() -> LegalDetails:
     s = get_settings()
     named = bool(s.operator_name.strip())
     return LegalDetails(
-        operator=s.operator_name.strip() or "the operator of this unmask service",
+        operator=s.operator_name.strip() or "the operator of this UNMASK service",
         operator_is_named=named,
         contact=s.legal_contact.strip(),
         security_contact=(s.security_contact or s.legal_contact).strip(),

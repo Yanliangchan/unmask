@@ -15,6 +15,7 @@ from fastapi import Request
 from fastapi.templating import Jinja2Templates
 from markupsafe import Markup, escape
 
+from app import brand
 from app.config import get_settings
 from app.models import SOURCE_RELIABILITY
 from app.search_links import search_links
@@ -25,10 +26,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
-SITE_DESCRIPTION = (
-    "unmask is a self-hosted OSINT platform that runs your research tools as a case: findings are "
-    "de-duplicated, scored, linked and compared between scans, with every automatic step logged."
-)
+SITE_DESCRIPTION = brand.DESCRIPTION
 
 
 @dataclass
@@ -43,7 +41,7 @@ class Seo:
 
     @property
     def full_title(self) -> str:
-        return self.title if self.title.startswith("unmask") else f"{self.title} · unmask"
+        return self.title if self.title.upper().startswith(brand.NAME) else f"{self.title} · {brand.NAME}"
 
     @property
     def canonical(self) -> str:
@@ -176,6 +174,7 @@ templates.env.filters["run_issues"] = _run_issues
 templates.env.globals["SOURCE_RELIABILITY"] = SOURCE_RELIABILITY
 templates.env.globals["search_links"] = search_links
 templates.env.globals["static_url"] = static_url
+templates.env.globals["brand"] = brand
 
 
 def _tool_label(name: str) -> str:

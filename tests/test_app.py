@@ -44,10 +44,11 @@ async def test_share_cards_and_icons(client):
         'property="og:image:width" content="1200"',
         'name="twitter:image"',
         'rel="apple-touch-icon"',
-        "<title>unmask: self-hosted OSINT investigation platform</title>",
+        "<title>UNMASK: Open-source intelligence platform | Discover. Correlate. Investigate.</title>",
     ):
         assert tag in r.text
     manifest = (await client.get("/site.webmanifest")).json()
+    assert manifest["name"] == "UNMASK" and manifest["theme_color"] == "#0B1417"
     assert {i["sizes"] for i in manifest["icons"]} >= {"192x192", "512x512"}
     assert "<lastmod>" in (await client.get("/sitemap.xml")).text
 
@@ -311,3 +312,19 @@ def test_preflight_names_missing_production_variables(monkeypatch):
     text = " ".join(problems)
     assert "DATABASE_URL is not set" in text and "REDIS_URL is not set" in text
     assert "UNMASK_DATA_KEYS is not set" in text and "SECRET_KEY" in text
+
+
+async def test_landing_page_sells_the_product_with_faq_structured_data(client):
+    import json
+    import re
+
+    page = (await client.get("/")).text
+    assert "Discover." in page and "Investigate." in page and "Open-source intelligence platform" in page
+    assert 'id="features"' in page and 'id="how"' in page and 'id="faq"' in page and 'href="/login"' in page
+    blocks = [json.loads(b) for b in re.findall(r'<script type="application/ld\+json">(.*?)</script>', page, re.S)]
+    faq = next(b for b in blocks if b.get("@type") == "FAQPage")
+    assert len(faq["mainEntity"]) >= 5 and all(q["acceptedAnswer"]["text"] for q in faq["mainEntity"])
+    # Fonts are self-hosted: the CSP allows no other origin for them.
+    css = (await client.get("/static/css/app.css")).text
+    assert 'url("../fonts/sora-latin-600-normal.woff2")' in css and "fonts.googleapis" not in page
+    assert (await client.get("/static/fonts/sora-latin-600-normal.woff2")).status_code == 200

@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import brand
 from app.config import get_settings
 from app.db import get_session
 from app.security import current_user_optional
@@ -36,10 +37,35 @@ def _tool_sentence(labels: list[str]) -> str:
     return labels[0] if len(labels) == 1 else ", ".join(labels[:-1]) + " and " + labels[-1]
 
 
+FAQ = [
+    ("What is UNMASK?",
+     "A self-hosted open-source intelligence (OSINT) platform. You add what you know about a person or organisation "
+     "(a username, email address, name, domain, phone number or IP address), and UNMASK runs a set of OSINT tools as "
+     "one case, then de-duplicates, scores and links what they find."),
+    ("Which tools does it run?",
+     "Username checkers such as Sherlock and Maigret, direct lookups against GitHub, GitLab, Keybase, Hacker News and "
+     "Gravatar, breach sources, web search, certificate transparency, DNS and domain registration records, and more. "
+     "Tools that need an API key are added from the Integrations page."),
+    ("How does it cut false positives?",
+     "Every account hit is checked against its profile page before it is shown, profiles are compared on names, "
+     "locations and links, common usernames are scored down, and your own decisions teach it which sites to trust. "
+     "Scores come with the reasons behind them."),
+    ("Is my data safe?",
+     "UNMASK is self-hosted, so case data stays on your infrastructure. Identifiers are encrypted at rest, every "
+     "decision and export is audited, and cases are deleted when their retention period ends."),
+    ("Can I use it on anyone?",
+     "No. Every case needs a documented lawful basis and authorisation, and the Acceptable Use Policy prohibits "
+     "stalking, harassment and discrimination. You are responsible for how you use it."),
+    ("What do I get at the end?",
+     "A report built around your written assessment, with the evidence behind it, plus CSV, JSON and STIX 2.1 exports "
+     "and read-only links that expire."),
+]  # fmt: skip
+
+
 def landing_seo() -> Seo:
     base = get_settings().public_base_url.rstrip("/")
     return Seo(
-        title="unmask: self-hosted OSINT investigation platform",
+        title=f"{brand.NAME}: {brand.DESCRIPTOR} | {brand.TAGLINE}",
         description=SITE_DESCRIPTION,
         path="/",
         indexable=True,
@@ -47,7 +73,7 @@ def landing_seo() -> Seo:
             {
                 "@context": "https://schema.org",
                 "@type": "SoftwareApplication",
-                "name": "unmask",
+                "name": brand.NAME,
                 "applicationCategory": "SecurityApplication",
                 "operatingSystem": "Linux, Docker",
                 "description": SITE_DESCRIPTION,
@@ -66,8 +92,15 @@ def landing_seo() -> Seo:
             },
             {
                 "@context": "https://schema.org",
+                "@type": "FAQPage",
+                "mainEntity": [
+                    {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in FAQ
+                ],
+            },
+            {
+                "@context": "https://schema.org",
                 "@type": "WebSite",
-                "name": "unmask",
+                "name": brand.NAME,
                 "url": base + "/",
             },
         ],
@@ -75,8 +108,12 @@ def landing_seo() -> Seo:
 
 
 def render_landing(request: Request):
-    tools = _tool_sentence(available_tool_labels())
-    return render(request, "public/landing.html", {"seo": landing_seo(), "tools_sentence": tools})
+    labels = available_tool_labels()
+    return render(
+        request,
+        "public/landing.html",
+        {"seo": landing_seo(), "tools_sentence": _tool_sentence(labels), "tool_labels": labels, "faq": FAQ},
+    )
 
 
 @router.get("/robots.txt", response_class=PlainTextResponse, include_in_schema=False)
@@ -120,13 +157,13 @@ async def sitemap() -> Response:
 async def manifest() -> JSONResponse:
     return JSONResponse(
         {
-            "name": "unmask",
-            "short_name": "unmask",
+            "name": brand.NAME,
+            "short_name": brand.NAME,
             "description": SITE_DESCRIPTION,
             "start_url": "/",
             "display": "standalone",
-            "background_color": "#0e0f11",
-            "theme_color": "#0e0f11",
+            "background_color": brand.THEME_DARK,
+            "theme_color": brand.THEME_DARK,
             "icons": [
                 {"src": "/static/img/favicon.svg", "sizes": "any", "type": "image/svg+xml"},
                 {"src": "/static/img/icon-192.png", "sizes": "192x192", "type": "image/png"},
@@ -147,14 +184,14 @@ async def healthz(session: AsyncSession = Depends(get_session)) -> JSONResponse:
 
 LEGAL = {
     "/trust": ("trust.html", "Trust",
-               "How unmask protects the data in your investigations, what leaves the platform, and who is "
+               "How UNMASK protects the data in your investigations, what leaves the platform, and who is "
                "responsible for what."),
     "/terms": ("terms.html", "Terms of Service",
-               "The terms that govern use of unmask, including your responsibilities for lawful, authorised "
+               "The terms that govern use of UNMASK, including your responsibilities for lawful, authorised "
                "investigations."),
-    "/acceptable-use": ("acceptable_use.html", "Acceptable Use Policy", "What unmask may and may never be used for."),
+    "/acceptable-use": ("acceptable_use.html", "Acceptable Use Policy", "What UNMASK may and may never be used for."),
     "/privacy": ("privacy.html", "Privacy Notice",
-                 "How personal data is handled in running unmask, for users and for people who are researched."),
+                 "How personal data is handled in running UNMASK, for users and for people who are researched."),
 }  # fmt: skip
 
 

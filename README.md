@@ -1,12 +1,21 @@
-# unmask
+<p align="center"><img src="app/static/img/icon-192.png" width="72" height="72" alt=""></p>
 
-**Self-hosted OSINT orchestration platform.** unmask runs open-source intelligence tools as
+# UNMASK
+
+**Open-source intelligence platform. Discover. Correlate. Investigate.** UNMASK runs open-source intelligence tools as
 repeatable, audited investigations: automated pivot chains, case management with a full
 audit trail, time-aware diffing between scans, and an open tool-adapter architecture.
 
-> Use unmask only for investigations you are authorized to perform and have a lawful basis
+> Use UNMASK only for investigations you are authorized to perform and have a lawful basis
 > for. Every case records a written authorization note and a lawful-basis confirmation
 > before a single lookup runs.
+
+### Brand
+
+- **Name:** UNMASK (wordmark in capitals). **Descriptor:** Open-source intelligence platform. **Tagline:** Discover. Correlate. Investigate.
+- **Colours:** emerald `#059669` (text and buttons use `#047857` in light mode for contrast), sky `#0EA5E9`, deep slate `#0B1417`, mist `#F6F9F8`.
+- **Type:** Sora (headings and wordmark), Inter (interface), JetBrains Mono (identifiers), all self-hosted under the SIL Open Font License.
+- **Mark:** a shield with mask eye cut-outs, the right eye seeing (`ui.mark` / `ui.lockup` in `app/templates/components/ui.html`; brand strings live in `app/brand.py`).
 
 ---
 

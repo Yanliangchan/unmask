@@ -14,16 +14,16 @@
 {% block doc %}
 <header class="legal-head">
   <p class="legal-kicker">Trust</p>
-  <h1>Trust at unmask</h1>
+  <h1>Trust at UNMASK</h1>
   <p class="legal-meta">Updated {{ L.effective }}</p>
   <div class="legal-summary">
-    <p>unmask handles information about real people, so it is built to make careful use the default: every case records who authorised it and on what basis, every decision and export is logged, identifiers are encrypted at rest, and nothing is kept longer than its retention period. This page describes those controls as they are, including their limits. It is a description, not a warranty: the <a href="/terms">Terms of Service</a> govern.</p>
+    <p>UNMASK handles information about real people, so it is built to make careful use the default: every case records who authorised it and on what basis, every decision and export is logged, identifiers are encrypted at rest, and nothing is kept longer than its retention period. This page describes those controls as they are, including their limits. It is a description, not a warranty: the <a href="/terms">Terms of Service</a> govern.</p>
   </div>
 </header>
 
 <section id="responsibility">
   <h2>Who is responsible for what</h2>
-  <p>unmask is a tool. The organisation that uses it decides who is researched, why, and what happens with the results, and is the controller of that personal data. The operator of this service{% if L.operator_is_named %} ({{ L.operator }}){% endif %} runs the software and its security. Where your organisation self-hosts unmask, it is both.</p>
+  <p>UNMASK is a tool. The organisation that uses it decides who is researched, why, and what happens with the results, and is the controller of that personal data. The operator of this service{% if L.operator_is_named %} ({{ L.operator }}){% endif %} runs the software and its security. Where your organisation self-hosts UNMASK, it is both.</p>
   <div class="table-wrap">
   <table class="legal-table">
     <caption class="visually-hidden">Shared responsibility</caption>
@@ -73,7 +73,7 @@
 
 <section id="third-parties">
   <h2>What leaves the platform</h2>
-  <p>To find anything, unmask must ask other services. When a scan runs, the identifiers in the case (a username, email address, name, domain, phone number or IP address) are sent to some or all of:</p>
+  <p>To find anything, UNMASK must ask other services. When a scan runs, the identifiers in the case (a username, email address, name, domain, phone number or IP address) are sent to some or all of:</p>
   <ul class="legal-list">
     <li>websites whose sign-up, profile or recovery pages are checked to see whether an account exists (via open-source tools such as Sherlock, Maigret and Holehe);</li>
     <li>web search providers configured by the operator (for example Serper, SerpAPI, Google Programmable Search, Brave Search or DuckDuckGo);</li>
@@ -83,7 +83,7 @@
     <li>domain registration, archive, certificate transparency and DNS sources (for example RDAP, the Internet Archive, crt.sh, VirusTotal, SecurityTrails, theHarvester, Amass and SpiderFoot); and</li>
     <li>any outbound proxy the operator has configured, which carries that traffic.</li>
   </ul>
-  <p>Those services receive the identifier and the server's (or proxy's) network address, under their own terms and privacy policies. Some may log the request, and a site could in principle notice that an account was looked up. Decide whether that is acceptable for each case before you scan. The data is otherwise hosted by the hosting provider the operator has chosen; unmask sends no analytics or telemetry anywhere.</p>
+  <p>Those services receive the identifier and the server's (or proxy's) network address, under their own terms and privacy policies. Some may log the request, and a site could in principle notice that an account was looked up. Decide whether that is acceptable for each case before you scan. The data is otherwise hosted by the hosting provider the operator has chosen; UNMASK sends no analytics or telemetry anywhere.</p>
 </section>
 
 <section id="retention">
@@ -102,7 +102,7 @@
   <ul class="legal-list">
     <li>Scores are estimates. A common name or handle can match many people, and sites change in ways that make their pages look like profiles when they aren't. Verify before you rely on anything.</li>
     <li>Some sites block requests from cloud servers, so results can be incomplete; the app reports which tools failed rather than showing an empty result as "nothing found".</li>
-    <li>Data you export or download leaves unmask's controls. Its security and deletion are then your responsibility.</li>
+    <li>Data you export or download leaves UNMASK's controls. Its security and deletion are then your responsibility.</li>
     <li>The address check on page snapshots resolves names before fetching; a hostile site could in theory change its DNS between the check and the fetch. Routing fetches through a proxy moves that resolution off the server.</li>
     <li>Encryption at rest protects the database and its backups. It does not protect against someone who has signed in with a valid account, which is why access control, the audit log and your account security matter.</li>
   </ul>

@@ -7,14 +7,14 @@
   <meta name="description" content="{{ seo.description }}">
   <meta name="robots" content="{{ seo.robots }}">
   <link rel="canonical" href="{{ seo.canonical }}">
-  <meta name="application-name" content="unmask">
-  <meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0e0f11" media="(prefers-color-scheme: dark)">
+  <meta name="application-name" content="{{ brand.NAME }}">
+  <meta name="theme-color" content="{{ brand.THEME_LIGHT }}" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="{{ brand.THEME_DARK }}" media="(prefers-color-scheme: dark)">
   <meta name="color-scheme" content="light dark">
   <meta name="referrer" content="no-referrer">
   <meta name="htmx-config" content='{"includeIndicatorStyles": false, "defaultSwapStyle": "innerHTML"}'>
 
-  <meta property="og:site_name" content="unmask">
+  <meta property="og:site_name" content="{{ brand.NAME }}">
   <meta property="og:type" content="{{ seo.og_type }}">
   <meta property="og:title" content="{{ seo.full_title }}">
   <meta property="og:description" content="{{ seo.description }}">
@@ -23,17 +23,19 @@
   <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="The unmask case workspace">
+  <meta property="og:image:alt" content="The UNMASK case workspace">
   <meta property="og:locale" content="en_US">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{{ seo.full_title }}">
   <meta name="twitter:description" content="{{ seo.description }}">
   <meta name="twitter:image" content="{{ settings.public_base_url.rstrip('/') }}/static/img/og-image.png">
-  <meta name="twitter:image:alt" content="The unmask case workspace">
+  <meta name="twitter:image:alt" content="The UNMASK case workspace">
 
   <link rel="icon" href="{{ static_url('img/favicon.svg') }}" type="image/svg+xml">
   <link rel="apple-touch-icon" href="{{ static_url('img/apple-touch-icon.png') }}">
   <link rel="manifest" href="/site.webmanifest">
+  <link rel="preload" href="{{ static_url('fonts/inter-latin-wght-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{{ static_url('fonts/sora-latin-600-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{{ static_url('css/app.css') }}">
   {{ seo.json_ld_markup }}
   <script src="{{ static_url('js/vendor/htmx.min.js') }}" defer></script>
@@ -47,11 +49,11 @@
   <div class="shell">
     <header class="mobilebar">
       <button class="btn btn-ghost btn-sm btn-icon" type="button" data-nav-toggle aria-controls="sidebar" aria-expanded="false" aria-label="Menu">{{ ui.icon("menu") }}</button>
-      <a class="brand" href="/" aria-label="unmask home">{{ ui.icon("logo", "icon") }}<span>unmask</span></a>
+      <a class="brand" href="/" aria-label="{{ brand.NAME }} home">{{ ui.lockup("g-mobile") }}</a>
       <button class="btn btn-ghost btn-sm btn-icon" type="button" data-palette-open aria-label="Search">{{ ui.icon("search") }}</button>
     </header>
     <aside class="sidebar" id="sidebar" aria-label="Main">
-      <a class="brand" href="/" aria-label="unmask home">{{ ui.icon("logo", "icon") }}<span>unmask</span></a>
+      <a class="brand" href="/" aria-label="{{ brand.NAME }} home">{{ ui.lockup("g-side") }}</a>
       <button class="palette-trigger" type="button" data-palette-open>
         {{ ui.icon("search") }}<span>Search…</span><kbd data-mod-key>Ctrl K</kbd>
       </button>
@@ -110,17 +112,19 @@
     </dl>
   </dialog>
   {% else %}
+  {% block topbar %}
   <header class="topbar">
-    <a class="brand" href="/" aria-label="unmask home">{{ ui.icon("logo", "icon") }}<span>unmask</span></a>
+    <a class="brand" href="/" aria-label="{{ brand.NAME }} home">{{ ui.lockup("g-top") }}</a>
     <div class="nav"></div>
     {% if request.url.path != '/login' %}<a class="btn btn-sm" href="/login">Sign in</a>{% endif %}
   </header>
+  {% endblock %}
   <main id="main" class="{{ self.main_class() }}">
     {{ self.content() }}
   </main>
   {% block footer %}
   <footer class="footer">
-    <span>unmask is for authorized investigations with a documented lawful basis.</span>
+    <span>UNMASK is for authorized investigations with a documented lawful basis.</span>
     <nav class="footer-links" aria-label="Legal and trust"><a href="/trust">Trust</a><a href="/terms">Terms</a><a href="/acceptable-use">Acceptable use</a><a href="/privacy">Privacy</a></nav>
   </footer>
   {% endblock %}
