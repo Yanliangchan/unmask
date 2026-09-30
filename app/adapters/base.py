@@ -179,6 +179,29 @@ async def run_tool_subprocess(
     files matching the ``collect`` globs are read back afterwards.
     """
     timeout = timeout or get_settings().tool_timeout_seconds
+    # Waiting for a slot doesn't count against the tool's timeout.
+    async with _process_slot():
+        return await _run_tool_process(argv, timeout, tool, files_in, collect)
+
+
+# Command-line tools are whole processes (a Python interpreter plus the tool's
+# site data, 50-500 MB each); running every one at once is what makes a scan's
+# memory spike. Semaphores are per event loop: each RQ job runs its own loop.
+_slots: dict[int, tuple[int, asyncio.Semaphore]] = {}
+
+
+def _process_slot() -> asyncio.Semaphore:
+    key = id(asyncio.get_running_loop())
+    limit = max(1, get_settings().tool_processes)
+    held = _slots.get(key)
+    if held is None or held[0] != limit:
+        if len(_slots) > 16:
+            _slots.clear()
+        held = _slots[key] = (limit, asyncio.Semaphore(limit))
+    return held[1]
+
+
+async def _run_tool_process(argv, timeout, tool, files_in, collect) -> ProcessResult:  # noqa: ASYNC109
     with tempfile.TemporaryDirectory(prefix="unmask-tool-") as workdir:
         await asyncio.to_thread(_write_inputs, workdir, files_in or {})
         env = {

@@ -37,7 +37,10 @@ RUN useradd --system --create-home --uid 10001 unmask
 COPY --chown=unmask:unmask . .
 USER unmask
 
+# MALLOC_ARENA_MAX: glibc otherwise keeps a heap arena per thread, and pages freed
+# in one are never reused by another; two arenas keep resident memory flat.
 ENV UNMASK_ENV=production \
+    MALLOC_ARENA_MAX=2 \
     UNMASK_QUEUE=rq \
     UNMASK_EMBEDDING_CACHE=/opt/models \
     HF_HUB_OFFLINE=1 \

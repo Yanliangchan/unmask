@@ -19,6 +19,7 @@ explanation, for an analyst to accept (merge) or dismiss. Analyst decisions
 
 from __future__ import annotations
 
+import inspect
 import itertools
 import json
 import re
@@ -32,7 +33,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.correlation import normalize as norm
-from app.correlation.embeddings import cosine, get_embedder
+from app.correlation.embeddings import EmbeddingError, cosine, get_embedder
 from app.correlation.scoring import Evidence, score, tag_match_score
 from app.models import Entity, EntityObservation, Relation, Target
 
@@ -421,9 +422,15 @@ async def correlate_case(session: AsyncSession, case_id: uuid.UUID, *, semantic:
         result.pass2 = f"ran with {embedder.name}; nothing to compare"
     else:
         threshold = get_settings().embedding_threshold
-        vectors = embedder.embed([e.value for e in candidates])
+        try:
+            vectors = embedder.embed([e.value for e in candidates])
+            if inspect.isawaitable(vectors):
+                vectors = await vectors
+        except EmbeddingError as exc:
+            vectors = None
+            result.pass2 = f"skipped ({exc})"
         found = 0
-        for (i, a), (j, b) in itertools.combinations(enumerate(candidates), 2):
+        for (i, a), (j, b) in itertools.combinations(enumerate(candidates), 2) if vectors else ():
             if graph.blocked(a.id, b.id) or graph.has(a.id, b.id, *CORROBORATING):
                 continue
             if a.type != b.type:
@@ -438,7 +445,8 @@ async def correlate_case(session: AsyncSession, case_id: uuid.UUID, *, semantic:
             if _link(session, graph, case_id, a, b, POSSIBLE_SAME, why, round(sim, 4)):
                 found += 1
         result.suggested += found
-        result.pass2 = f"ran with {embedder.name}; {found} suggestion(s)"
+        if vectors is not None:
+            result.pass2 = f"ran with {embedder.name}; {found} suggestion(s)"
 
     await session.flush()
     result.rescored = await rescore_case(session, case_id)

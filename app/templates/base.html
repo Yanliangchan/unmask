@@ -61,7 +61,7 @@
         {% block nav %}
         <a href="/" {% if path == '/' or (path.startswith('/cases/') and path != '/cases/new') %}aria-current="page"{% endif %}>{{ ui.icon("inbox") }}Home</a>
         <a href="/cases/new" {% if path == '/cases/new' %}aria-current="page"{% endif %}>{{ ui.icon("plus") }}New case</a>
-        <a href="/notifications" {% if path == '/notifications' %}aria-current="page"{% endif %}>{{ ui.icon("bell") }}Notifications<span class="nav-badge-slot" hx-get="/notifications/badge" hx-trigger="load, every 60s, scan-finished from:body" hx-swap="innerHTML"></span></a>
+        <a href="/notifications" {% if path == '/notifications' %}aria-current="page"{% endif %}>{{ ui.icon("bell") }}Notifications<span class="nav-badge-slot" hx-get="/notifications/badge" hx-trigger="load, every 60s, scan-finished from:body, tab-visible from:body" data-poll hx-swap="innerHTML"></span></a>
         <a href="/tools" {% if path == '/tools' %}aria-current="page"{% endif %}>{{ ui.icon("tool") }}Tools &amp; accuracy</a>
         <a href="/integrations" {% if path == '/integrations' %}aria-current="page"{% endif %}>{{ ui.icon("link") }}Integrations</a>
         {% endblock %}

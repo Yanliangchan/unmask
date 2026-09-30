@@ -32,6 +32,8 @@ log = logging.getLogger(__name__)
 FREQUENCY_DAYS = {"weekly": 7, "monthly": 30}
 PURGE_WARNING_DAYS = 7
 _rng = random.SystemRandom()
+# True while the inline loop is inside tick(), so the idle monitor waits for it.
+ticking = False
 
 
 def next_watch_run(frequency: str, after: datetime) -> datetime:
@@ -205,12 +207,16 @@ def _redis_lock():
 
 async def run_forever() -> None:
     """Tick loop for the inline backend (runs inside the web process)."""
+    global ticking
     interval = get_settings().scheduler_interval_seconds
     while True:
+        ticking = True
         try:
             await tick()
         except Exception:
             log.exception("scheduler tick failed")
+        finally:
+            ticking = False
         await asyncio.sleep(interval)
 
 

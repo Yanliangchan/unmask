@@ -26,7 +26,9 @@ def _current() -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
         key = 0
     pair = _engines.get(key)
     if pair is None:
-        engine = create_async_engine(get_settings().database_url, pool_pre_ping=True)
+        # Idle connections are recycled rather than held open indefinitely (the
+        # idle monitor also closes them all when nobody is using the app).
+        engine = create_async_engine(get_settings().database_url, pool_pre_ping=True, pool_recycle=300)
         pair = _engines[key] = (engine, async_sessionmaker(engine, expire_on_commit=False))
     return pair
 

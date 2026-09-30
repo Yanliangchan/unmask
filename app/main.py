@@ -62,6 +62,9 @@ CSP = "; ".join(
 )
 
 
+_NO_KEYS_PATHS = frozenset({"/healthz", "/notifications/badge", "/robots.txt", "/favicon.ico"})
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
@@ -81,15 +84,27 @@ async def lifespan(app: FastAPI):
             interrupted = await fail_interrupted_runs(session)
         if interrupted:
             log.warning("marked %d interrupted scan run(s) as failed", interrupted)
+    from app import idle
+    from app.memory import trim
+
     scheduler = None
     if settings.scheduler_enabled and settings.queue_backend != "rq":
         # With RQ the worker runs the scheduler; inline, the web process does.
-        from app.scheduler import run_forever
-
-        scheduler = asyncio.create_task(run_forever(), name="unmask-scheduler")
+        from app.scheduler import run_forever as scheduler
+    # The idle monitor owns the scheduler loop: it stops it (and closes database
+    # connections) when nobody is using the app, and restarts it on the next request.
+    idle.monitor = idle.IdleMonitor(settings.idle_seconds, scheduler) if settings.idle_seconds > 0 else None
+    if idle.monitor is not None:
+        idle.monitor.start()
+    elif scheduler is not None:
+        scheduler_task = asyncio.create_task(scheduler(), name="unmask-scheduler")
+    trim()  # startup work (migrations check, config sync) leaves garbage behind
     yield
-    if scheduler is not None:
-        scheduler.cancel()
+    if idle.monitor is not None:
+        await idle.monitor.stop()
+        idle.monitor = None
+    elif scheduler is not None:
+        scheduler_task.cancel()
     await dispose_engine()
 
 
@@ -109,11 +124,26 @@ def create_app() -> FastAPI:
     @app.middleware("http")
     async def integration_keys(request: Request, call_next):
         # Keys entered in another process (or another replica) reach this one within a minute.
-        if not request.url.path.startswith("/static"):
+        # Static files, health checks and the badge poll never need them.
+        path = request.url.path
+        if not (path.startswith("/static") or path in _NO_KEYS_PATHS):
             from app.integrations import refresh as refresh_integrations
 
             await refresh_integrations()
         return await call_next(request)
+
+    @app.middleware("http")
+    async def idle_tracking(request: Request, call_next):
+        from app import idle
+
+        mon = idle.monitor
+        if mon is None:
+            return await call_next(request)
+        mon.request_started()
+        try:
+            return await call_next(request)
+        finally:
+            mon.request_finished()
 
     @app.middleware("http")
     async def security_headers(request: Request, call_next):

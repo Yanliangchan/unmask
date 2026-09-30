@@ -18,4 +18,5 @@ exec uvicorn app.main:app \
   --port "${PORT:-8000}" \
   --workers "${WEB_CONCURRENCY:-1}" \
   --proxy-headers \
+  --timeout-keep-alive 5 \
   --forwarded-allow-ips "${FORWARDED_ALLOW_IPS:-*}"

@@ -5,7 +5,7 @@
 {% set split = notes | run_issues %}
 {% set issues = split.tools + split.other %}
 <div id="scan-status" class="runline" role="status" aria-live="polite" data-active="{{ 1 if active else 0 }}"
-     {% if active %}hx-get="/cases/{{ case.id }}/scan-status?was_running=1&amp;seen={{ run.jobs_done }}" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+     {% if active %}hx-get="/cases/{{ case.id }}/scan-status?was_running=1&amp;seen={{ run.jobs_done }}" hx-trigger="every 2s, tab-visible from:body" data-poll hx-swap="outerHTML"{% endif %}>
   {{ ui.run_status(run.status) }}
   <span>
     Scan {{ run.run_number }}{% if run.triggered_by == 'pivot_chain' %} (automatic follow-up){% elif run.triggered_by == 'watch_mode' %} (watch mode){% endif %}

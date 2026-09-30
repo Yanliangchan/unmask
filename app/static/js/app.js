@@ -630,6 +630,15 @@
     else if (key === "r") { var rv = document.querySelector("[data-review-link]"); if (rv) window.location.href = rv.getAttribute("href"); }
   });
 
+  // Polling ([data-poll]) pauses while the tab is hidden, so a forgotten tab
+  // doesn't keep the server busy; it catches up once when the tab is shown again.
+  document.addEventListener("htmx:beforeRequest", function (e) {
+    if (document.hidden && e.detail.elt.hasAttribute("data-poll")) e.preventDefault();
+  });
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) htmx.trigger(document.body, "tab-visible");
+  });
+
   document.addEventListener("DOMContentLoaded", function () { init(document); syncRunButton(); });
   document.addEventListener("htmx:load", function (e) { init(e.detail.elt); });
   document.addEventListener("htmx:afterSettle", syncRunButton);

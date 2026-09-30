@@ -54,6 +54,11 @@ async def _execute(run_id: uuid.UUID) -> None:
     except Exception as exc:
         log.exception("scan %s crashed", run_id)
         await mark_run_crashed(run_id, f"{exc.__class__.__name__}: {exc}")
+    finally:
+        # A scan leaves freed heap behind (parsed tool output, ORM rows): hand it back.
+        from app.memory import trim
+
+        trim()
 
 
 def enqueue_scan(run_id: uuid.UUID, triggered_by: str = "manual") -> str:

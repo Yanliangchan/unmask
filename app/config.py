@@ -112,6 +112,13 @@ class Settings(BaseSettings):
         default="gmail.com,outlook.com,yahoo.com,proton.me", alias="UNMASK_PIVOT_EMAIL_PROVIDERS"
     )
 
+    # Memory. Command-line tools (maigret, sherlock, ...) are separate processes of
+    # 50-500 MB each; at most this many run at once, the rest queue. HTTP tools
+    # are unaffected. After UNMASK_IDLE_SECONDS without requests or scans the web
+    # process stops its timers and closes database connections (see app/idle.py).
+    tool_processes: int = Field(default=3, alias="UNMASK_TOOL_PROCS")
+    idle_seconds: int = Field(default=300, alias="UNMASK_IDLE_SECONDS")
+
     # Scheduler: watch mode, retention purges and periodic health checks.
     # Runs in the RQ worker (or in the web process with UNMASK_QUEUE=inline).
     scheduler_enabled: bool = Field(default=True, alias="UNMASK_SCHEDULER")

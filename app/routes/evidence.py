@@ -11,6 +11,7 @@ from fastapi.responses import HTMLResponse, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from starlette.background import BackgroundTask
 
 from app import safefetch
 from app.audit import log_access
@@ -154,10 +155,15 @@ async def export_case(
     log_access(session, "export_data", user_id=user.id, case_id=case.id, ip=client_ip(request), format=fmt, scope=scope)
     await session.commit()
     stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M")
+    data = body.encode("utf-8")
+    del body  # keep one copy of a large export, not two
+    from app.memory import trim
+
     return Response(
-        body.encode("utf-8"),
+        data,
         media_type=FORMATS[fmt],
         headers={"Content-Disposition": f'attachment; filename="unmask-case-{case.id}-{stamp}.{ext}"'},
+        background=BackgroundTask(trim),  # once sent, hand the buffers back
     )
 
 
