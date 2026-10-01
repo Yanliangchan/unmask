@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, undefer
 from starlette.background import BackgroundTask
 
 from app import safefetch
@@ -65,7 +65,11 @@ async def take_snapshot(
 
 
 async def _snapshot(session: AsyncSession, case: Investigation, snapshot_id: uuid.UUID) -> Snapshot:
-    snap = await session.scalar(select(Snapshot).where(Snapshot.id == snapshot_id, Snapshot.case_id == case.id))
+    snap = await session.scalar(
+        select(Snapshot)
+        .where(Snapshot.id == snapshot_id, Snapshot.case_id == case.id)
+        .options(undefer(Snapshot.body_b64))
+    )
     if snap is None:
         raise HTTPException(status_code=404, detail="Snapshot not found")
     return snap

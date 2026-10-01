@@ -109,7 +109,11 @@ async def _start_watch_scans(session: AsyncSession, now: datetime, limit: int) -
     from app.services.scans import create_scan_run
 
     due = []
-    for case in (await session.scalars(select(Investigation).where(Investigation.is_sample.is_(False)))).all():
+    # Only cases with watch mode on are loaded; the rest never leave the database.
+    watching = select(Investigation).where(
+        Investigation.is_sample.is_(False), Investigation.watch_config["enabled"].as_boolean().is_(True)
+    )
+    for case in (await session.scalars(watching)).all():
         state = watch_state(case)
         if state["enabled"] and state["next_run_at"] and state["next_run_at"] <= now:
             due.append(case)
@@ -141,9 +145,20 @@ async def _purge_expired(session: AsyncSession, now: datetime) -> int:
 
     purged = 0
     last_scans = await last_scan_times(session)
-    for case in (await session.scalars(select(Investigation))).all():
-        when = purge_date_from(case, last_scans.get(case.id))
-        if when is None or when > now:
+    # Just the three columns the deadline needs; full rows only for cases that are actually due.
+    rows = (
+        await session.execute(
+            select(Investigation.id, Investigation.created_at, Investigation.retention_days).where(
+                Investigation.permanently_active.is_(False)
+            )
+        )
+    ).all()
+    for case_id, created_at, retention_days in rows:
+        start = max(t for t in (created_at, last_scans.get(case_id)) if t is not None)
+        if start + timedelta(days=retention_days) > now:
+            continue
+        case = await session.get(Investigation, case_id)
+        if case is None:
             continue
         active = await session.scalar(
             select(ScanRun.id).where(ScanRun.case_id == case.id, ScanRun.status.in_(("queued", "running"))).limit(1)
