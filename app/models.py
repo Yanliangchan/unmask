@@ -27,7 +27,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, deferred, mapped_column, relationship
 
 from app import crypto
 from app.db import Base
@@ -409,7 +409,8 @@ class Snapshot(Base):
     size: Mapped[int] = mapped_column(Integer, nullable=False)
     truncated: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     title: Mapped[str | None] = mapped_column(EncryptedText)
-    body_b64: Mapped[str] = mapped_column(EncryptedText, nullable=False)
+    # Can be megabytes: not loaded (or decrypted) unless asked for with undefer(). Lists and exports skip it.
+    body_b64: Mapped[str] = deferred(mapped_column(EncryptedText, nullable=False))
     captured_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = _now()
 
