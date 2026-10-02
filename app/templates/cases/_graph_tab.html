@@ -1,29 +1,57 @@
 {% import "components/ui.html" as ui %}
 <div class="graph-tab" data-graph="/cases/{{ case.id }}/graph.json" data-case="{{ case.id }}" data-case-name="{{ case.name }}">
-  <div class="graph-toolbar" role="toolbar" aria-label="Graph filters">
-    <label class="check"><input type="checkbox" data-graph-filter="confirmed"><span>Confirmed only</span></label>
-    <label class="check"><input type="checkbox" data-graph-filter="pivot"><span>Found by pivots</span></label>
-    <label class="check"><input type="checkbox" data-graph-filter="suggested" checked><span>Possible duplicates</span></label>
-    <label class="check" title="Select a node to show only it and its direct links; select more nodes to expand"><input type="checkbox" data-graph-focus><span>Focus mode</span></label>
-    <button class="btn btn-sm" type="button" data-graph-unfocus hidden>Show everything</button>
-    <button class="btn btn-ghost btn-sm" type="button" data-graph-reset>Reset view</button>
-    <button class="btn btn-ghost btn-sm" type="button" data-graph-png>{{ ui.icon("download") }}PNG</button>
-    <span class="graph-stats" data-graph-stats aria-live="polite"></span>
+  <div class="graph-toolbar" role="toolbar" aria-label="Graph controls">
+    <div class="graph-search">
+      {{ ui.icon("search") }}
+      <label class="visually-hidden" for="graph-find">Find in graph</label>
+      <input id="graph-find" type="search" list="graph-find-list" placeholder="Find a finding…" autocomplete="off" data-graph-find>
+      <datalist id="graph-find-list"></datalist>
+    </div>
+    <div class="seg" role="group" aria-label="Layout">
+      <button type="button" class="seg-btn" data-graph-layout="radial" aria-pressed="true" title="The subject in the middle, stronger findings closer">Radial</button>
+      <button type="button" class="seg-btn" data-graph-layout="force" aria-pressed="false" title="Connected findings pulled together">Force</button>
+    </div>
+    <div class="graph-filters" role="group" aria-label="Filters">
+      <label class="chip-toggle"><input type="checkbox" data-graph-filter="confirmed"><span>Confirmed only</span></label>
+      <label class="chip-toggle"><input type="checkbox" data-graph-filter="weak"><span>Hide weak</span></label>
+      <label class="chip-toggle"><input type="checkbox" data-graph-filter="pivot"><span>Pivots only</span></label>
+      <label class="chip-toggle"><input type="checkbox" data-graph-filter="suggested" checked><span>Possible duplicates</span></label>
+      <label class="chip-toggle" title="Select a node to show only it and its direct links; select more nodes to expand"><input type="checkbox" data-graph-focus><span>Focus</span></label>
+    </div>
+    <div class="graph-tools">
+      <button class="btn btn-sm" type="button" data-graph-unfocus hidden>Show everything</button>
+      <button class="btn btn-ghost btn-sm btn-icon" type="button" data-graph-zoom="out" aria-label="Zoom out" title="Zoom out">−</button>
+      <button class="btn btn-ghost btn-sm btn-icon" type="button" data-graph-zoom="in" aria-label="Zoom in" title="Zoom in">+</button>
+      <button class="btn btn-ghost btn-sm" type="button" data-graph-reset title="Fit everything and clear filters">Fit</button>
+      <button class="btn btn-ghost btn-sm" type="button" data-graph-png>{{ ui.icon("download") }}PNG</button>
+    </div>
   </div>
+  <p class="graph-stats" data-graph-stats aria-live="polite"></p>
   <div class="graph-wrap">
-    <div class="graph-canvas" id="cy" role="img" aria-label="Entities as nodes, sized by how connected they are and coloured and shaped by type, joined by their links. The Entities tab lists the same data."></div>
-    <aside class="graph-panel" data-graph-panel hidden aria-label="Selected entity">
+    <div class="graph-canvas" id="cy" role="img" aria-label="Findings as nodes around the subject, coloured and shaped by type, sized by score, joined by their links. The Entities tab lists the same data."></div>
+    <div class="graph-tip" data-graph-tip hidden></div>
+    <aside class="graph-panel" data-graph-panel hidden aria-label="Selected finding">
       <div class="graph-panel-head">
-        <strong class="ident" data-graph-panel-title></strong>
-        <button class="btn btn-ghost btn-sm btn-icon" type="button" data-graph-panel-close aria-label="Close">&times;</button>
+        <span class="faint small" data-graph-panel-title></span>
+        <button class="btn btn-ghost btn-sm btn-icon" type="button" data-graph-panel-close aria-label="Close">{{ ui.icon("x") }}</button>
       </div>
       <div id="graph-panel-body" class="graph-panel-body"></div>
     </aside>
+    <details class="graph-legend">
+      <summary>Legend</summary>
+      <ul class="legend-types" data-graph-legend role="list"></ul>
+      <ul class="legend-keys" role="list">
+        <li><span class="lk lk-node lk-target" aria-hidden="true"></span>Target</li>
+        <li><span class="lk lk-node lk-confirmed" aria-hidden="true"></span>Confirmed</li>
+        <li><span class="lk lk-node lk-possible" aria-hidden="true"></span>Possible</li>
+        <li><span class="lk lk-node lk-faded" aria-hidden="true"></span>Weak or unchecked</li>
+        <li><span class="lk lk-edge lk-strong" aria-hidden="true"></span>Evidence link</li>
+        <li><span class="lk lk-edge" aria-hidden="true"></span>Found from</li>
+        <li><span class="lk lk-edge lk-suggested" aria-hidden="true"></span>Possible duplicate</li>
+      </ul>
+      <p class="faint small">Bigger means a higher score. Hover a node to see what it connects to.</p>
+    </details>
   </div>
-  <aside class="graph-legend" aria-label="Legend">
-    <ul data-graph-legend role="list"></ul>
-    <p>Bigger means more connected. Green ring: confirmed. Double ring: target. Dashed ring: found by a pivot. Dashed amber line: possible duplicate.</p>
-  </aside>
   <noscript><p class="muted">The graph needs JavaScript. The Entities tab shows the same data.</p></noscript>
 </div>
 <script src="{{ static_url('js/graph.js') }}" data-cytoscape="{{ static_url('js/vendor/cytoscape.min.js') }}"></script>

@@ -30,7 +30,14 @@ from app.services.cases import (
     parse_tags,
     visible_case_ids,
 )
-from app.services.entities import SHOW_MODES, EntityFilters, entity_detail, list_entities, list_entities_view
+from app.services.entities import (
+    SHOW_MODES,
+    EntityFilters,
+    entity_detail,
+    entity_evidence,
+    list_entities,
+    list_entities_view,
+)
 from app.services.graph import case_graph
 from app.services.scans import cancel_scan_run, create_scan_run
 from app.services.summary import case_summary
@@ -389,7 +396,13 @@ async def entity_detail_partial(
     detail = await entity_detail(session, case.id, entity_id)
     if detail is None:
         raise HTTPException(status_code=404, detail="Entity not found")
-    return render(request, "cases/_entity_detail.html", {"case": case, "d": detail, "entity": detail.entity})
+    ctx = {"case": case, "d": detail, "entity": detail.entity, "ev": await entity_evidence(session, case.id, detail)}
+    if request.query_params.get("panel") == "1":
+        # The graph's side panel: the evidence and the decision buttons, nothing else.
+        from app.services.accuracy import DISMISS_REASONS
+
+        return render(request, "cases/_graph_panel.html", {**ctx, "reasons": DISMISS_REASONS})
+    return render(request, "cases/_entity_detail.html", ctx)
 
 
 @router.post("/cases/{case_id}/entities/{entity_id}/confirm", dependencies=[Depends(verify_csrf)])
@@ -536,4 +549,4 @@ async def graph_json(
     user: User = Depends(current_user),
 ):
     case = await get_case_for_user(session, case_id, user)
-    return JSONResponse(await case_graph(session, case.id))
+    return JSONResponse(await case_graph(session, case.id, include_all=request.query_params.get("all") == "1"))

@@ -165,7 +165,13 @@ async def persist_candidates(
             created += 1
         else:
             entity.last_verified = now
-            entity.attributes = {**(entity.attributes or {}), **cand.attributes}
+            incoming = dict(cand.attributes)
+            if entity.verification == "verified" and incoming.get("verification") != "verified":
+                # A later blocked or failed check proves nothing: keep the evidence the good check stored.
+                for key in ("preview", "verification_reason"):
+                    if key in (entity.attributes or {}):
+                        incoming.pop(key, None)
+            entity.attributes = {**(entity.attributes or {}), **incoming}
             # Keep the most reliable source class that has reported this value.
             entity.source_reliability = min(entity.source_reliability, cand.source_reliability)
             # A page that verified once stays verified; a later blocked fetch doesn't undo it.
@@ -244,6 +250,43 @@ async def _record_job_outcome(
         await send_alert(f"circuit breaker opened: {tool} disabled after {tripped} consecutive failures")
 
 
+async def _recent_checks(case_id: uuid.UUID, candidates: list[EntityCandidate]) -> dict[str, dict]:
+    """Stored attributes of accounts in this case whose page was checked recently, by URL.
+
+    Those pages are not fetched again on a rescan: the stored check stands
+    until it is ``UNMASK_REVERIFY_DAYS`` old.
+    """
+    days = get_settings().reverify_days
+    by_digest = {crypto.digest(c.type, c.value): c.attributes["url"]
+                 for c in candidates if c.type == "account" and c.attributes.get("url")}  # fmt: skip
+    if days <= 0 or not by_digest:
+        return {}
+    cutoff = datetime.now(UTC) - timedelta(days=days)
+    async with sessionmaker()() as session:
+        rows = (
+            await session.scalars(
+                select(Entity).where(
+                    Entity.case_id == case_id,
+                    Entity.type == "account",
+                    Entity.verification == "verified",
+                    Entity.value_digest.in_(list(by_digest)),
+                )
+            )
+        ).all()
+    known: dict[str, dict] = {}
+    for e in rows:
+        attrs = e.attributes or {}
+        checked = (attrs.get("preview") or {}).get("checked_at")
+        try:
+            checked_at = datetime.fromisoformat(checked) if checked else None
+        except ValueError:
+            checked_at = None
+        # Checks stored before checked_at existed: the first sighting is the best date there is.
+        if (checked_at or e.first_seen) >= cutoff and attrs.get("verification") == "verified":
+            known[by_digest[e.value_digest]] = attrs
+    return known
+
+
 def _record_verification(run: ScanRun, tool: str, stats: VerificationStats) -> None:
     """Add this job's page-check counts to the run's notes (summed per tool)."""
     notes = dict(run.failure_details or {})
@@ -254,7 +297,11 @@ def _record_verification(run: ScanRun, tool: str, stats: VerificationStats) -> N
     reasons = dict(prev["reasons"])
     for k, v in stats.reasons.items():
         reasons[k] = reasons.get(k, 0) + v
-    by_tool[tool] = {"counts": counts, "reasons": dict(sorted(reasons.items(), key=lambda kv: -kv[1])[:5])}
+    sources = dict(prev.get("sources") or {})
+    for k, v in stats.sources.items():
+        sources[k] = sources.get(k, 0) + v
+    by_tool[tool] = {"counts": counts, "reasons": dict(sorted(reasons.items(), key=lambda kv: -kv[1])[:5]),
+                     "sources": sources}  # fmt: skip
     notes["_verification"] = by_tool
     run.failure_details = notes
 
@@ -342,10 +389,11 @@ async def _run_job(
                 continue
             found = [c for raw in raws for c in adapter.parse(raw)]
             if adapter.verify_accounts:
-                found, stats = await verify_candidates(found)
+                found, stats = await verify_candidates(found, await _recent_checks(case_id, found))
                 verification.merge(stats)
                 # One hop only: accounts the verified profiles link to, checked the same way.
-                linked, linked_stats = await verify_candidates(linked_accounts(found))
+                linked = linked_accounts(found)
+                linked, linked_stats = await verify_candidates(linked, await _recent_checks(case_id, linked))
                 verification.merge(linked_stats)
                 found.extend(linked)
             if inp.guessed and found:

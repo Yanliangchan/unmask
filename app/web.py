@@ -208,6 +208,26 @@ def _mentions(text: str) -> Markup:
 templates.env.filters["mentions"] = _mentions
 
 
+def _highlight(text, terms) -> Markup:
+    """Escape ``text`` and wrap each case-insensitive match of ``terms`` in <mark>.
+
+    The text is split on the raw terms first and every piece escaped on its
+    own, so a match can never land inside an HTML entity.
+    """
+    text = str(text or "")
+    words = sorted({str(t) for t in (terms or []) if t and len(str(t)) >= 3}, key=len, reverse=True)[:8]
+    if not words or not text:
+        return escape(text)
+    pattern = re.compile("(" + "|".join(re.escape(w) for w in words) + ")", re.I)
+    out = []
+    for i, part in enumerate(pattern.split(text)):
+        out.append(f"<mark>{escape(part)}</mark>" if i % 2 else str(escape(part)))
+    return Markup("".join(out))  # noqa: S704 — every piece escaped above
+
+
+templates.env.filters["highlight"] = _highlight
+
+
 def _strength(entity) -> tuple[str, str]:
     """Plain-language match strength; the numeric score stays in tooltips and details."""
     from app.services.entities import LIKELY, POSSIBLE

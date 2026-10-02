@@ -1,0 +1,22 @@
+{% import "components/ui.html" as ui %}
+{% set a = entity.attributes %}
+<div class="graph-panel-entity" data-entity="{{ entity.id }}">
+  <p class="faint small">{{ entity.type | replace('_', ' ') | capitalize }}{% if a.get('site') %} on {{ a.site }}{% endif %}{% if entity.source_tool %} · found by {{ entity.source_tool }}{% endif %}</p>
+  <h3 class="graph-panel-value">
+    {% if a.get('url') %}<a href="{{ a.url }}" target="_blank" rel="noopener noreferrer nofollow">{{ entity.value }}{{ ui.icon("external", "icon") }}</a>{% else %}<span class="ident">{{ entity.value }}</span>{% endif %}
+  </h3>
+  {% if not entity.is_seed %}
+  <div class="graph-panel-actions">
+    {% if entity.dismissed_flag %}
+    <span class="flag">Not them</span>
+    <button class="btn btn-sm" type="button" hx-post="/cases/{{ case.id }}/entities/{{ entity.id }}/restore" hx-swap="none">Restore</button>
+    {% else %}
+    <button class="btn btn-sm{% if entity.confirmed_flag %} is-on{% else %} btn-primary{% endif %}" type="button"
+            hx-post="/cases/{{ case.id }}/entities/{{ entity.id }}/confirm?toast=1" hx-swap="none">{{ ui.icon("check") }}{{ "Confirmed" if entity.confirmed_flag else "Same person" }}</button>
+    <button class="btn btn-sm" type="button" hx-post="/cases/{{ case.id }}/entities/{{ entity.id }}/dismiss" hx-vals='{"reason": "different_person"}' hx-swap="none">Not them</button>
+    {% endif %}
+    <a class="btn btn-ghost btn-sm" href="/cases/{{ case.id }}#ent-{{ entity.id }}">All details</a>
+  </div>
+  {% endif %}
+  {% include "cases/_evidence.html" %}
+</div>

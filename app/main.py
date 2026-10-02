@@ -105,6 +105,7 @@ async def lifespan(app: FastAPI):
         idle.monitor = None
     elif scheduler is not None:
         scheduler_task.cancel()
+    await idle.close_network()
     await dispose_engine()
 
 

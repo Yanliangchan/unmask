@@ -21,9 +21,11 @@ from __future__ import annotations
 
 import asyncio
 import html
+import random
 import re
 from collections import Counter
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlparse
 
@@ -46,8 +48,13 @@ BROWSER_HEADERS = {
     "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.8",
 }
-MAX_BYTES = 400_000
+# Enough for the head, the profile header and its links; classification reads the first 60 KB.
+MAX_BYTES = 200_000
 PER_HOST = 2
+EXCERPT_CHARS = 280
+# Transient answers worth one more try; login walls and "not found" pages never are.
+_RETRY_STATUS = {429, 502, 503, 504}
+_MAX_RETRY_AFTER = 5.0
 
 _BOT_WALL = re.compile(
     r"just a moment|attention required|cf-browser-verification|cf-chl-|captcha|are you a robot|"
@@ -92,6 +99,37 @@ class Verdict:
 
 def _fold(text: str) -> str:
     return re.sub(r"[\s._\-]", "", text.casefold())
+
+
+def _visible_text(page: str) -> str:
+    text = _TAGS.sub(" ", _CHROME.sub(" ", page))
+    return re.sub(r"\s+", " ", html.unescape(text)).strip()
+
+
+def _loose(term: str) -> re.Pattern | None:
+    """A pattern for a handle or name that tolerates separators: jane_doe ~ jane.doe ~ Jane Doe."""
+    chars = [c for c in term.casefold() if c.isalnum()]
+    if len(chars) < 3:
+        return None
+    return re.compile(r"[\s._\-]?".join(re.escape(c) for c in chars), re.I)
+
+
+def excerpt(page_text: str, terms: list[str], width: int = EXCERPT_CHARS) -> str:
+    """The stretch of visible text around the first mention of any term, trimmed to whole words."""
+    for term in terms:
+        pattern = _loose(term)
+        m = pattern.search(page_text) if pattern else None
+        if not m:
+            continue
+        start = max(0, m.start() - width // 3)
+        end = min(len(page_text), start + width)
+        snippet = page_text[start:end]
+        if start > 0:
+            snippet = "…" + snippet.split(" ", 1)[-1]
+        if end < len(page_text):
+            snippet = snippet.rsplit(" ", 1)[0] + "…"
+        return snippet
+    return ""
 
 
 def _meta(page: str) -> dict[str, str]:
@@ -214,14 +252,19 @@ def classify(url: str, username: str, status_code: int, final_url: str, page: st
     if _NOT_FOUND.search(title_text):
         return Verdict(REJECTED, "the page says the profile does not exist", preview)
 
-    named = " ".join(preview.get(k, "") for k in ("title", "page_title", "description", "username", "canonical"))
-    if user and user in _fold(named):
+    fields = ("title", "page_title", "description", "username", "canonical")
+    matched = [k for k in fields if user and user in _fold(preview.get(k, ""))]
+    if matched:
         links, emails = extract_links(page, final_url, username)
         if links:
             preview["links"] = links
         if emails:
             preview["emails"] = emails
-        return Verdict(VERIFIED, "profile page names the username", preview)
+        preview["matched_in"] = matched
+        if text := excerpt(_visible_text(head), [username]):
+            preview["excerpt"] = text
+        where = "title" if {"title", "page_title"} & set(matched) else matched[0].replace("_", " ")
+        return Verdict(VERIFIED, f"profile page names the username in its {where}", preview)
     if _LOGIN.search(title_text):
         return Verdict(UNVERIFIED, "login wall: the profile is only visible when signed in", preview)
     visible = _TAGS.sub(" ", head)
@@ -231,72 +274,164 @@ def classify(url: str, username: str, status_code: int, final_url: str, page: st
     if _NOT_FOUND.search(visible[:4000]):
         return Verdict(REJECTED, "the page says the profile does not exist", preview)
     if user and user in _fold(visible):
+        if text := excerpt(_visible_text(head), [username]):
+            preview["excerpt"] = text
+        preview["matched_in"] = ["body"]
         return Verdict(UNVERIFIED, "username appears on the page but not as its subject", preview)
     return Verdict(UNVERIFIED, "the page does not mention the username", preview)
 
 
+def _retry_delay(resp: httpx.Response | None) -> float:
+    if resp is not None:
+        try:
+            return min(_MAX_RETRY_AFTER, max(0.0, float(resp.headers.get("retry-after", ""))))
+        except ValueError:
+            pass
+    return 0.5 + random.random()  # noqa: S311 — jitter, not security
+
+
+async def _fetch_once(client: httpx.AsyncClient, url: str, username: str) -> tuple[Verdict, httpx.Response | None]:
+    async with client.stream("GET", url) as resp:
+        chunks, size = [], 0
+        async for chunk in resp.aiter_bytes():
+            chunks.append(chunk)
+            size += len(chunk)
+            if size >= MAX_BYTES:
+                break
+        body = b"".join(chunks)[:MAX_BYTES].decode(resp.encoding or "utf-8", "replace")
+        verdict = classify(url, username, resp.status_code, str(resp.url), body)
+        verdict.preview["status"] = resp.status_code
+        return verdict, resp
+
+
 async def fetch_and_classify(client: httpx.AsyncClient, url: str, username: str) -> Verdict:
-    try:
-        async with client.stream("GET", url) as resp:
-            chunks, size = [], 0
-            async for chunk in resp.aiter_bytes():
-                chunks.append(chunk)
-                size += len(chunk)
-                if size >= MAX_BYTES:
-                    break
-            body = b"".join(chunks)[:MAX_BYTES].decode(resp.encoding or "utf-8", "replace")
-            return classify(url, username, resp.status_code, str(resp.url), body)
-    except httpx.TooManyRedirects:
-        return Verdict(REJECTED, "redirect loop")
-    except httpx.HTTPError as exc:
-        return Verdict(UNVERIFIED, f"could not load the page ({exc.__class__.__name__})")
+    """Fetch and classify a profile page, with one retry for a timeout, 429 or a 5xx gateway error."""
+    for attempt in (1, 2):
+        try:
+            verdict, resp = await _fetch_once(client, url, username)
+        except httpx.TooManyRedirects:
+            return Verdict(REJECTED, "redirect loop")
+        except (httpx.TimeoutException, httpx.ConnectError, httpx.RemoteProtocolError) as exc:
+            if attempt == 1:
+                await asyncio.sleep(_retry_delay(None))
+                continue
+            return Verdict(UNVERIFIED, f"could not load the page ({exc.__class__.__name__})")
+        except httpx.HTTPError as exc:
+            return Verdict(UNVERIFIED, f"could not load the page ({exc.__class__.__name__})")
+        if attempt == 1 and resp is not None and resp.status_code in _RETRY_STATUS:
+            await asyncio.sleep(_retry_delay(resp))
+            continue
+        return verdict
+    return verdict
+
+
+# One client (connection pool, keep-alive) and one set of per-host limits per
+# event loop, shared by every job: the same hosts come up again and again.
+_clients: dict[tuple, httpx.AsyncClient] = {}
+_host_limits: dict[int, dict[str, asyncio.Semaphore]] = {}
+
+
+def _client() -> httpx.AsyncClient:
+    from app.proxy import proxy_for
+
+    settings = get_settings()
+    proxy = proxy_for("verify") if transport is None else None
+    key = (id(asyncio.get_running_loop()), proxy, transport, settings.verify_timeout_seconds)
+    client = _clients.get(key)
+    if client is None or client.is_closed:
+        client = _clients[key] = httpx.AsyncClient(
+            transport=transport,
+            proxy=proxy,
+            headers=BROWSER_HEADERS,
+            timeout=settings.verify_timeout_seconds,
+            follow_redirects=True,
+            max_redirects=5,
+            limits=httpx.Limits(max_connections=20, max_keepalive_connections=10, keepalive_expiry=30),
+        )
+    return client
+
+
+def _host_limit(host: str) -> asyncio.Semaphore:
+    limits = _host_limits.setdefault(id(asyncio.get_running_loop()), {})
+    if len(limits) > 2048:
+        limits.clear()
+    return limits.setdefault(host, asyncio.Semaphore(PER_HOST))
+
+
+async def close_clients() -> None:
+    """Close the pooled connections of the running loop (idle, shutdown, end of a worker job)."""
+    loop_id = id(asyncio.get_running_loop())
+    for key in [k for k in _clients if k[0] == loop_id]:
+        await _clients.pop(key).aclose()
+    _host_limits.pop(loop_id, None)
 
 
 @dataclass
 class VerificationStats:
     counts: Counter = field(default_factory=Counter)
     reasons: Counter = field(default_factory=Counter)
+    # How each page check was answered: fetched now, from this scan's cache, or from the case.
+    sources: Counter = field(default_factory=Counter)
 
     def merge(self, other: VerificationStats) -> None:
         self.counts.update(other.counts)
         self.reasons.update(other.reasons)
+        self.sources.update(other.sources)
 
     def as_dict(self) -> dict:
-        return {"counts": dict(self.counts), "reasons": dict(self.reasons.most_common(5))}
+        return {"counts": dict(self.counts), "reasons": dict(self.reasons.most_common(5)),
+                "sources": dict(self.sources)}  # fmt: skip
 
 
-async def verify_candidates(candidates: list[EntityCandidate]) -> tuple[list[EntityCandidate], VerificationStats]:
-    """Check each account candidate's page; drop rejected ones, annotate the rest."""
+async def verify_candidates(
+    candidates: list[EntityCandidate], known: dict[str, dict] | None = None
+) -> tuple[list[EntityCandidate], VerificationStats]:
+    """Check each account candidate's page; drop rejected ones, annotate the rest.
+
+    ``known`` maps a URL to the stored attributes of an entity in the case that
+    was verified recently: those pages are not fetched again. Pages checked
+    moments ago (another tool, a pivot run) come from the verdict cache.
+    """
+    from app import pagecache
+
     settings = get_settings()
     stats = VerificationStats()
+    known = known or {}
     accounts = [c for c in candidates if c.type == "account" and c.attributes.get("url")]
     if not settings.verify_accounts or not accounts:
         return candidates, stats
 
     todo = accounts[: settings.verify_max_per_job]
     overall = asyncio.Semaphore(settings.verify_concurrency)
-    per_host: dict[str, asyncio.Semaphore] = {}
+    cache = pagecache.verdicts()
+    client = _client()
     verdicts: dict[int, Verdict] = {}
 
-    from app.proxy import proxy_for
+    async def one(cand: EntityCandidate) -> None:
+        url = cand.attributes["url"]
+        stored = known.get(url)
+        if stored is not None:
+            reason = stored.get("verification_reason") or "profile page names the username"
+            verdicts[id(cand)] = Verdict(VERIFIED, reason, dict(stored.get("preview") or {}))
+            stats.sources["reused"] += 1
+            return
+        username = cand.attributes.get("username") or ""
 
-    async with httpx.AsyncClient(
-        transport=transport,
-        proxy=proxy_for("verify") if transport is None else None,
-        headers=BROWSER_HEADERS,
-        timeout=settings.verify_timeout_seconds,
-        follow_redirects=True,
-        max_redirects=5,
-    ) as client:
+        async def fetch() -> Verdict:
+            async with overall, _host_limit(urlparse(url).hostname or ""):
+                verdict = await fetch_and_classify(client, url, username)
+            verdict.preview.setdefault("checked_at", datetime.now(UTC).isoformat(timespec="seconds"))
+            return verdict
 
-        async def one(cand: EntityCandidate) -> None:
-            url = cand.attributes["url"]
-            host = urlparse(url).hostname or ""
-            sem = per_host.setdefault(host, asyncio.Semaphore(PER_HOST))
-            async with overall, sem:
-                verdicts[id(cand)] = await fetch_and_classify(client, url, cand.attributes.get("username") or "")
+        # A failed load is not worth remembering: the next tool may get through.
+        verdict, cached = await cache.get_or_fetch(
+            (url, _fold(username)), fetch, cacheable=lambda v: not v.reason.startswith("could not load")
+        )
+        stats.sources["cached" if cached else "fetched"] += 1
+        # Each candidate gets its own copy: attributes are edited per entity later.
+        verdicts[id(cand)] = Verdict(verdict.status, verdict.reason, dict(verdict.preview))
 
-        await asyncio.gather(*(one(c) for c in todo))
+    await asyncio.gather(*(one(c) for c in todo))
 
     kept = []
     for cand in candidates:

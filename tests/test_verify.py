@@ -221,3 +221,128 @@ async def test_linked_profiles_become_corroborated_accounts(client, db, monkeypa
     # Both pages' titles name "Jane Doe", which matches the name target.
     assert sum(1 for k in kinds if k[0] == "profile_name_match") >= 2
     assert github.confidence >= 0.7 and real.confidence >= 0.7
+
+
+# --- Fetching less: one fetch per page, reuse, one retry, never downgrade --------------------------------
+
+
+class _Counting:
+    def __init__(self, handler):
+        self.handler, self.hits = handler, []
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        self.hits.append(str(request.url))
+        return self.handler(request)
+
+
+@pytest.fixture
+def no_retry_wait(monkeypatch):
+    monkeypatch.setattr(verify, "_retry_delay", lambda resp: 0)
+
+
+async def test_the_same_page_from_two_tools_is_fetched_once(monkeypatch):
+    pages = _Counting(_pages)
+    monkeypatch.setattr(verify, "transport", httpx.MockTransport(pages))
+    first, stats_a = await verify.verify_candidates([_account("real")])
+    second, stats_b = await verify.verify_candidates([_account("real"), _account("real")])
+    assert pages.hits == ["https://real.example/janedoe"]
+    assert stats_a.sources == {"fetched": 1} and stats_b.sources == {"cached": 2}
+    assert all(c.attributes["verification"] == VERIFIED for c in first + second)
+    # Each candidate gets its own preview: editing one never leaks into another.
+    second[0].attributes["preview"]["title"] = "changed"
+    assert second[1].attributes["preview"]["title"] == "Jane Doe (janedoe)"
+
+
+async def test_a_page_checked_recently_in_the_case_is_not_fetched_again(monkeypatch):
+    pages = _Counting(_pages)
+    monkeypatch.setattr(verify, "transport", httpx.MockTransport(pages))
+    stored = {
+        "verification": VERIFIED,
+        "verification_reason": "profile page names the username in its title",
+        "preview": {"title": "Jane Doe (janedoe)", "excerpt": "Jane Doe · Lisbon"},
+    }
+    kept, stats = await verify.verify_candidates([_account("real")], {"https://real.example/janedoe": stored})
+    assert pages.hits == [] and stats.sources == {"reused": 1}
+    assert kept[0].attributes["preview"]["excerpt"] == "Jane Doe · Lisbon"
+
+
+async def test_one_retry_for_a_busy_site_but_never_for_a_login_wall(monkeypatch, no_retry_wait):
+    answers = {"busy.example": [httpx.Response(503, html="<title>Busy</title>"), httpx.Response(200, html=PROFILE)]}
+
+    def handler(request):
+        if request.url.host == "busy.example":
+            return answers["busy.example"].pop(0)
+        return httpx.Response(200, html="<title>Log in to Example</title>")
+
+    pages = _Counting(handler)
+    monkeypatch.setattr(verify, "transport", httpx.MockTransport(pages))
+    kept, _ = await verify.verify_candidates([_account("busy"), _account("login")])
+    by_site = {c.attributes["site"]: c for c in kept}
+    assert by_site["busy"].attributes["verification"] == VERIFIED
+    assert by_site["login"].attributes["verification"] == UNVERIFIED
+    assert pages.hits.count("https://busy.example/janedoe") == 2
+    assert pages.hits.count("https://login.example/janedoe") == 1
+
+
+def test_a_verified_page_keeps_an_excerpt_and_says_where_the_username_was():
+    page = (
+        "<html><head><title>janedoe · Example</title></head><body><nav>Home Explore Sign in</nav>"
+        "<main><h1>Jane Doe</h1><p>@janedoe · Logistics lead in Lisbon · 120 followers</p></main></body></html>"
+    )
+    v = classify("https://x.example/janedoe", "janedoe", 200, "https://x.example/janedoe", page)
+    assert v.status == VERIFIED and v.reason == "profile page names the username in its title"
+    assert v.preview["matched_in"] == ["title", "page_title"]
+    assert "Logistics lead in Lisbon" in v.preview["excerpt"] and "Explore" not in v.preview["excerpt"]
+
+
+async def test_a_blocked_recheck_does_not_wipe_the_evidence_of_a_good_check(client, db, checked_env, monkeypatch):
+    from app.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "reverify_days", 0)  # force the second scan to fetch again
+    csrf = await login(client)
+    r = await client.post(
+        "/cases",
+        data=case_form_data(csrf, name=f"K {uuid.uuid4().hex[:6]}", target_value="janedoe", tools=["fake_checked"]),
+    )
+    case_id = uuid.UUID(r.headers["location"].rsplit("/", 1)[1])
+    await jobs.wait_for_all()
+
+    from app import pagecache
+
+    pagecache.clear_all()
+    monkeypatch.setattr(
+        verify, "transport", httpx.MockTransport(lambda req: httpx.Response(403, html="<title>Denied</title>"))
+    )
+    await client.post(f"/cases/{case_id}/scans", data={"csrf_token": csrf})
+    await jobs.wait_for_all()
+
+    real = next(
+        e
+        for e in (await db.scalars(select(Entity).where(Entity.case_id == case_id, Entity.type == "account"))).all()
+        if e.attributes["site"] == "real"
+    )
+    await db.refresh(real)
+    assert real.verification == VERIFIED
+    assert real.attributes["preview"]["description"] == "Logistics lead in Lisbon"
+    assert real.attributes["verification_reason"].startswith("profile page names the username")
+
+
+async def test_a_rescan_reuses_recent_checks_instead_of_fetching(client, db, checked_env, monkeypatch):
+    csrf = await login(client)
+    r = await client.post(
+        "/cases",
+        data=case_form_data(csrf, name=f"R {uuid.uuid4().hex[:6]}", target_value="janedoe", tools=["fake_checked"]),
+    )
+    case_id = uuid.UUID(r.headers["location"].rsplit("/", 1)[1])
+    await jobs.wait_for_all()
+
+    from app import pagecache
+
+    pagecache.clear_all()
+    pages = _Counting(_pages)
+    monkeypatch.setattr(verify, "transport", httpx.MockTransport(pages))
+    await client.post(f"/cases/{case_id}/scans", data={"csrf_token": csrf})
+    await jobs.wait_for_all()
+    assert "https://real.example/janedoe" not in pages.hits  # verified last scan: reused
+    run = await db.scalar(select(ScanRun).where(ScanRun.case_id == case_id, ScanRun.run_number == 2))
+    assert run.failure_details["_verification"]["fake_checked"]["sources"]["reused"] == 1

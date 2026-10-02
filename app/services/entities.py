@@ -59,6 +59,9 @@ class EntityRow:
     failed_sources: list[str]
     merged_count: int = 0
     suggestion_count: int = 0
+    ev_for: int = 0
+    ev_against: int = 0
+    ev_summary: str = ""
 
 
 async def _sources_by_owner(session: AsyncSession, entities: list[Entity]) -> dict[uuid.UUID, set[str]]:
@@ -80,6 +83,40 @@ async def _sources_by_owner(session: AsyncSession, entities: list[Entity]) -> di
 
 async def list_entities(session: AsyncSession, case_id: uuid.UUID, filters: EntityFilters) -> list[EntityRow]:
     return (await list_entities_view(session, case_id, filters)).rows
+
+
+async def _row_evidence(
+    session: AsyncSession,
+    case_id: uuid.UUID,
+    all_entities: list[Entity],
+    rows: list[Entity],
+    sources: dict[uuid.UUID, set[str]],
+) -> dict[uuid.UUID, tuple[int, int, str]]:
+    """(for, against, summary) per listed finding: the same lines as its evidence panel, from one query."""
+    from app.models import Target
+    from app.services.signals import CORROBORATING, CaseIndex, evidence
+
+    if not rows:
+        return {}
+    targets = (await session.scalars(select(Target).where(Target.case_id == case_id))).all()
+    by_id = {e.id: e for e in all_entities}
+    owner = {e.id: (e.merged_into_id or e.id) for e in all_entities}
+    rels: dict[uuid.UUID, list] = defaultdict(list)
+    for r in (
+        await session.scalars(
+            select(Relation).where(Relation.case_id == case_id, Relation.relation_type.in_(CORROBORATING))
+        )
+    ).all():
+        a, b = owner.get(r.entity_a_id), owner.get(r.entity_b_id)
+        if a and b and a != b:
+            rels[a].append((r, by_id[b]))
+            rels[b].append((r, by_id[a]))
+    index = CaseIndex.build(all_entities)
+    out = {}
+    for e in rows:
+        ev = evidence(e, targets=targets, relations=rels[e.id], tools=sources.get(e.id, ()), index=index)
+        out[e.id] = (len(ev.for_), len(ev.against), ev.summary)
+    return out
 
 
 async def list_entities_view(session: AsyncSession, case_id: uuid.UUID, filters: EntityFilters) -> EntityList:
@@ -133,6 +170,7 @@ async def list_entities_view(session: AsyncSession, case_id: uuid.UUID, filters:
         select(ScanRun).where(ScanRun.case_id == case_id).order_by(ScanRun.run_number.desc()).limit(1)
     )
     failed = set(latest_run.tools_failed) if latest_run else set()
+    evidence_of = await _row_evidence(session, case_id, all_entities, rows, sources)
     return EntityList(
         rows=[
             EntityRow(
@@ -141,6 +179,9 @@ async def list_entities_view(session: AsyncSession, case_id: uuid.UUID, filters:
                 failed_sources=sorted(sources[e.id] & failed),
                 merged_count=merged_count[e.id],
                 suggestion_count=suggestions[e.id],
+                ev_for=evidence_of[e.id][0],
+                ev_against=evidence_of[e.id][1],
+                ev_summary=evidence_of[e.id][2],
             )
             for e in rows
         ],
@@ -240,3 +281,35 @@ async def merge_candidates(session: AsyncSession, entity: Entity, limit: int = 2
     ranked = [(o, fuzz.WRatio(fold(entity.value), fold(o.value))) for o in others]
     ranked.sort(key=lambda pair: -pair[1])
     return ranked[:limit]
+
+
+async def entity_evidence(session: AsyncSession, case_id: uuid.UUID, detail: EntityDetail, targets=None):
+    """The for/against lines for a finding (app/services/signals.py), from what the case already holds."""
+    from app.models import Target
+    from app.services.signals import CaseIndex, evidence
+
+    entity = detail.entity
+    if targets is None:
+        targets = (await session.scalars(select(Target).where(Target.case_id == case_id))).all()
+    preview = (entity.attributes or {}).get("preview") or {}
+    index = None
+    if preview.get("links") or preview.get("emails"):
+        # Only needed to say which links point at something the case already has.
+        index = CaseIndex.build(
+            (
+                await session.scalars(
+                    select(Entity).where(
+                        Entity.case_id == case_id,
+                        Entity.type.in_(["account", "email", "domain", "url", "web_mention"]),
+                        Entity.dismissed_flag.is_(False),
+                    )
+                )
+            ).all()
+        )
+    return evidence(
+        entity,
+        targets=targets,
+        relations=[(rv.relation, rv.other) for rv in detail.relations],
+        tools=[obs.source_tool for obs, _run in detail.observations],
+        index=index,
+    )

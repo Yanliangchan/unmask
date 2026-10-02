@@ -20,7 +20,8 @@
       <span class="flags"><span class="flag-type show-xs">{{ e.type | replace('_', ' ') }}</span>{% if e.is_seed %}<span class="flag">Target</span>{% endif %}{% if row.merged_count %}<span class="flag" title="{{ row.merged_count }} duplicate value(s) merged into this one">+{{ row.merged_count }} merged</span>{% endif %}{% if row.suggestion_count %}<span class="flag flag-review" title="Possible duplicate waiting for your review">{{ row.suggestion_count }} to review</span>{% endif %}{% if e.verification == 'verified' %}<span class="flag flag-ok" title="{{ e.attributes.get('verification_reason', 'Profile page checked') }}">Page checked</span>{% elif e.verification == 'unverified' %}<span class="flag flag-review" title="{{ e.attributes.get('verification_reason', '') }}">Not checked</span>{% endif %}</span>
     </td>
     <td class="muted hide-xs">{{ e.type | replace('_', ' ') }}</td>
-    <td class="col-match">{{ ui.strength(e) }}</td>
+    <td class="col-match">{{ ui.strength(e) }}{% if row.ev_for or row.ev_against %}
+      <span class="evidence-pip" title="Evidence: {{ row.ev_summary }}"><span class="visually-hidden">Evidence: {{ row.ev_summary }}</span><span class="p-for" aria-hidden="true">✓{{ row.ev_for }}</span>{% if row.ev_against %}<span class="p-against" aria-hidden="true">✗{{ row.ev_against }}</span>{% endif %}</span>{% endif %}</td>
     <td class="hide-xs">{{ ui.reliability(e.source_reliability) }}</td>
     <td class="hide-sm">{{ ui.sources(row.sources, row.failed_sources) }}</td>
     <td class="hide-sm faint small nowrap"><time datetime="{{ e.last_verified.isoformat() }}" title="First seen {{ e.first_seen | isodate }}, last seen {{ e.last_verified | isodate }}">{{ e.last_verified | timeago }}</time></td>

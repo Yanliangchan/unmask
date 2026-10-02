@@ -102,6 +102,8 @@ class Settings(BaseSettings):
     verify_timeout_seconds: float = Field(default=8, alias="UNMASK_VERIFY_TIMEOUT")
     verify_concurrency: int = Field(default=12, alias="UNMASK_VERIFY_CONCURRENCY")
     verify_max_per_job: int = Field(default=250, alias="UNMASK_VERIFY_MAX")
+    # A page checked within this many days isn't fetched again on a rescan (0: always refetch).
+    reverify_days: int = Field(default=7, alias="UNMASK_REVERIFY_DAYS")
 
     # Automatic pivots. Depth = how many pivot runs may chain off each other;
     # budget = most pivots one evaluation may start. Anything over is logged

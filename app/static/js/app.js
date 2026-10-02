@@ -411,6 +411,24 @@
   });
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeMenus(null); });
 
+  // A link chip naming another finding: in the graph it selects that node, in
+  // the drawer it shows that finding; elsewhere it follows its link.
+  document.addEventListener("click", function (e) {
+    var chip = e.target.closest("[data-entity-open]");
+    if (!chip || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    var id = chip.dataset.entityOpen, caseId = chip.dataset.case;
+    if (chip.closest(".graph-panel")) {
+      e.preventDefault();
+      document.dispatchEvent(new CustomEvent("unmask:graph-select", { detail: { id: id } }));
+      return;
+    }
+    var drawer = document.getElementById("drawer");
+    if (drawer && !drawer.hidden && window.htmx) {
+      e.preventDefault();
+      window.htmx.ajax("GET", "/cases/" + caseId + "/entities/" + id + "/drawer", { target: "#drawer-body", swap: "innerHTML" });
+    }
+  });
+
   // "Show evidence" in a row's menu opens that row's detail.
   document.addEventListener("click", function (e) {
     var btn = e.target.closest("[data-open-row]");

@@ -1,15 +1,12 @@
 {% import "components/ui.html" as ui %}
 {% set a = entity.attributes %}
-{% set st = entity | strength %}
 <div class="drawer-head">
   <div class="drawer-head-text">
     <p class="faint small">{{ entity.type | replace('_', ' ') | capitalize }}{% if a.get('site') %} on {{ a.site }}{% endif %}</p>
     <h2 class="drawer-title" id="drawer-title">
       {% if a.get('url') %}<a href="{{ a.url }}" target="_blank" rel="noopener noreferrer nofollow">{{ entity.value }}{{ ui.icon("external", "icon") }}</a>{% else %}<span class="ident">{{ entity.value }}</span>{% endif %}
     </h2>
-    <p class="drawer-badges"><span class="strength-label s-{{ st[0] }}">{{ st[1] }}</span>
-      {% if entity.verification == 'verified' %}<span class="flag flag-ok">Page checked</span>{% elif entity.verification == 'unverified' %}<span class="flag flag-review" title="{{ a.get('verification_reason', '') }}">Not checked</span>{% endif %}
-      {% if entity.dismissed_flag %}<span class="flag">Not them</span>{% endif %}</p>
+    {% if entity.dismissed_flag or entity.confirmed_flag %}<p class="drawer-badges">{% if entity.dismissed_flag %}<span class="flag">Not them</span>{% else %}<span class="flag flag-ok">Confirmed</span>{% endif %}</p>{% endif %}
   </div>
   <button class="btn btn-ghost btn-sm btn-icon" type="button" data-drawer-close aria-label="Close evidence">{{ ui.icon("x") }}</button>
 </div>

@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 import httpx
 
 from app.adapters.base import AdapterError, SignatureMismatch
@@ -12,13 +16,36 @@ USER_AGENT = "unmask-osint/0.2"
 transport: httpx.AsyncBaseTransport | None = None
 
 
-def client(timeout: float = 60) -> httpx.AsyncClient:
-    return httpx.AsyncClient(
-        transport=transport,
-        timeout=timeout,
-        headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
-        follow_redirects=False,
-    )
+# One pooled client per event loop and timeout: API adapters hit the same few
+# hosts (api.github.com, ...) many times a scan, and a fresh client per request
+# repeats the TLS handshake each time. Closed with close_clients().
+_pool: dict[tuple, httpx.AsyncClient] = {}
+
+
+def _pooled(timeout: float) -> httpx.AsyncClient:
+    key = (id(asyncio.get_running_loop()), float(timeout), transport)
+    c = _pool.get(key)
+    if c is None or c.is_closed:
+        c = _pool[key] = httpx.AsyncClient(
+            transport=transport,
+            timeout=timeout,
+            headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
+            follow_redirects=False,
+            limits=httpx.Limits(max_connections=20, max_keepalive_connections=10, keepalive_expiry=30),
+        )
+    return c
+
+
+@asynccontextmanager
+async def client(timeout: float = 60) -> AsyncIterator[httpx.AsyncClient]:  # noqa: ASYNC109
+    """A shared, pooled client; leaving the block does not close it."""
+    yield _pooled(timeout)
+
+
+async def close_clients() -> None:
+    loop_id = id(asyncio.get_running_loop())
+    for key in [k for k in _pool if k[0] == loop_id]:
+        await _pool.pop(key).aclose()
 
 
 async def post_json(

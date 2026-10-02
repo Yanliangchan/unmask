@@ -114,3 +114,13 @@ def case_form_data(csrf, **overrides):
     }
     data.update(overrides)
     return {k: v for k, v in data.items() if v is not None}
+
+
+@pytest.fixture(autouse=True)
+def _fresh_page_cache():
+    """Page-check verdicts are cached per process: tests each fake their own sites."""
+    from app import pagecache
+
+    pagecache.clear_all()
+    yield
+    pagecache.clear_all()

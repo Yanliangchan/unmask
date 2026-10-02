@@ -1,0 +1,65 @@
+{# Evidence for and against one finding: `entity` and `ev` (app/services/signals.py). #}
+{% set st = entity | strength %}
+{% set p = ev.profile %}
+<div class="evidence">
+  <div class="verdict-strip">
+    <span class="strength-label s-{{ st[0] }}">{{ st[1] }}</span>
+    <span class="verdict-score mono" title="Score from 0 to 1">{{ '%.2f' | format(entity.confidence) }}</span>
+    <span class="verdict-count">
+      {% if ev.for_ %}<span class="vc-for">{{ ui.icon("check") }}{{ ev.for_ | length }} for</span>{% endif %}
+      {% if ev.against %}<span class="vc-against">{{ ui.icon("x") }}{{ ev.against | length }} against</span>{% endif %}
+      {% if not ev.for_ and not ev.against %}<span class="faint">No evidence either way</span>{% endif %}
+    </span>
+  </div>
+
+  {% if p.name or p.handle or p.about or p.excerpt or p.location %}
+  <div class="profile-mini">
+    <div class="profile-mini-head">
+      <span class="profile-avatar" aria-hidden="true">{{ ((p.name or p.handle or entity.value)[:1]) | upper }}</span>
+      <div>
+        {% if p.name %}<p class="profile-name">{{ p.name | highlight(ev.terms) }}</p>{% endif %}
+        <p class="profile-handle small">{% if p.handle %}<span class="mono">@{{ p.handle | highlight(ev.terms) }}</span>{% endif %}{% if p.site %}<span class="faint"> on {{ p.site }}</span>{% endif %}{% if p.location %}<span class="faint"> · {{ p.location | highlight(ev.terms) }}</span>{% endif %}</p>
+      </div>
+    </div>
+    {% if p.about %}<p class="profile-about">{{ p.about | truncate(320) | highlight(ev.terms) }}</p>{% endif %}
+    {% if p.excerpt and p.excerpt != p.about %}
+    <blockquote class="profile-excerpt"><span class="faint small">On the page</span>{{ p.excerpt | highlight(ev.terms) }}</blockquote>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if ev.for_ or ev.against %}
+  <div class="signals{% if ev.for_ and ev.against %} has-both{% endif %}">
+    {% if ev.for_ %}
+    <ul class="signal-list" aria-label="Evidence for">
+      {% for s in ev.for_ %}<li class="signal-for">{{ ui.icon("check") }}<span><strong>{{ s.label }}</strong>{% if s.detail %}<span class="signal-detail">{{ s.detail }}</span>{% endif %}</span></li>{% endfor %}
+    </ul>
+    {% endif %}
+    {% if ev.against %}
+    <ul class="signal-list" aria-label="Evidence against">
+      {% for s in ev.against %}<li class="signal-against">{{ ui.icon("x") }}<span><strong>{{ s.label }}</strong>{% if s.detail %}<span class="signal-detail">{{ s.detail }}</span>{% endif %}</span></li>{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% if ev.notes %}
+  <ul class="signal-list signal-notes" aria-label="Notes">
+    {% for s in ev.notes %}<li class="signal-note"><span class="signal-dot" aria-hidden="true"></span><span>{{ s.label }}{% if s.detail %}<span class="signal-detail">{{ s.detail }}</span>{% endif %}</span></li>{% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if ev.links %}
+  <div class="link-chips" aria-label="Links on the profile">
+    <span class="faint small">Links on the profile</span>
+    {% for c in ev.links[:12] %}
+    {% if c.entity_id %}
+    <a class="link-chip is-{{ c.state }}" href="/cases/{{ case.id }}#ent-{{ c.entity_id }}" data-entity-open="{{ c.entity_id }}" data-case="{{ case.id }}"
+       title="{{ {'target': 'One of your targets', 'confirmed': 'Confirmed in this case', 'found': 'Also found in this case'}[c.state] }}">{{ c.label }}<span class="chip-state">{{ {'target': 'target', 'confirmed': 'confirmed', 'found': 'in case'}[c.state] }}</span></a>
+    {% else %}
+    <a class="link-chip" href="{{ c.url if '@' not in c.url else 'mailto:' ~ c.url }}" target="_blank" rel="noopener noreferrer nofollow">{{ c.label }}</a>
+    {% endif %}
+    {% endfor %}
+    {% if ev.links | length > 12 %}<span class="faint small">+{{ ev.links | length - 12 }} more</span>{% endif %}
+  </div>
+  {% endif %}
+</div>

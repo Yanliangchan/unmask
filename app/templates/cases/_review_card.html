@@ -1,9 +1,6 @@
 {% import "components/ui.html" as ui %}
 {% if entity %}
 {% set a = entity.attributes %}
-{% set preview = a.get('preview') or {} %}
-{% set profile = a.get('profile') or {} %}
-{% set st = entity | strength %}
 <div class="review-progress">
   <span><strong>{{ remaining }}</strong> left to review{% if skipped %} · {{ skipped }} skipped{% endif %}</span>
 </div>
@@ -22,22 +19,13 @@
     <h2 class="review-value">
       {% if a.get('url') %}<a href="{{ a.url }}" target="_blank" rel="noopener noreferrer nofollow">{{ entity.value }}{{ ui.icon("external", "icon") }}</a>{% else %}<span class="ident">{{ entity.value }}</span>{% endif %}
     </h2>
-    {% set name = profile.get('fullname') or profile.get('name') or preview.get('title') %}
-    {% if name %}<p class="review-name">{{ name }}</p>{% endif %}
-    {% set about = profile.get('bio') or preview.get('description') %}
-    {% set where = profile.get('location') or profile.get('city') %}
-    {% if about or where %}<p class="muted">{% if where %}{{ where }}{% if about %} · {% endif %}{% endif %}{{ about | truncate(240) }}</p>{% endif %}
-    <p><span class="strength-label s-{{ st[0] }}">{{ st[1] }}</span>
-      {% if entity.verification == 'verified' %}<span class="flag flag-ok">Page checked</span>{% elif entity.verification == 'unverified' %}<span class="flag flag-review" title="{{ a.get('verification_reason', '') }}">Not checked</span>{% endif %}</p>
+    {% include "cases/_evidence.html" %}
     {% set why = a.get('_score_explanation') or [] %}
     {% if why %}
-    <h3>Why</h3>
-    <ul class="why-list">{% for line in why %}<li>{{ line }}</li>{% endfor %}</ul>
-    {% endif %}
-    {% set links = d.relations | rejectattr("relation.relation_type", "in", ["has_account", "possible_same", "not_same", "same_as"]) | list %}
-    {% if links %}
-    <h3>Links to other findings</h3>
-    <ul class="plain-list small">{% for rv in links %}<li>{{ rv.relation.match_explanation or (rv.relation.relation_type | replace('_', ' ')) }}</li>{% endfor %}</ul>
+    <details class="score-detail">
+      <summary>How the score was worked out</summary>
+      <ul class="why-list">{% for line in why %}<li>{{ line }}</li>{% endfor %}</ul>
+    </details>
     {% endif %}
   </section>
 </article>

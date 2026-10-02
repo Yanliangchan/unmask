@@ -1,9 +1,10 @@
 {% import "components/ui.html" as ui %}
 {% set explanation = entity.attributes.get('_score_explanation') or [] %}
 {% set fields = entity.field_confidence | display_fields %}
+{% if ev is defined and ev %}{% include "cases/_evidence.html" %}{% endif %}
 <div class="entity-detail">
-  <div>
-    <h3>Why {{ '%.2f' | format(entity.confidence) }}</h3>
+  <details class="score-detail"{% if ev is not defined or not ev %} open{% endif %}>
+    <summary>How the score was worked out</summary>
     {% if explanation %}
     <ul class="why-list">{% for line in explanation %}<li>{{ line }}</li>{% endfor %}</ul>
     {% else %}<p class="muted small">Not scored yet. Scoring runs after each scan.</p>{% endif %}
@@ -20,7 +21,7 @@
     <h3>Source reliability</h3>
     <p class="small">{{ ui.reliability(entity.source_reliability) }} {{ SOURCE_RELIABILITY.get(entity.source_reliability) }}.
       <span class="muted">How far the kind of source is trusted, separate from whether this is the subject.</span></p>
-  </div>
+  </details>
 
   <div>
     {% if d.merged_into %}

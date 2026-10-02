@@ -109,6 +109,7 @@ class IdleMonitor:
                 await self._scheduler
             self._scheduler = None
         await dispose_engine()
+        await close_network()
         trim()
         if self.in_flight or self.last_seen != seen:
             # A request arrived while we were winding down: carry on as normal.
@@ -118,6 +119,16 @@ class IdleMonitor:
         self.quiet_count += 1
         log.info("idle for %ss: scheduler stopped, database connections closed (%.0f MB resident)",
                  int(self.idle_seconds), rss_mb())  # fmt: skip
+
+
+async def close_network() -> None:
+    """Drop pooled HTTP connections and cached page checks."""
+    from app import pagecache, verify
+    from app.adapters import http
+
+    await verify.close_clients()
+    await http.close_clients()
+    pagecache.clear_all()
 
 
 monitor: IdleMonitor | None = None

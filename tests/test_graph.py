@@ -18,10 +18,10 @@ def test_pagerank_ranks_the_hub_highest():
     assert 0 < ranks[lone] < ranks[a]
 
 
-def _add(db, case, etype, value, **kw):
+def _add(db, case, etype, value, confidence=0.5, **kw):
     e = Entity(
         case_id=case.id, type=etype, value=value, value_digest=crypto.digest(etype, value),
-        attributes={}, source_tool="fake_ok", confidence=0.5, field_confidence={"prior": 0.5},
+        attributes={}, source_tool="fake_ok", confidence=confidence, field_confidence={"prior": confidence},
         source_reliability="C", **kw,
     )  # fmt: skip
     db.add(e)
@@ -87,3 +87,43 @@ async def test_graph_endpoint_is_private(client, db):
     assert 'data-graph="/cases/' in tab.text and "/static/js/graph.js" in tab.text
     await client.post("/logout", data={"csrf_token": csrf})
     assert (await client.get(f"/cases/{case.id}/graph.json")).status_code == 303
+
+
+async def test_graph_nodes_carry_strength_and_edges_say_why(db):
+    case = await _case(db)
+    seed = await db.scalar(select(Entity).where(Entity.case_id == case.id, Entity.is_seed.is_(True)))
+    strong = _add(db, case, "account", "https://github.com/graphuser", verification="verified", confidence=0.85)
+    weak = _add(db, case, "account", "https://forum.example/graphuser", verification="unverified", confidence=0.3)
+    await db.flush()
+    _rel(db, case, seed, strong, "has_account")
+    db.add(
+        Relation(case_id=case.id, entity_a_id=strong.id, entity_b_id=weak.id, relation_type="shares_handle",
+                 source_tool="correlation", created_by="engine", match_explanation="same handle 'graphuser'")
+    )  # fmt: skip
+    await db.flush()
+
+    graph = await case_graph(db, case.id)
+    by_id = {n["id"]: n for n in graph["nodes"]}
+    assert by_id[str(seed.id)]["strength"] == "target"
+    assert by_id[str(strong.id)]["strength"] == "likely" and by_id[str(strong.id)]["verification"] == "verified"
+    assert by_id[str(weak.id)]["strength"] == "unchecked"
+    kinds = {e["type"]: e for e in graph["edges"]}
+    assert kinds["shares_handle"]["kind"] == "strong" and kinds["shares_handle"]["why"] == "same handle 'graphuser'"
+    assert kinds["has_account"]["kind"] == "link"
+    assert graph["hidden"] == 0
+
+
+async def test_large_graphs_leave_weak_findings_out_until_asked(db, monkeypatch):
+    from app.services import graph as graph_mod
+
+    monkeypatch.setattr(graph_mod, "MAX_NODES", 3)
+    case = await _case(db)
+    for i in range(3):
+        _add(db, case, "account", f"https://site{i}.example/graphuser", verification="verified", confidence=0.8)
+    for i in range(4):
+        _add(db, case, "account", f"https://weak{i}.example/graphuser", verification="unverified", confidence=0.2)
+    await db.flush()
+    trimmed = await case_graph(db, case.id)
+    assert len(trimmed["nodes"]) == 3 and trimmed["hidden"] == 5
+    assert all(n["strength"] in ("target", "likely") for n in trimmed["nodes"])
+    assert len((await case_graph(db, case.id, include_all=True))["nodes"]) == 8

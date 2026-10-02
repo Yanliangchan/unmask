@@ -285,11 +285,14 @@ def show_checklist(user: User, steps: list[Step]) -> bool:
 
 
 # Invented person, reserved example domains only: nothing here points at a real account.
-def _account(host: str, path: str, site: str, reliability: str, prior: float, check: str, note: str, title: str = ""):
+def _account(host: str, path: str, site: str, reliability: str, prior: float, check: str, note: str, title: str = "",
+             preview: dict | None = None):  # fmt: skip
     url = f"https://{host}/{path}"
     attrs = {"site": site, "url": url, "username": "alexrivera", "verification": check, "verification_reason": note}
     if title:
         attrs["title"] = title
+    if preview:
+        attrs["preview"] = {"checked_at": "2026-09-28T10:12:00+00:00", "status": 200, **preview}
     return EntityCandidate("account", url, attrs, reliability, prior, {"value": prior}, "has_account", "same username")
 
 
@@ -301,13 +304,23 @@ def _mention(url: str, title: str, snippet: str, reliability: str, prior: float,
 _SAMPLE_FINDINGS: dict[str, list[EntityCandidate]] = {
     "sherlock": [
         _account("code.example", "alexrivera", "CodeHub (example)", "C", 0.62, "verified",
-                 "Profile page names Alex Rivera, Portland", "Alex Rivera · Portland · product designer"),
+                 "profile page names the username in its title", "Alex Rivera · Portland · product designer",
+                 {"title": "alexrivera (Alex Rivera) · CodeHub", "username": "alexrivera",
+                  "description": "Product designer in Portland. Accessible checkout flows and design systems.",
+                  "matched_in": ["title", "username"], "links": ["https://photos.example/alexrivera"],
+                  "excerpt": "Alex Rivera alexrivera · Product designer · Portland, OR · 214 followers · "
+                             "Pinned: checkout-a11y, tokens-playground"}),
         _account("photos.example", "alexrivera", "Photoshare (example)", "C", 0.55, "verified",
-                 "Profile page found", "alexrivera: photos from Portland"),
+                 "profile page names the username in its title", "alexrivera: photos from Portland",
+                 {"title": "alexrivera on Photoshare", "description": "Photos from Portland and the coast.",
+                  "matched_in": ["title"]}),
         _account("games.example", "u/alexrivera", "Gamerlist (example)", "D", 0.35, "unverified",
-                 "The page loads for any username, so it proves nothing"),
+                 "the page loads for any username, so it proves nothing"),
         _account("forum.example", "members/alexrivera", "Makers forum (example)", "C", 0.4, "verified",
-                 "Profile page found", "alexrivera · joined 2011 · Madrid"),
+                 "profile page names the username in its title", "alexrivera · joined 2011 · Madrid",
+                 {"title": "Alejandro Rivera (alexrivera) · Makers forum", "username": "alexrivera",
+                  "description": "Woodworking and furniture restoration in Madrid since 2011.",
+                  "matched_in": ["title", "username"]}),
     ],
     "holehe": [
         EntityCandidate("registration", "Design community (example)",

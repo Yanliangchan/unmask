@@ -13,10 +13,11 @@ from collections import defaultdict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.correlation.engine import NOT_SAME, SAME_AS
+from app.correlation.engine import CORROBORATING, NOT_SAME, SAME_AS
 from app.models import Entity, PivotLog, Relation, ScanRun
 
 MAX_LABEL = 42
+MAX_NODES = 400
 
 
 def pagerank(nodes: list[uuid.UUID], edges: list[tuple[uuid.UUID, uuid.UUID]], iterations: int = 40) -> dict:
@@ -43,7 +44,7 @@ def _label(value: str) -> str:
     return value if len(value) <= MAX_LABEL else value[: MAX_LABEL - 1] + "…"
 
 
-async def case_graph(session: AsyncSession, case_id: uuid.UUID) -> dict:
+async def case_graph(session: AsyncSession, case_id: uuid.UUID, include_all: bool = False) -> dict:
     entities = (await session.scalars(select(Entity).where(Entity.case_id == case_id))).all()
     owner = {e.id: (e.merged_into_id or e.id) for e in entities}
     # Findings the analyst ruled out ("Not them") are left off the graph.
@@ -86,10 +87,25 @@ async def case_graph(session: AsyncSession, case_id: uuid.UUID) -> dict:
                 "target": str(b),
                 "type": r.relation_type,
                 "label": r.relation_type.replace("_", " "),
+                "kind": _edge_kind(r.relation_type),
+                "why": (r.match_explanation or "")[:200],
+                "confidence": round(float(r.confidence or 0.0), 3),
                 "via": r.source_tool,
                 "suggested": r.relation_type == "possible_same",
             }
     centrality = pagerank(list(active), [(k[0], k[1]) for k in edges])
+
+    # Large cases: weak and unchecked findings stay off the first view, so the
+    # graph stays readable; the page offers to show them.
+    shown = list(active.values())
+    trimmed = 0
+    if len(shown) > MAX_NODES and not include_all:
+        keep = [e for e in shown if _strength(e) in ("target", "confirmed", "likely", "possible")]
+        keep.sort(key=lambda e: (not e.is_seed, not e.confirmed_flag, -e.confidence))
+        keep = keep[:MAX_NODES]
+        trimmed = len(shown) - len(keep)
+        shown = keep
+    kept = {e.id for e in shown}
 
     nodes = [
         {
@@ -97,13 +113,38 @@ async def case_graph(session: AsyncSession, case_id: uuid.UUID) -> dict:
             "label": _label(e.value),
             "value": e.value,
             "type": e.type,
+            "site": (e.attributes or {}).get("site") or "",
             "confidence": round(e.confidence, 3),
+            "strength": _strength(e),
+            "verification": e.verification or "",
             "confirmed": e.confirmed_flag,
             "seed": e.is_seed,
             "pivot": e.id in via_pivot or e.id in triggered,
             "merged": merged_count[e.id],
             "centrality": centrality.get(e.id, 0.0),
         }
-        for e in active.values()
+        for e in shown
     ]
-    return {"nodes": nodes, "edges": list(edges.values())}
+    out_edges = [ed for ed in edges.values() if uuid.UUID(ed["source"]) in kept and uuid.UUID(ed["target"]) in kept]
+    return {"nodes": nodes, "edges": out_edges, "hidden": trimmed}
+
+
+def _strength(e: Entity) -> str:
+    from app.services.entities import LIKELY, POSSIBLE
+
+    if e.is_seed:
+        return "target"
+    if e.confirmed_flag:
+        return "confirmed"
+    if e.verification == "unverified":
+        return "unchecked"
+    return "likely" if e.confidence >= LIKELY else "possible" if e.confidence >= POSSIBLE else "unlikely"
+
+
+def _edge_kind(relation_type: str) -> str:
+    """How an edge is drawn: strong evidence, a plain "found via" link, or a possible duplicate."""
+    if relation_type == "possible_same":
+        return "suggested"
+    if relation_type in CORROBORATING:
+        return "strong"
+    return "link"

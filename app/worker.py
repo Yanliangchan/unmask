@@ -36,6 +36,9 @@ async def _scan(run_id: uuid.UUID) -> None:
     finally:
         # Email and webhook copies are sent after commit; let them finish before the loop closes.
         await drain()
+        from app.idle import close_network
+
+        await close_network()
         await dispose_engine()
 
 

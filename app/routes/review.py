@@ -18,7 +18,7 @@ from app.routes.shell import case_shell
 from app.security import current_user
 from app.services.accuracy import DISMISS_REASONS
 from app.services.cases import get_case_for_user
-from app.services.entities import entity_detail, hidden_reason
+from app.services.entities import entity_detail, entity_evidence, hidden_reason
 from app.web import render
 
 router = APIRouter()
@@ -80,5 +80,7 @@ async def review_next(
     if remaining:
         entity = remaining[0]
         targets = (await session.scalars(select(Target).where(Target.case_id == case.id))).all()
-        ctx.update(entity=entity, d=await entity_detail(session, case.id, entity.id), targets=targets)
+        detail = await entity_detail(session, case.id, entity.id)
+        ev = await entity_evidence(session, case.id, detail, targets)
+        ctx.update(entity=entity, d=detail, targets=targets, ev=ev)
     return render(request, "cases/_review_card.html", ctx)
