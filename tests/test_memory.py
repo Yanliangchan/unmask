@@ -160,3 +160,10 @@ def test_trim_is_safe_and_rss_is_readable():
     trim()
     trim()
     assert rss_mb() > 0
+
+
+def test_snapshot_body_is_deferred():
+    """Snapshot lists and exports must not pull (and decrypt) every stored page body."""
+    from app.models import Snapshot
+
+    assert Snapshot.__mapper__.column_attrs["body_b64"].deferred
