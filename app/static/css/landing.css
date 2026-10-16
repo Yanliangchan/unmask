@@ -72,7 +72,7 @@
 .l-demo-row strong { color: var(--text-strong); font-weight: 600; }
 .l-demo-row span:last-child { color: var(--muted); }
 .l-demo-row.warn { background: color-mix(in srgb, var(--warn) 9%, transparent); }
-.l-demo-row.warn span:last-child { color: var(--warn); }
+.l-demo-row.warn span:last-child { color: color-mix(in srgb, var(--warn) 82%, var(--text-strong)); }
 .l-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); }
 .l-dot.warn { background: var(--warn); }
 
