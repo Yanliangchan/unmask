@@ -141,6 +141,38 @@ def evaluate(path: str, tools: list[str], json_out: str | None) -> None:
         print(f"\nDetails (missed accounts, false positives) written to {json_out}")
 
 
+async def _lab(cases_file: str | None, n: int) -> dict:
+    from app import lab
+
+    s = get_settings()
+    crypto.cipher.configure(s.data_keys, s.index_key)
+    cases = lab.load(cases_file) if cases_file else lab.generate(n)
+    async with sessionmaker()() as session:
+        outcomes = await lab.run(session, cases)
+    await dispose_engine()
+    return lab.report(outcomes)
+
+
+def run_lab(cases_file: str | None, n: int, json_out: str | None, baseline: str | None) -> None:
+    import json
+
+    from app import lab
+
+    result = asyncio.run(_lab(cases_file, n))
+    print("\n".join(lab.summary_lines(result)))
+    if json_out:
+        with open(json_out, "w") as fh:
+            json.dump(result, fh, indent=2)
+        print(f"\nReport written to {json_out}")
+    if baseline:
+        with open(baseline) as fh:
+            problems = lab.regressions(result, json.load(fh))
+        if problems:
+            print("\nRegressions against the baseline:", *(f"  - {p}" for p in problems), sep="\n")
+            sys.exit(1)
+        print("\nNo regressions against the baseline.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="python -m app.cli")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -154,6 +186,11 @@ def main() -> None:
     ev.add_argument("file")
     ev.add_argument("--tools", default="sherlock,maigret,websearch")
     ev.add_argument("--json", dest="json_out")
+    lb = sub.add_parser("lab", help="measure identity resolution against labelled ground truth (no network)")
+    lb.add_argument("--cases", help="ground-truth JSON (default: the synthetic generator)")
+    lb.add_argument("-n", type=int, default=40, help="synthetic cases to generate")
+    lb.add_argument("--json", dest="json_out")
+    lb.add_argument("--baseline", help="a saved report; exit 1 if this run is worse")
     pf = sub.add_parser("preflight", help="check configuration and wait for the database (run before migrations)")
     pf.add_argument("--wait", type=int, default=int(os.environ.get("UNMASK_DB_WAIT", "60")))
     args = parser.parse_args()
@@ -166,6 +203,8 @@ def main() -> None:
         asyncio.run(health_check(args.tool))
     elif args.cmd == "eval":
         evaluate(args.file, [t.strip() for t in args.tools.split(",") if t.strip()], args.json_out)
+    elif args.cmd == "lab":
+        run_lab(args.cases, args.n, args.json_out, args.baseline)
     elif args.cmd == "preflight":
         preflight(args.wait)
 

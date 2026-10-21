@@ -364,3 +364,25 @@ async def test_a_profile_that_redirects_inside_the_network_is_never_fetched(monk
     kept, stats = await verify.verify_candidates([cand])
     assert seen == ["https://lapsed.example/janedoe"]
     assert kept == [] and stats.counts[REJECTED] == 1
+
+
+def test_a_soft_404_that_echoes_the_username_in_its_title_is_rejected():
+    page = """<html><head><title>janedoe | Example</title>
+    <link rel="canonical" href="https://x.example/janedoe"></head>
+    <body><h1>Sorry, this user does not exist</h1></body></html>"""
+    v = classify("https://x.example/janedoe", "janedoe", 200, "https://x.example/janedoe", page)
+    assert v.status == REJECTED
+
+
+def test_the_canonical_link_alone_does_not_verify_a_page():
+    page = """<html><head><title>Example</title><link rel="canonical" href="https://x.example/janedoe"></head>
+    <body>Welcome to Example</body></html>"""
+    v = classify("https://x.example/janedoe", "janedoe", 200, "https://x.example/janedoe", page)
+    assert v.status != VERIFIED
+
+
+def test_a_declared_profile_page_survives_stray_not_found_text():
+    page = """<html><head><title>janedoe (Jane Doe) · Example</title><meta property="og:type" content="profile">
+    </head><body>Bio: I fix 404 pages for a living. Profile not found? Ask me.</body></html>"""
+    v = classify("https://x.example/janedoe", "janedoe", 200, "https://x.example/janedoe", page)
+    assert v.status == VERIFIED

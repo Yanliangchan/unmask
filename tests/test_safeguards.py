@@ -180,3 +180,20 @@ async def test_a_run_that_cannot_be_queued_fails_instead_of_blocking_the_case(cl
     assert latest.status == "failed" and "could not queue" in latest.failure_details["_crashed"]
     await db.execute(update(ScanRun).where(ScanRun.case_id == case_id).values(status="completed"))
     await db.commit()
+
+
+async def test_tools_page_reports_how_each_source_behaved(client, db):
+    from app.services.sources import source_stats
+
+    csrf = await login(client)
+    case_id = await _case(client, csrf, tools=["fake_ok"])  # finds two accounts
+    db.add(ScanRun(case_id=case_id, run_number=50, status="partial", tools_included=["fake_ok", "fake_fail"],
+                   tools_completed=["fake_ok"], tools_failed=["fake_fail"],
+                   failure_details={"fake_fail": "blocked by bot protection (HTTP 403)"}))  # fmt: skip
+    await db.commit()
+    stats = await source_stats(db, [case_id])
+    assert stats["fake_ok"].runs == 2 and stats["fake_ok"].success_rate == 1.0 and stats["fake_ok"].findings == 2
+    assert stats["fake_fail"].failed == 1 and stats["fake_fail"].blocked == 1 and stats["fake_fail"].success_rate == 0
+    assert "HTTP 403" in stats["fake_fail"].last_failure
+    page = (await client.get("/tools")).text
+    assert "How each source has behaved" in page and "Fake Fail" in page

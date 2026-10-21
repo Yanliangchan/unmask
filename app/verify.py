@@ -229,6 +229,16 @@ def extract_links(page: str, page_url: str, username: str = "") -> tuple[list[st
     return (profiles + sites)[:MAX_LINKS], emails
 
 
+_PROFILE_META = re.compile(
+    r'<meta[^>]+(?:property|name)=["\'](?:og:type["\'][^>]+content=["\']profile|profile:username)', re.I
+)
+
+
+def _is_profile_page(head: str) -> bool:
+    """The page declares itself a profile (Open Graph), which outweighs stray "not found" text."""
+    return bool(_PROFILE_META.search(head))
+
+
 def classify(url: str, username: str, status_code: int, final_url: str, page: str) -> Verdict:
     """Decide what a fetched profile page proves. Pure, so it is easy to test."""
     head = page[:60_000]
@@ -253,8 +263,13 @@ def classify(url: str, username: str, status_code: int, final_url: str, page: st
     if _NOT_FOUND.search(title_text):
         return Verdict(REJECTED, "the page says the profile does not exist", preview)
 
-    fields = ("title", "page_title", "description", "username", "canonical")
+    # Not the canonical link: soft-404 pages echo the requested path there for any username.
+    fields = ("title", "page_title", "description", "username")
     matched = [k for k in fields if user and user in _fold(preview.get(k, ""))]
+    visible = _TAGS.sub(" ", head)
+    if matched and _NOT_FOUND.search(visible[:4000]) and not _is_profile_page(head):
+        # The title repeats the name asked for, but the page itself says there is no such profile.
+        return Verdict(REJECTED, "the page says the profile does not exist", preview)
     if matched:
         links, emails = extract_links(page, final_url, username)
         if links:
@@ -268,7 +283,6 @@ def classify(url: str, username: str, status_code: int, final_url: str, page: st
         return Verdict(VERIFIED, f"profile page names the username in its {where}", preview)
     if _LOGIN.search(title_text):
         return Verdict(UNVERIFIED, "login wall: the profile is only visible when signed in", preview)
-    visible = _TAGS.sub(" ", head)
     # Body text last: real profiles often load captcha scripts for their own forms.
     if _BOT_WALL.search(visible[:3000]):
         return Verdict(UNVERIFIED, "blocked by bot protection", preview)

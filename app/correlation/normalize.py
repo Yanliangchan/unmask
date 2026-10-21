@@ -40,15 +40,45 @@ def canonical_url(value: str) -> str:
     return f"{host}{path}{query}"
 
 
+def _clean_name(value: str) -> str:
+    return _SPACES.sub(" ", _NON_WORD.sub(" ", fold(value).replace("_", " "))).strip()
+
+
 def canonical_name(value: str) -> str:
-    """Punctuation-free, lower-case, tokens sorted: 'Chan, Yan-Liang' == 'yan liang chan'."""
-    cleaned = _SPACES.sub(" ", _NON_WORD.sub(" ", fold(value).replace("_", " "))).strip()
-    return " ".join(sorted(cleaned.split()))
+    """Punctuation-free and lower-case, in written order: 'Yan-Liang Chan' == 'yan liang chan'.
+
+    "Last, First" is the one reordering that is certain ('Chan, Yan-Liang' == 'yan liang chan').
+    Otherwise order is kept: 'Wei Chen' and 'Chen Wei' may be two people, so the engine
+    suggests them for review (same_words) instead of merging them.
+    """
+    if value.count(",") == 1:
+        last, first = value.split(",")
+        if last.strip() and first.strip():
+            value = f"{first} {last}"
+    return _clean_name(value)
+
+
+def same_words(a: str, b: str) -> bool:
+    """The same words in a different order: worth a human look, never a merge."""
+    wa, wb = _clean_name(a).split(), _clean_name(b).split()
+    return len(wa) > 1 and sorted(wa) == sorted(wb) and wa != wb
 
 
 def canonical_phone(value: str) -> str:
-    digits = re.sub(r"\D", "", value)
-    return digits.lstrip("0") if not value.strip().startswith("+") else digits
+    """Digits, with the country code when the number carries one.
+
+    A national number keeps its leading zero: '020 7946 0000' (London) must not equal
+    '+20 7946 0000' (Cairo). '+44 20 7946 0000' and '020 7946 0000' are the same line,
+    but telling them apart needs the case's country, so they stay separate (a miss, not
+    a false merge).
+    """
+    text = value.strip()
+    digits = re.sub(r"\D", "", text)
+    if text.startswith("+"):
+        return "+" + digits
+    if digits.startswith("00"):
+        return "+" + digits[2:]
+    return digits
 
 
 def canonical_ip(value: str) -> str:

@@ -32,6 +32,7 @@ from tests.conftest import login
         ("name", "Chan, Yan-Liang", "yan liang chan"),
         ("name", "José Ramírez", "Jose Ramirez"),
         ("phone", "+65 9123 4567", "+6591234567"),
+        ("phone", "0044 20 7946 0000", "+44 20 7946 0000"),
         ("ip", "2001:db8::0:1", "2001:db8::1"),
     ],
 )
@@ -46,6 +47,9 @@ def test_same_identifier_written_differently(etype, a, b):
         ("email", "jdoe@example.com", "jdoe@example.org"),
         ("username", "jdoe", "jdoe1"),
         ("name", "Jon Smith", "John Smith"),
+        # Found by the Identity Lab: these used to merge automatically.
+        ("name", "Wei Chen", "Chen Wei"),  # same words, maybe two people: suggested, not merged
+        ("phone", "020 7946 0000", "+20 7946 0000"),  # London vs Cairo once the zero was dropped
         ("account", "https://github.com/jdoe", "https://gitlab.com/jdoe"),
     ],
 )

@@ -1308,3 +1308,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--focus); box-shad
 .evidence-pip .p-against { color: var(--bad); }
 @media (max-width: 720px) { .signals.has-both { grid-template-columns: 1fr; } }
 .pill .icon { width: 12px; height: 12px; }
+
+/* --- Tools: source behaviour ------------------------------------------------------------------ */
+.source-stats { margin: 28px 0; }
+.section-head { margin-bottom: 10px; }
+.section-head h2 { margin-bottom: 4px; }
+.section-head p { margin: 0; max-width: 80ch; }

@@ -122,15 +122,24 @@ async def dashboard(
 async def tools_page(
     request: Request, session: AsyncSession = Depends(get_session), user: User = Depends(current_user)
 ):
+    from app.services.sources import WINDOW_DAYS, source_stats
+
+    visible = await visible_case_ids(session, user)
+    health = await tool_health(session)
+    stats = await source_stats(session, visible)
+    labels = {h.name: h.label for h in health}
     return render(
         request,
         "tools.html",
         {
             "seo": Seo(title="Tools", path="/tools"),
             "user": user,
-            "health": await tool_health(session),
+            "health": health,
             "workers": worker_count(),
-            "acc": await accuracy_report(session, await visible_case_ids(session, user)),
+            "sources": sorted(stats.values(), key=lambda s: -s.runs),
+            "source_labels": labels,
+            "window_days": WINDOW_DAYS,
+            "acc": await accuracy_report(session, visible),
             "proxy": describe_proxy(),
             "site_factor": site_factor,
             "reason_labels": DISMISS_REASONS,

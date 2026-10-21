@@ -289,6 +289,19 @@ def _profile_names(entity: Entity) -> list[str]:
     return names
 
 
+def _name_conflict(entity: Entity, subject_names: list[str]) -> str | None:
+    """A checked profile that names a different person than the subject: "'X', not 'Y'"."""
+    names = _profile_names(entity)
+    if not names or not subject_names:
+        return None
+    for pname in names:
+        for sname in subject_names:
+            ratio = fuzz.token_sort_ratio(norm.canonical_name(pname), norm.canonical_name(sname))
+            if ratio >= 60 and norm.initials_compatible(pname, sname):
+                return None
+    return f"'{names[0]}', not '{subject_names[0]}'"
+
+
 def _link_targets(entity: Entity) -> tuple[list[str], list[str]]:
     preview = (entity.attributes or {}).get("preview") or {}
     if entity.verification != "verified":
@@ -355,6 +368,11 @@ async def correlate_case(session: AsyncSession, case_id: uuid.UUID, *, semantic:
     # are suggested, never merged: a different spelling may be a different person.
     for a, b in itertools.combinations(by_type.get("name", []), 2):
         if graph.blocked(a.id, b.id):
+            continue
+        if norm.same_words(a.value, b.value):
+            why = f"'{a.value}' and '{b.value}' are the same words in a different order: maybe one person, maybe two"
+            if _link(session, graph, case_id, a, b, POSSIBLE_SAME, why, 0.6):
+                result.suggested += 1
             continue
         ratio = fuzz.ratio(norm.canonical_name(a.value), norm.canonical_name(b.value))
         compatible = norm.initials_compatible(a.value, b.value)
@@ -487,25 +505,36 @@ async def rescore_case(session: AsyncSession, case_id: uuid.UUID) -> int:
     for entity_id, tool in obs.all():
         tools[owner[entity_id]].add(tool)
 
-    corroborations: dict[uuid.UUID, list[str]] = defaultdict(list)
+    # Corroborations as (other end, label). A finding's own discovery edge (h8mail's breach record
+    # pointing back at the address it was found from) is how it was found, not evidence for it.
+    corroborations: dict[uuid.UUID, list[tuple[uuid.UUID, str]]] = defaultdict(list)
     rels = (
         await session.scalars(
             select(Relation).where(Relation.case_id == case_id, Relation.relation_type.in_(CORROBORATING))
         )
     ).all()
+    by_id = {e.id: e for e in entities}
     for r in rels:
-        for eid in (owner.get(r.entity_a_id), owner.get(r.entity_b_id)):
-            if eid is not None:
-                corroborations[eid].append(r.relation_type.replace("_", " "))
+        a, b = owner.get(r.entity_a_id), owner.get(r.entity_b_id)
+        if a is None or b is None or a == b:
+            continue
+        label = r.relation_type.replace("_", " ")
+        discovery = r.basis == "observed" and r.directed and r.source_tool == getattr(by_id.get(b), "source_tool", None)
+        corroborations[a].append((b, label))
+        if not discovery:
+            corroborations[b].append((a, label))
 
     tags: list[str] = []
     for t in (await session.scalars(select(Target).where(Target.case_id == case_id))).all():
         tags.extend(t.context_tags or [])
+    # The subject's names, for "the page names someone else".
+    subject_names = [e.value for e in active.values() if e.type == "name" and (e.is_seed or e.confirmed_flag)]
 
     from app.correlation.commonness import username_rarity
     from app.services.accuracy import site_factor, site_host, site_stats
 
     stats = await site_stats(session)
+    evidence: dict[uuid.UUID, Evidence] = {}
     for e in active.values():
         attrs = e.attributes or {}
         rarity, rarity_note, factor, site_note = None, "", 1.0, None
@@ -516,11 +545,10 @@ async def rescore_case(session: AsyncSession, case_id: uuid.UUID) -> int:
             if attrs.get("username") and not attrs.get("linked_from"):
                 rarity, rarity_note = username_rarity(str(attrs["username"]))
             factor, site_note = site_factor(stats.get(e.site_host or ""))
-        ev = Evidence(
+        evidence[e.id] = Evidence(
             prior=float((e.field_confidence or {}).get("prior", e.confidence)),
             reliability=e.source_reliability,
             sources=len(tools[e.id] - {"analyst"}) or 1,
-            corroborations=sorted(set(corroborations[e.id])),
             tag_match=None if e.is_seed else tag_match_score(tags, _detail_text(e)),
             is_seed=e.is_seed,
             confirmed=e.confirmed_flag,
@@ -529,7 +557,22 @@ async def rescore_case(session: AsyncSession, case_id: uuid.UUID) -> int:
             rarity_note=rarity_note,
             site_factor=factor,
             site_note=site_note,
+            name_conflict=_name_conflict(e, subject_names) if e.type == "account" else None,
         )
+    # Pass 1 without corroboration says how much each finding is believed on its own; pass 2
+    # weights every corroboration by that belief at its other end (targets and confirmed: 1).
+    alone = {eid: score(ev).overall for eid, ev in evidence.items()}
+    for e in active.values():
+        ev = evidence[e.id]
+        best: dict[str, float] = {}
+        for other, label in corroborations[e.id]:
+            if other not in active:
+                continue
+            o = active[other]
+            st = 1.0 if (o.is_seed or o.confirmed_flag) else alone.get(other, 0.0)
+            best[label] = max(best.get(label, 0.0), st)
+        ev.corroborations = sorted(best)
+        ev.corroboration_strength = [best[k] for k in ev.corroborations]
         s = score(ev)
         adapter_fields = {k: v for k, v in (e.field_confidence or {}).items() if not k.startswith("evidence.")}
         e.confidence = s.overall

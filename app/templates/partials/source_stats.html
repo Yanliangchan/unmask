@@ -1,0 +1,29 @@
+{# Source reliability: what each tool actually did in the cases this user can see. #}
+<section class="source-stats" aria-labelledby="source-stats-title">
+  <div class="section-head">
+    <h2 id="source-stats-title">How each source has behaved</h2>
+    <p class="muted small">Last {{ window_days }} days, in the cases you can see. Facts, not a score: failures are often the sites blocking cloud servers, and what analysts kept reflects what they chose to review.</p>
+  </div>
+  {% if sources %}
+  <div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>Source</th><th class="num">Runs</th><th class="num">Finished</th><th class="num">Blocked or limited</th><th class="num">Findings</th><th class="num">Kept / ruled out</th><th class="hide-xs">Last failure</th></tr></thead>
+    <tbody>
+      {% for s in sources %}
+      <tr>
+        <td><strong class="nowrap">{{ source_labels.get(s.tool, s.tool) }}</strong></td>
+        <td class="num mono">{{ s.runs }}</td>
+        <td class="num mono">{% if s.success_rate is not none %}<span class="{{ 'text-bad' if s.success_rate < 0.5 else 'text-warn' if s.success_rate < 0.85 else '' }}">{{ (s.success_rate * 100) | round | int }}%</span>{% else %}—{% endif %}</td>
+        <td class="num mono">{{ s.blocked or "—" }}</td>
+        <td class="num mono">{{ s.findings or "—" }}</td>
+        <td class="num mono">{% if s.decided %}{{ s.kept }} / {{ s.ruled_out }}{% else %}—{% endif %}</td>
+        <td class="small muted hide-xs">{% if s.last_failure %}{{ s.last_failure_at | timeago }}: {{ s.last_failure[:90] }}{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="empty-line muted small">No scans in the last {{ window_days }} days yet.</p>
+  {% endif %}
+</section>
