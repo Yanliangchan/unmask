@@ -490,6 +490,7 @@ API_SCOPES = {
     "cases:read": "List cases you can see, their targets and scan status",
     "findings:read": "Read findings, the graph, paths and STIX (cases with a written assessment only)",
     "scans:write": "Start scans (within your daily limits)",
+    "audit:read": "Read the platform's audit log (administrators only)",
 }
 
 
@@ -513,3 +514,26 @@ class ApiKey(Base):
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_used_ip: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = _now()
+
+
+WEBHOOK_EVENTS = {
+    "scan.finished": "A scan you or a colleague started finishes",
+    "watch.changes": "Watch mode finds something new",
+}
+
+
+class Webhook(Base):
+    """An outbound webhook. The URL and the signing secret are credentials, so both are encrypted."""
+
+    __tablename__ = "webhooks"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    url: Mapped[str] = mapped_column(EncryptedText, nullable=False)
+    secret: Mapped[str] = mapped_column(EncryptedText, nullable=False)
+    events: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, server_default=text("'{}'::text[]"))
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = _now()
+    last_delivery_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_status: Mapped[str | None] = mapped_column(String(80))
+    consecutive_failures: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))

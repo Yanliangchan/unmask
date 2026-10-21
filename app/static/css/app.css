@@ -1344,3 +1344,4 @@ input[type="radio"], input[type="checkbox"] { accent-color: var(--text-strong); 
 
 .bundle-row { display: flex; gap: 12px; align-items: flex-start; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
 .bundle-row .hint { margin: 4px 0 0; max-width: 70ch; }
+.integ-note { max-width: 80ch; margin: 0 0 12px; } .webhook-form { max-width: 640px; margin-top: 14px; } .integ-actions form { margin: 0; }

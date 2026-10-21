@@ -22,6 +22,7 @@ working if their account is deactivated or they have not accepted the current te
 | `cases:read` | list cases, read a case's targets and scan history, poll a scan |
 | `findings:read` | findings, graph, paths and STIX, **for cases with a written analyst assessment** |
 | `scans:write` | start a scan (counts against the daily scan limit) |
+| `audit:read` | the platform's audit log (administrators only, checked when the key is made and on every request) |
 
 ## Endpoints
 
@@ -37,6 +38,7 @@ working if their account is deactivated or they have not accepted the current te
 | GET | `/api/v1/cases/{id}/paths?a=…&b=…` | `findings:read` | the strongest evidence paths between two findings |
 | POST | `/api/v1/cases/{id}/scans` | `scans:write` | 202 and the scan (or the one already running) |
 | GET | `/api/v1/cases/{id}/scans/{number}` | `cases:read` | that scan's status and progress |
+| GET | `/api/v1/audit?since=…&limit=…` | `audit:read` | audit entries oldest first; `next_since` pages on |
 
 Errors are JSON: `{"error": "…", "status": 403}`.
 
@@ -64,5 +66,33 @@ it for at least six months after v2 ships.
 
 ## Not yet
 
-Signed outbound webhooks (scan finished, watch-mode changes) and per-key case restrictions are
-on the roadmap; today a key sees all of its owner's cases.
+Per-key case restrictions are on the roadmap; today a key sees all of its owner's cases.
+
+## Webhooks
+
+Administrators add webhooks on **Integrations → Webhooks** for `scan.finished` and
+`watch.changes`. A delivery is a JSON POST:
+
+```json
+{"id": "…", "event": "scan.finished", "created_at": "2026-10-22T09:00:00+00:00",
+ "data": {"case_id": "…", "scan": 3, "triggered_by": "watch_mode", "status": "completed",
+          "new_findings": 2, "tools_failed": 0, "url": "https://unmask.example.org/cases/…"}}
+```
+
+It carries no case names, targets or findings; fetch those through the API. Verify every
+delivery:
+
+```python
+import hmac, hashlib, time
+
+
+def valid(secret: str, headers, raw_body: bytes) -> bool:
+    ts = int(headers["X-Unmask-Timestamp"])
+    if abs(time.time() - ts) > 300:
+        return False
+    mac = hmac.new(secret.encode(), str(ts).encode() + b"." + raw_body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest("sha256=" + mac, headers["X-Unmask-Signature"])
+```
+
+`X-Unmask-Delivery` is unique per event, for de-duplication; failed deliveries are retried
+twice (after 2 s and 10 s), and the last result shows on the Integrations page.

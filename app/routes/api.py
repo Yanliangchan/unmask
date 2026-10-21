@@ -252,3 +252,22 @@ async def scan_status(case_id: uuid.UUID, number: int, request: Request, p: Prin
         raise HTTPException(status_code=404, detail="No such scan")
     await session.commit()
     return _run(run)
+
+
+@router.get("/audit")
+async def audit(request: Request, since: datetime | None = None, limit: int = Query(1000, ge=1, le=10_000),
+                p: Principal = Depends(principal), session: AsyncSession = Depends(get_session)):  # fmt: skip
+    """Audit log entries from `since` (ISO time; default the last 24 hours), oldest first. Page with the last
+    entry's timestamp. Administrators only, with the audit:read permission."""
+    from datetime import UTC, timedelta
+
+    from app.services.auditlog import audit_rows
+
+    p.need("audit:read")
+    if not p.user.is_admin:
+        raise HTTPException(status_code=403, detail="Only administrators can read the audit log")
+    start = since or datetime.now(UTC) - timedelta(days=1)
+    rows = await audit_rows(session, since=start, limit=limit)
+    _audit(session, request, p, "audit_export", format="api", rows=len(rows))
+    await session.commit()
+    return {"entries": rows, "next_since": rows[-1]["timestamp"] if len(rows) == limit else None}

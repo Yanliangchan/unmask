@@ -36,6 +36,8 @@ async def create_key(
         raise ValueError("Choose at least one permission for the key")
     if not name.strip():
         raise ValueError("Give the key a name, such as the system that will use it")
+    if "audit:read" in scopes and not user.is_admin:
+        raise ValueError("Only administrators can make keys that read the audit log")
     live = (
         await session.scalars(
             select(ApiKey).where(

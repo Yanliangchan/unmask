@@ -274,6 +274,15 @@ async def notify_scan_finished(session: AsyncSession, run: ScanRun) -> None:
     )
     found = f"{new} new finding{'s' if new != 1 else ''}" if new else "nothing new"
     n_failed = len(run.tools_failed or [])
+    from app.services import webhooks
+
+    # Ids, counts and a link back: never the case name, targets or findings.
+    data = {"case_id": str(case.id), "scan": run.run_number, "triggered_by": run.triggered_by, "status": run.status,
+            "new_findings": new, "tools_failed": n_failed,
+            "url": f"{get_settings().public_base_url.rstrip('/')}/cases/{case.id}"}  # fmt: skip
+    webhooks.emit(session, "scan.finished", data)
+    if run.triggered_by == "watch_mode" and new:
+        webhooks.emit(session, "watch.changes", data)
     failed = f", {n_failed} tool{'s' if n_failed != 1 else ''} failed" if n_failed else ""
     if run.triggered_by == "watch_mode":
         if not new:

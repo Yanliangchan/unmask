@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "components/ui.html" as ui %}
 {% block content %}
 <div class="page-head">
   <div>
@@ -58,4 +59,47 @@
   </div>
 </section>
 {% endfor %}
+{% if user.is_admin %}
+<section class="integ-group" id="webhooks" aria-labelledby="webhooks-title">
+  <h2 id="webhooks-title" class="section-title">Webhooks</h2>
+  <p class="muted small integ-note">Tell other systems when a scan finishes or watch mode finds something new. Deliveries are signed (HMAC-SHA256 over the timestamp and body, header <span class="mono">X-Unmask-Signature</span>) and carry ids, counts and a link back, never case names, targets or findings: a receiver that needs the data calls the <a href="/account#api">API</a> with its own key.</p>
+  {% if new_secret %}
+  <div class="alert alert-info" role="status"><p><strong>Copy the signing secret now.</strong> It is shown once.</p>
+    <p><input type="text" class="mono" readonly value="{{ new_secret }}" aria-label="Signing secret"></p></div>
+  {% endif %}
+  {% if webhook_error %}<p class="alert alert-error" role="alert">{{ webhook_error }}</p>{% endif %}
+  {% if webhooks %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Address</th><th>Events</th><th>Last delivery</th><th class="shrink"><span class="visually-hidden">Actions</span></th></tr></thead>
+    <tbody>{% for h in webhooks %}
+      <tr><td class="mono small wrap">{{ h.url.split('?')[0][:80] }}</td><td class="small">{{ h.events | join(", ") }}</td>
+        <td class="small">{% if h.last_delivery_at %}{{ h.last_status }}, {{ h.last_delivery_at | timeago }}{% else %}none yet{% endif %}</td>
+        <td class="shrink"><div class="integ-actions">
+          <form method="post" action="/integrations/webhooks/{{ h.id }}/test"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-sm" type="submit">Send a test</button></form>
+          <form method="post" action="/integrations/webhooks/{{ h.id }}/delete"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-sm btn-danger" type="submit">Remove</button></form>
+        </div></td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% endif %}
+  <form class="form integ-form webhook-form" method="post" action="/integrations/webhooks/new">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label class="field"><span>Address</span><input type="url" name="url" placeholder="https://hooks.example.org/unmask" required></label>
+    <fieldset><legend class="small">Events</legend>
+      {% for key, about in webhook_events.items() %}<label class="check"><input type="checkbox" name="events" value="{{ key }}" checked><span><span class="mono">{{ key }}</span> <span class="muted small">{{ about }}</span></span></label>{% endfor %}
+    </fieldset>
+    <div><button class="btn" type="submit">Add webhook</button></div>
+  </form>
+</section>
+
+<section class="integ-group" id="audit" aria-labelledby="audit-title">
+  <h2 id="audit-title" class="section-title">Audit log</h2>
+  <p class="muted small integ-note">Every sign-in, case view, scan, decision, export, share-link view and API request, for a SIEM or a records request. The download is itself recorded.</p>
+  <form class="inline-form" method="get" data-export-form>
+    <label class="field"><span>Period</span><select name="days"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option><option value="365">Last year</option></select></label>
+    <button class="btn btn-sm" type="submit" formaction="/integrations/audit.csv">{{ ui.icon("download") }}CSV</button>
+    <button class="btn btn-sm" type="submit" formaction="/integrations/audit.jsonl">{{ ui.icon("download") }}JSON Lines</button>
+  </form>
+  <p class="hint">Also available to automation through <span class="mono">GET /api/v1/audit</span> with an administrator's key holding <span class="mono">audit:read</span>.</p>
+</section>
+{% endif %}
 {% endblock %}

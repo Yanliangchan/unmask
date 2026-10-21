@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import uuid
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import integrations as integ
@@ -19,7 +21,8 @@ from app.web import Seo, render
 
 router = APIRouter()
 
-MESSAGES = {"saved": "Saved. Tools that use it can run now.", "removed": "Removed."}
+MESSAGES = {"saved": "Saved. Tools that use it can run now.", "removed": "Removed.",
+            "webhook_removed": "Webhook removed. It receives nothing from now on."}  # fmt: skip
 
 
 def _require_admin(user: User) -> None:
@@ -40,7 +43,10 @@ def _validate(field: integ.KeyField, value: str) -> str | None:
 
 
 async def _page(request: Request, session: AsyncSession, user: User, **extra):
+    from app.models import WEBHOOK_EVENTS, Webhook
+
     health = {h.name: h for h in await tool_health(session)}
+    hooks = (await session.scalars(select(Webhook).order_by(Webhook.created_at))).all() if user.is_admin else []
     return render(
         request,
         "integrations.html",
@@ -53,6 +59,8 @@ async def _page(request: Request, session: AsyncSession, user: User, **extra):
             "health": health,
             "connected": sum(1 for i in integ.CATALOG if integ.is_set(i)),
             "message": MESSAGES.get(request.query_params.get("saved", "")),
+            "webhooks": hooks,
+            "webhook_events": WEBHOOK_EVENTS,
             **extra,
         },
         status_code=422 if extra.get("error") else 200,
@@ -127,3 +135,90 @@ async def test_integration(
                ok=all(ok for _, ok, _ in results))  # fmt: skip
     await session.commit()
     return await _page(request, session, user, tested=key, test_results=results)
+
+
+# --- Webhooks -----------------------------------------------------------------------------------
+
+
+@router.post("/integrations/webhooks/new", dependencies=[Depends(verify_csrf)])
+async def create_webhook(
+    request: Request, session: AsyncSession = Depends(get_session), user: User = Depends(current_user)
+):
+    from app.services import webhooks
+
+    _require_admin(user)
+    form = await request.form()
+    try:
+        events = [str(e) for e in form.getlist("events")]
+        hook, secret = await webhooks.create(session, url=str(form.get("url") or ""), events=events, user_id=user.id)
+    except ValueError as exc:
+        return await _page(request, session, user, webhook_error=str(exc))
+    log_access(session, "webhook_created", user_id=user.id, ip=client_ip(request), webhook=str(hook.id),
+               events=hook.events)  # fmt: skip
+    await session.commit()
+    # The only time the signing secret is shown.
+    return await _page(request, session, user, new_secret=secret, new_hook=str(hook.id))
+
+
+@router.post("/integrations/webhooks/{hook_id}/test", dependencies=[Depends(verify_csrf)])
+async def test_webhook(
+    request: Request, hook_id: uuid.UUID, session: AsyncSession = Depends(get_session),
+    user: User = Depends(current_user),
+):  # fmt: skip
+    from datetime import UTC, datetime
+
+    from app.models import Webhook
+    from app.services import webhooks
+
+    _require_admin(user)
+    hook = await session.get(Webhook, hook_id)
+    if hook is None:
+        raise HTTPException(status_code=404)
+    status = await webhooks.deliver(hook, "ping", {"message": "A test delivery from UNMASK."})
+    hook.last_status, hook.last_delivery_at = status, datetime.now(UTC)
+    log_access(session, "webhook_test", user_id=user.id, ip=client_ip(request), webhook=str(hook.id),
+               status=status)  # fmt: skip
+    await session.commit()
+    return RedirectResponse("/integrations#webhooks", status_code=303)
+
+
+@router.post("/integrations/webhooks/{hook_id}/delete", dependencies=[Depends(verify_csrf)])
+async def delete_webhook(
+    request: Request, hook_id: uuid.UUID, session: AsyncSession = Depends(get_session),
+    user: User = Depends(current_user),
+):  # fmt: skip
+    from app.models import Webhook
+
+    _require_admin(user)
+    hook = await session.get(Webhook, hook_id)
+    if hook is not None:
+        await session.delete(hook)
+        log_access(session, "webhook_deleted", user_id=user.id, ip=client_ip(request), webhook=str(hook_id))
+        await session.commit()
+    return RedirectResponse("/integrations?saved=webhook_removed#webhooks", status_code=303)
+
+
+# --- Audit log export -----------------------------------------------------------------------------
+
+
+@router.get("/integrations/audit.{fmt}")
+async def export_audit(
+    request: Request, fmt: str, days: int = 30, session: AsyncSession = Depends(get_session),
+    user: User = Depends(current_user),
+):  # fmt: skip
+    """The platform's audit log for a SIEM or a records request: admins only, and the export is itself logged."""
+    from fastapi.responses import Response
+
+    from app.services.auditlog import audit_rows, to_csv, to_jsonl
+
+    _require_admin(user)
+    if fmt not in ("csv", "jsonl"):
+        raise HTTPException(status_code=404)
+    days = max(1, min(days, 3650))
+    rows = await audit_rows(session, days=days)
+    log_access(session, "audit_export", user_id=user.id, ip=client_ip(request), format=fmt, days=days, rows=len(rows))
+    await session.commit()
+    body = to_csv(rows) if fmt == "csv" else to_jsonl(rows)
+    media = "text/csv; charset=utf-8" if fmt == "csv" else "application/x-ndjson"
+    return Response(body, media_type=media,
+                    headers={"Content-Disposition": f'attachment; filename="unmask-audit-{days}d.{fmt}"'})  # fmt: skip
