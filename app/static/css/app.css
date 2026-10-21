@@ -425,6 +425,7 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .gx-lk-confirmed { border: 2.5px solid var(--ok); }
 .gx-lk-possible { border-style: dashed; }
 .gx-lk-weak { border-style: dotted; opacity: .6; }
+.gx-lk-fresh { border: 0; background: color-mix(in srgb, var(--mark) 55%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--mark) 35%, transparent); }
 .gx-minimap { position: absolute; right: 10px; top: 8px; z-index: 2; width: 180px; height: 120px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--bg) 94%, transparent); cursor: crosshair; }
 .gx-minimap[hidden] { display: none; }
 
@@ -1345,3 +1346,14 @@ input[type="radio"], input[type="checkbox"] { accent-color: var(--text-strong); 
 .bundle-row { display: flex; gap: 12px; align-items: flex-start; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
 .bundle-row .hint { margin: 4px 0 0; max-width: 70ch; }
 .integ-note { max-width: 80ch; margin: 0 0 12px; } .webhook-form { max-width: 640px; margin-top: 14px; } .integ-actions form { margin: 0; }
+
+/* What changed since this person last looked at the case. */
+.since-strip { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin: 12px 0 0; padding: 6px 10px; border-left: 3px solid var(--mark);
+  background: var(--surface); font-size: 13px; }
+.since-strip .since-label { color: var(--muted); }
+.since-strip a { font-weight: 500; }
+
+/* Graph full screen: the browser's own, or a fixed overlay where that is refused. */
+.gx:fullscreen { height: 100vh; border: 0; border-radius: 0; }
+.gx.gx-full { position: fixed; inset: 0; z-index: 90; height: auto !important; border: 0; border-radius: 0; }
+.gx-asof .gx-range button { flex: none; }

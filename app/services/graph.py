@@ -221,11 +221,14 @@ async def case_graph(session: AsyncSession, case_id: uuid.UUID, include_all: boo
         }
         for e in shown
     ]
+    runs = (await session.scalars(select(ScanRun).where(ScanRun.case_id == case_id).order_by(ScanRun.run_number))).all()
     return {
         "nodes": nodes,
         "edges": out_edges,
         "hidden": trimmed,
         "clusters": len(set(cluster.values())),
+        # When each scan ended, for replaying the case scan by scan ("as of scan 3").
+        "scans": [{"number": r.run_number, "at": _iso(r.completed_at or r.created_at)} for r in runs],
     }
 
 

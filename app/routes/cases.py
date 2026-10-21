@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import json
 import uuid
+from datetime import UTC
+from datetime import datetime as _dt
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -326,7 +329,14 @@ async def workspace(
     log_access(session, "view_case", user_id=user.id, case_id=case.id, ip=client_ip(request))
     await session.commit()
     ctx = await case_shell(session, case, user, "entities")
-    return render(request, "cases/workspace.html", {**ctx, **await _entity_filter_options(session, case, user)})
+    q = request.query_params
+    since = _since(q)
+    show = q.get("show") if q.get("show") in SHOW_MODES else "best"
+    initial = {"show": show, **({"since": since.isoformat()} if since else {})}
+    return render(request, "cases/workspace.html", {
+        **ctx, **await _entity_filter_options(session, case, user),
+        "since_filter": since, "show_filter": show, "entities_query": urlencode(initial),
+    })  # fmt: skip
 
 
 @router.get("/cases/{case_id}/graph")
@@ -337,7 +347,20 @@ async def graph_page(
     user: User = Depends(current_user),
 ):
     case = await get_case_for_user(session, case_id, user)
-    return render(request, "cases/graph.html", await case_shell(session, case, user, "graph"))
+    ctx = await case_shell(session, case, user, "graph")
+    mark = _since(request.query_params)
+    # Findings new since this person's last visit are marked; a ?since= link from the strip wins.
+    ctx["graph_since"] = mark or (ctx["since"].at if ctx.get("since") else None)
+    return render(request, "cases/graph.html", ctx)
+
+
+def _since(q) -> _dt | None:
+    """A ?since= timestamp (show only what is new after it), or None if absent or malformed."""
+    try:
+        at = _dt.fromisoformat(q["since"]) if q.get("since") else None
+    except ValueError:
+        return None
+    return at.replace(tzinfo=UTC) if at and at.tzinfo is None else at
 
 
 async def _entity_filter_options(session: AsyncSession, case, user: User) -> dict:
@@ -358,7 +381,9 @@ def _filters_from_query(request: Request) -> EntityFilters:
         min_conf = float(q.get("min_confidence") or 0)
     except ValueError:
         min_conf = 0.0
+    since = _since(q)
     return EntityFilters(
+        since=since,
         type=q.get("type") or None,
         min_confidence=max(0.0, min(1.0, min_conf)),
         tools=[t for t in q.getlist("tool") if t],

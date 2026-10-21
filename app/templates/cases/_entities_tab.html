@@ -23,12 +23,14 @@
   </select>
   <label class="visually-hidden" for="entity-show">Show</label>
   <select id="entity-show" name="show">
-    <option value="best">Best findings</option>
-    <option value="undecided">Undecided</option>
-    <option value="all">All findings</option>
-    <option value="confirmed">Confirmed</option>
-    <option value="dismissed">Marked "Not them"</option>
+    {% for value, label in [("best", "Best findings"), ("undecided", "Undecided"), ("all", "All findings"), ("confirmed", "Confirmed"), ("dismissed", 'Marked "Not them"')] %}
+    <option value="{{ value }}" {% if value == show_filter %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
   </select>
+  {% if since_filter %}
+  <input type="hidden" name="since" value="{{ since_filter.isoformat() }}">
+  <span class="pill pill-accent" title="Only findings first seen after {{ since_filter.strftime('%-d %b %Y %H:%M') }} UTC">New since {{ since_filter.strftime('%-d %b %H:%M') }} · <a href="/cases/{{ case.id }}">clear</a></span>
+  {% endif %}
   <label class="visually-hidden" for="entity-tool">Source</label>
   <select id="entity-tool" name="tool">
     <option value="">All sources</option>
@@ -47,7 +49,7 @@
   <button class="btn btn-ghost btn-sm" type="button" data-bulk-clear>Clear</button>
 </div>
 
-<div id="entities" data-case="{{ case.id }}" hx-get="/cases/{{ case.id }}/entities" hx-trigger="load" hx-swap="innerHTML">
+<div id="entities" data-case="{{ case.id }}" hx-get="/cases/{{ case.id }}/entities?{{ entities_query or '' }}" hx-trigger="load" hx-swap="innerHTML">
   {{ ui.skeleton(6) }}
 </div>
 

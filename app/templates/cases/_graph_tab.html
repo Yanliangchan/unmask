@@ -2,7 +2,8 @@
 {# The graph workspace. Everything here changes the view only; decisions (same person, not them)
    go through the same endpoints as the Entities tab and are audited the same way. #}
 <div class="gx" data-graph="/cases/{{ case.id }}/graph.json" data-paths="/cases/{{ case.id }}/paths.json"
-     data-case="{{ case.id }}" data-case-name="{{ case.name }}" data-sample="{{ 'true' if case.is_sample else 'false' }}">
+     data-case="{{ case.id }}" data-case-name="{{ case.name }}" data-sample="{{ 'true' if case.is_sample else 'false' }}"
+     {% if graph_since %}data-since="{{ graph_since.isoformat() }}"{% endif %}>
   <div class="gx-bar" role="toolbar" aria-label="Graph tools">
     <div class="gx-find">
       {{ ui.icon("search") }}
@@ -32,6 +33,7 @@
     <button class="btn btn-ghost btn-sm" type="button" data-gx="filters" aria-expanded="true" aria-controls="gx-filters">{{ ui.icon("filter") }}Filters<span class="count" data-gx-filter-count hidden></span></button>
     <button class="btn btn-ghost btn-sm" type="button" data-gx="relayout" title="Lay out what is shown again">{{ ui.icon("refresh") }}Re-layout</button>
     <button class="btn btn-ghost btn-sm" type="button" data-gx="fit" title="Fit everything shown (F)">Fit</button>
+    <button class="btn btn-ghost btn-sm btn-icon" type="button" data-gx="fullscreen" aria-pressed="false" aria-label="Full screen" title="Full screen (Shift+F)">{{ ui.icon("expand") }}</button>
     <details class="menu gx-export">
       <summary class="btn btn-ghost btn-sm">{{ ui.icon("download") }}Export</summary>
       <div class="menu-list" role="menu">
@@ -67,6 +69,10 @@
       </fieldset>
       <fieldset><legend class="eyebrow">First seen</legend>
         <label class="field"><span class="visually-hidden">From</span><input type="date" data-gx-f="from" aria-label="First seen on or after"></label>
+      </fieldset>
+      <fieldset class="gx-asof" data-gx-asof hidden><legend class="eyebrow">As of</legend>
+        <div class="gx-range"><input type="range" min="0" max="0" step="1" value="0" data-gx-f="asof" aria-label="Show the case as it stood after scan"><button class="btn btn-ghost btn-xs" type="button" data-gx="play" aria-pressed="false" title="Play the case scan by scan">Play</button></div>
+        <p class="hint" data-gx-asof-out>Now</p>
       </fieldset>
       <fieldset><legend class="eyebrow">Size by</legend>
         <label class="check"><input type="radio" name="gx-size" value="score" data-gx-f="size" checked> Score</label>

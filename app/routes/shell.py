@@ -53,6 +53,9 @@ async def case_shell(session: AsyncSession, case: Investigation, user: User, tab
         .select_from(Relation)
         .where(Relation.case_id == case.id, Relation.relation_type == POSSIBLE_SAME)
     )
+    from app.services.visits import record_visit, since_last_visit
+
+    previous = await record_visit(user, case.id)
     label = dict((k, v) for k, v, _ in TABS)[tab]
     path = f"/cases/{case.id}" + dict((k, p) for k, _, p in TABS)[tab]
     return {
@@ -67,4 +70,5 @@ async def case_shell(session: AsyncSession, case: Investigation, user: User, tab
         "watch": watch_state(case),
         "auto_pivot": auto_pivot_enabled(case),
         "counts": {"entities": entity_count, "web": web_count, "pivots": pivot_count, "review": review_count},
+        "since": await since_last_visit(session, case.id, previous),
     }

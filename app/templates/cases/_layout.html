@@ -33,6 +33,16 @@
 
 {% include "partials/scan_status.html" %}
 
+{% if since and since.any %}
+{% set iso = since.at.isoformat() | urlencode %}
+<p class="since-strip" role="status">
+  <span class="since-label">Since you last looked, {{ since.at.strftime('%-d %b %H:%M') }} UTC:</span>
+  {% if since.findings %}<a href="/cases/{{ case.id }}?show=all&amp;since={{ iso }}">{{ since.findings }} new finding{{ "s" if since.findings != 1 }}</a>{% endif %}
+  {% if since.links %}<a href="/cases/{{ case.id }}/graph?since={{ iso }}">{{ since.links }} new link{{ "s" if since.links != 1 }}</a>{% endif %}
+  {% if since.scans %}<a href="/cases/{{ case.id }}/activity">{{ since.scans }} scan{{ "s" if since.scans != 1 }}</a>{% endif %}
+</p>
+{% endif %}
+
 <nav class="tabs" aria-label="Case sections">
   {% for key, label, suffix in tabs %}
   <a href="/cases/{{ case.id }}{{ suffix }}" {% if key == tab %}aria-current="page"{% endif %}>{{ label }}

@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from rapidfuzz import fuzz
 from sqlalchemy import select
@@ -43,6 +44,8 @@ class EntityFilters:
     q: str = ""  # case-insensitive substring of the value
     # best: hide unverified accounts and weak findings | all | confirmed | dismissed
     show: str = "best"
+    # Only findings first seen after this (what changed since a visit).
+    since: datetime | None = None
 
 
 @dataclass
@@ -162,6 +165,8 @@ async def list_entities_view(session: AsyncSession, case_id: uuid.UUID, filters:
         if filters.tools and not (sources[e.id] & set(filters.tools)):
             continue
         if filters.q and filters.q.casefold() not in e.value.casefold():
+            continue
+        if filters.since and (e.is_seed or e.first_seen <= filters.since):
             continue
         rows.append(e)
     rows.sort(key=lambda e: (not e.is_seed, -e.confidence, -e.first_seen.timestamp()))

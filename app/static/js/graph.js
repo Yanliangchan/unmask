@@ -135,6 +135,7 @@
       { selector: "node[?confirmed]", style: { "border-width": 3, "border-color": c.ok, "opacity": 1 } },
       { selector: "node[?seed]", style: { "background-color": c.strong, "border-color": c.strong, "border-width": 3, "font-weight": 600, "text-opacity": 1 } },
       { selector: "node[collapsedCount > 0]", style: { "label": "data(collapsedLabel)", "border-width": 3, "border-style": "double" } },
+      { selector: "node[?fresh]", style: { "underlay-color": c.mark, "underlay-opacity": 0.35, "underlay-padding": 5, "underlay-shape": "ellipse" } },
       { selector: "node.gx-hit", style: { "underlay-color": c.mark, "underlay-opacity": 0.55, "underlay-padding": 6, "underlay-shape": "ellipse" } },
       { selector: "node:selected", style: { "underlay-color": c.mark, "underlay-opacity": 0.95, "underlay-padding": 7, "underlay-shape": "ellipse", "z-index": 20 } },
       { selector: "edge", style: {
@@ -281,8 +282,12 @@
     var min = root.querySelector('[data-gx-f="min"]');
     var from = root.querySelector('[data-gx-f="from"]');
     var size = root.querySelector('[data-gx-f="size"]:checked');
+    var asof = root.querySelector('[data-gx-f="asof"]'), scans = (S.data && S.data.scans) || [];
+    var step = asof ? Number(asof.value) : scans.length;
+    var at = step < scans.length && scans[step].at ? Date.parse(scans[step].at) : 0;
     return { strength: checked("strength"), basis: checked("basis"), type: checked("type"), source: checked("source"),
-             min: min ? Number(min.value) / 100 : 0, from: from && from.value ? from.value : "", size: size ? size.value : "score" };
+             min: min ? Number(min.value) / 100 : 0, from: from && from.value ? from.value : "", size: size ? size.value : "score",
+             asof: at, asofScan: at ? scans[step].number : 0 };
   }
 
   function setFilters(f) {
@@ -307,6 +312,11 @@
     return true;
   }
 
+  // Replaying the case: what existed once that scan had finished. Targets were there from the start.
+  function existedBy(d, f) {
+    return !f.asof || d.seed || !d.first_seen || Date.parse(d.first_seen) <= f.asof;
+  }
+
   function apply() {
     var cy = S.cy;
     if (!cy) return;
@@ -314,14 +324,18 @@
     var count = 0;
     cy.batch(function () {
       setClass(cy.nodes(), "gx-off", function (n) {
+        if (!existedBy(n.data(), f)) return true;
         var off = !nodePasses(n.data(), f) || !!S.hidden[n.id()] || !!S.collapsedBy(n.id());
         if (off && !S.hidden[n.id()] && !S.collapsedBy(n.id())) count++;
         return off;
       });
       setClass(cy.edges(), "gx-off", function (e) {
-        return e.source().hasClass("gx-off") || e.target().hasClass("gx-off") || !f.basis[e.data("basis")];
+        return e.source().hasClass("gx-off") || e.target().hasClass("gx-off") || !f.basis[e.data("basis")] || !existedBy(e.data(), f);
       });
     });
+    S.asof = f.asofScan;
+    var out = S.root.querySelector("[data-gx-asof-out]");
+    if (out) out.textContent = f.asof ? "After scan " + f.asofScan + ", " + fmtDate(new Date(f.asof).toISOString()) : "Now";
     placeNew(cy.nodes().not(".gx-off"));
     S.filtered = count;
     var nfilters = 0;
@@ -330,6 +344,7 @@
     });
     if (f.min > 0) nfilters++;
     if (f.from) nfilters++;
+    if (f.asof) nfilters++;
     var badge = S.root.querySelector("[data-gx-filter-count]");
     if (badge) { badge.hidden = !nfilters; badge.textContent = nfilters; }
     if (S.sizeBy !== f.size) { S.sizeBy = f.size; resize(); }
@@ -372,6 +387,7 @@
     var hidden = Object.keys(S.hidden).length;
     if (hidden) parts.push(hidden + " hidden by you");
     if (S.filtered) parts.push(S.filtered + " filtered out");
+    if (S.asof) parts.push("as of scan " + S.asof);
     var sel = cy.$(":selected").length;
     if (sel) parts.push(sel + " selected");
     el2.textContent = parts.join(" · ");
@@ -912,7 +928,58 @@
       [["observed", "Observed"], ["similarity", "Similarity"], ["suggested", "Possible duplicate"]].forEach(function (k) {
         legend.appendChild(el("span", "gx-key gx-key-" + k[0])); legend.appendChild(el("span", null, k[1]));
       });
+      if (S.data && S.data.fresh) { legend.appendChild(el("span", "gx-lk gx-lk-fresh")); legend.appendChild(el("span", null, "New since " + fmtDate(S.root.dataset.since))); }
     }
+  }
+
+  // --- Time: new since the last visit, and replaying the case scan by scan ----------------------------
+  function markFresh(data) {
+    var since = S.root.dataset.since ? Date.parse(S.root.dataset.since) : 0;
+    data.fresh = 0;
+    data.nodes.forEach(function (n) {
+      n.fresh = !!since && !n.seed && !!n.first_seen && Date.parse(n.first_seen) > since;
+      if (n.fresh) data.fresh++;
+    });
+  }
+
+  function setupAsof() {
+    var box = S.root.querySelector("[data-gx-asof]"), input = S.root.querySelector('[data-gx-f="asof"]');
+    if (!box || !input) return;
+    var n = (S.data.scans || []).length;
+    var atEnd = Number(input.value) >= Number(input.max);
+    box.hidden = n < 2;  // one scan has nothing to replay
+    input.max = String(n);
+    if (atEnd || Number(input.value) > n) input.value = String(n);
+  }
+
+  function play() {
+    var input = S.root.querySelector('[data-gx-f="asof"]'), btn = S.root.querySelector('[data-gx="play"]');
+    if (!input) return;
+    if (S.playing) { clearInterval(S.playing); S.playing = null; btn.setAttribute("aria-pressed", "false"); btn.textContent = "Play"; return; }
+    if (Number(input.value) >= Number(input.max)) input.value = "0";
+    btn.setAttribute("aria-pressed", "true"); btn.textContent = "Stop";
+    apply();
+    S.playing = setInterval(function () {
+      if (!document.contains(input) || Number(input.value) >= Number(input.max)) { play(); return; }
+      input.value = String(Number(input.value) + 1);
+      apply();
+    }, reduced() ? 1600 : 1100);
+  }
+
+  function fullscreen() {
+    var btn = S.root.querySelector('[data-gx="fullscreen"]');
+    if (document.fullscreenElement) { document.exitFullscreen(); return; }
+    if (S.root.requestFullscreen) S.root.requestFullscreen().catch(function () { S.root.classList.toggle("gx-full"); afterFull(); });
+    else { S.root.classList.toggle("gx-full"); afterFull(); }
+    if (btn) btn.setAttribute("aria-pressed", "true");
+  }
+
+  function afterFull() {
+    var on = !!document.fullscreenElement || S.root.classList.contains("gx-full");
+    var btn = S.root.querySelector('[data-gx="fullscreen"]');
+    if (btn) btn.setAttribute("aria-pressed", String(on));
+    if (on) S.root.style.height = ""; else fitHeight();
+    if (S.cy) { S.cy.resize(); fit(); }
   }
 
   // --- Build ------------------------------------------------------------------------------------------
@@ -935,6 +1002,7 @@
     S.data = data;
     S.sizeBy = "score";
     data.nodes.forEach(function (n) { decorate(n, c, "score"); n.collapsedCount = 0; n.collapsedLabel = ""; });
+    markFresh(data);
     data.edges.forEach(function (e) { e.label = e.label || e.type; });
     var elements = data.nodes.map(function (n) { return { group: "nodes", data: n }; })
       .concat(data.edges.map(function (e) { return { group: "edges", data: e }; }));
@@ -947,6 +1015,7 @@
     });
     var cy = S.cy;
     buildLists();
+    setupAsof();
     S.collapsedBy = collapsedByFn();
 
     // Restore the analyst's last view of this case, if the graph still matches it.
@@ -1013,6 +1082,7 @@
     if (!S || !S.cy) return;
     fetchGraph().then(function (data) {
       var c = palette(), cy = S.cy, byId = {};
+      markFresh(data);
       data.nodes.forEach(function (n) { byId[n.id] = n; });
       cy.batch(function () {
         cy.nodes().forEach(function (n) {
@@ -1027,7 +1097,7 @@
         cy.edges().forEach(function (e) { if (!edgeIds[e.id()]) e.remove(); });
       });
       S.data = data;
-      buildLists(); apply();
+      buildLists(); setupAsof(); apply();
       var sel = cy.$("node:selected");
       if (sel.length === 1) inspectNode(sel[0]);
     });
@@ -1076,6 +1146,8 @@
       case "bulk-confirm": bulk("confirm"); break;
       case "bulk-dismiss": bulk("dismiss"); break;
       case "load-all": S.showAll = true; fetchGraph().then(build); break;
+      case "play": play(); break;
+      case "fullscreen": fullscreen(); break;
     }
     var menu = t.closest("details.menu");
     if (menu) menu.open = false;
@@ -1098,6 +1170,8 @@
       case "c": if (sel.length) collapseNode(sel[0]); break;
       case "p": if (sel.length === 2) findPaths(sel[0].id(), sel[1].id()); break;
       case "f": fit(); break;
+      case "F": fullscreen(); break;
+      case "Escape": if (S.root.classList.contains("gx-full")) { S.root.classList.remove("gx-full"); afterFull(); } break;
       case "Escape": S.pathFrom = null; clearPath(); S.cy.elements().unselect(); inspectOverview(); break;
       case "ArrowRight": case "ArrowLeft": case "ArrowUp": case "ArrowDown": {
         if (!S.root.querySelector(".gx-stage").contains(document.activeElement)) return;
@@ -1117,6 +1191,7 @@
   // The workspace fills the window below where it starts, so the canvas, legend and overview are all in view.
   function fitHeight() {
     if (!S || window.matchMedia("(max-width: 900px)").matches) { if (S) S.root.style.height = ""; return; }
+    if (document.fullscreenElement === S.root || S.root.classList.contains("gx-full")) return;
     var top = S.root.getBoundingClientRect().top + window.scrollY;
     S.root.style.height = Math.max(520, window.innerHeight - top - 16) + "px";
     if (S.cy) S.cy.resize();
@@ -1137,6 +1212,7 @@
     });
     root.addEventListener("input", function (e) {
       if (e.target.matches('[data-gx-f="min"]')) root.querySelector("[data-gx-min-out]").textContent = (Number(e.target.value) / 100).toFixed(2);
+      if (e.target.matches('[data-gx-f="asof"]')) apply();  // scrub live; the change event records it for undo
       if (e.target.matches("[data-gx-find]")) { clearTimeout(S.ft); S.ft = setTimeout(function () { find(e.target.value); }, 150); }
     });
     root.addEventListener("keydown", function (e) {
@@ -1163,6 +1239,7 @@
   }
 
   document.addEventListener("keydown", onKey);
+  document.addEventListener("fullscreenchange", function () { if (S && document.contains(S.root)) afterFull(); });
   window.addEventListener("resize", function () { clearTimeout(window.__gxr); window.__gxr = setTimeout(function () { fitHeight(); drawMinimap(); }, 150); });
   document.body.addEventListener("entities-changed", function () { if (S && document.contains(S.root)) refresh(); });
   document.addEventListener("unmask:graph-select", function (e) {
