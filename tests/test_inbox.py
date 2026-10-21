@@ -32,7 +32,7 @@ async def test_new_user_home_has_the_checklist_and_a_sample_case(client, db):
     r = await client.post("/onboarding/sample", data={"csrf_token": csrf})
     case_url = r.headers["location"]
     page = (await client.get(case_url)).text
-    assert "This is a sample case" in page and "data-run-scan" not in page
+    assert "Made-up data." in page and "data-run-scan" not in page
     table = (await client.get(case_url + "/entities?show=all")).text
     assert "code.example/alexrivera" in table and "Alex Rivera" in table
     # Opening it again doesn't make another one, and it can't be scanned or watched.

@@ -1,11 +1,12 @@
 {# Shared UI components. Import with: {% import "components/ui.html" as ui %} #}
 
 {# The UNMASK mark: U-N-M-A-S-K typed on a phone keypad (8-6-6-2-7-5), drawn as one unlock-pattern stroke
-   ending on the centre key. Pass gid for the gradient version. #}
+   in ink, ending on the centre key, which is marked like a highlighted line in a case file.
+   gid is accepted for older callers and ignored: the mark has no gradient. #}
 {% macro mark(cls="mark", gid=none) -%}
 <svg class="{{ cls }}" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-{%- if gid %}<defs><linearGradient id="{{ gid }}" gradientUnits="userSpaceOnUse" x1="6" y1="6" x2="26" y2="26"><stop offset="0" stop-color="#10B981"/><stop offset="1" stop-color="#0EA5E9"/></linearGradient></defs>{% endif -%}
-<path d="M16 26 26 16 16 6 6 26 16 16" fill="none" stroke="{{ 'url(#' ~ gid ~ ')' if gid else 'currentColor' }}" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+<path d="M16 26 26 16 16 6 6 26 16 16" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="square" stroke-linejoin="miter"/>
+<rect class="mark-key" x="12.5" y="12.5" width="7" height="7"/></svg>
 {%- endmacro %}
 
 {# Mark and wordmark together; descriptor=True adds the descriptor line under the name. #}

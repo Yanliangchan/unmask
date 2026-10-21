@@ -14,5 +14,5 @@ DESCRIPTION = (
     "UNMASK is a self-hosted open-source intelligence platform. It runs your OSINT tools as one case: findings "
     "are de-duplicated, scored, linked and compared between scans, with every automatic step logged."
 )
-THEME_LIGHT = "#F6F9F8"
-THEME_DARK = "#0B1417"
+THEME_LIGHT = "#F5F6F8"
+THEME_DARK = "#0B0D12"

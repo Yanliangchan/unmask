@@ -326,5 +326,5 @@ async def test_landing_page_sells_the_product_with_faq_structured_data(client):
     assert len(faq["mainEntity"]) >= 5 and all(q["acceptedAnswer"]["text"] for q in faq["mainEntity"])
     # Fonts are self-hosted: the CSP allows no other origin for them.
     css = (await client.get("/static/css/app.css")).text
-    assert 'url("../fonts/inter-latin-wght-normal.woff2")' in css and "fonts.googleapis" not in page
-    assert (await client.get("/static/fonts/inter-latin-wght-normal.woff2")).status_code == 200
+    assert 'url("../fonts/ibm-plex-sans-latin-400-normal.woff2")' in css and "fonts.googleapis" not in page
+    assert (await client.get("/static/fonts/ibm-plex-sans-latin-400-normal.woff2")).status_code == 200

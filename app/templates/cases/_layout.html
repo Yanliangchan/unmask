@@ -3,25 +3,22 @@
 {% block content %}
 <header class="case-head">
   <div class="case-head-main">
-    <p class="crumb"><a href="/">Home</a> /</p>
-    <h1>{{ case.name }}</h1>
+    <p class="crumb"><a href="/">Cases</a> /</p>
+    <div class="case-title-row">
+      <h1>{{ case.name }}</h1>
+      {% if case.is_sample %}<span class="pill pill-accent" title="Sample cases use made-up data and can't be scanned">Sample data</span>{% endif %}
+      {% if watch.enabled %}<span class="pill" title="Watch mode re-scans this case on a schedule">{{ ui.icon("refresh") }}Watching {{ watch.frequency }}{% if watch.next_run_at %} · next {{ watch.next_run_at.strftime('%-d %b') }}{% endif %}</span>{% endif %}
+      {% if not auto_pivot %}<span class="pill" title="Findings are not followed up automatically">Auto-pivot off</span>{% endif %}
+    </div>
     <div class="targets" aria-label="Targets">
       {% for t in case.targets %}
-      <span><span class="t-type">{{ t.type }}</span><span class="ident">{{ t.value }}</span>{% for tag in t.context_tags %}<span class="tag">{{ tag }}</span>{% endfor %}</span>
+      <span class="target-chip"><span class="t-type">{{ t.type }}</span><span class="ident" title="{{ t.value }}">{{ t.value }}</span>{% for tag in t.context_tags %}<span class="tag">{{ tag }}</span>{% endfor %}</span>
       {% endfor %}
     </div>
   </div>
   <div class="case-head-side">
-    {% if watch.enabled or not auto_pivot %}
-    <div class="case-state">
-      {% if watch.enabled %}Watching {{ watch.frequency }}{% if watch.next_run_at %}, next {{ watch.next_run_at.strftime('%-d %b') }}{% endif %}<br>{% endif %}
-      {% if not auto_pivot %}Automatic pivots off{% endif %}
-    </div>
-    {% endif %}
     {% set scanning = run and run.status in ('queued', 'running') %}
-    {% if case.is_sample %}
-    <span class="flag" title="Sample cases use made-up data and can't be scanned">Sample</span>
-    {% else %}
+    {% if not case.is_sample %}
     <button class="btn btn-primary" type="button" data-run-scan {% if scanning %}disabled title="A scan is already running"{% endif %}
             hx-post="/cases/{{ case.id }}/scans" hx-target="#scan-status" hx-swap="outerHTML">{{ ui.icon("play") }}Run scan</button>
     {% endif %}
@@ -30,7 +27,7 @@
 
 {% if case.is_sample %}
 <div class="alert alert-info sample-banner">
-  <p><strong>This is a sample case.</strong> The person and every finding are made up, so you can try things safely: open a finding, confirm or rule it out, add a note, look at the graph. Delete it from Settings when you're done.</p>
+  <p><strong>Made-up data.</strong> Nothing here points at a real person, so try anything: decide on findings, add notes, explore the graph. Delete it from Settings when you're done.</p>
 </div>
 {% endif %}
 

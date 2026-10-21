@@ -16,8 +16,8 @@
 /* Hero */
 .l-hero { position: relative; overflow: hidden; padding: 80px 0 0; }
 .l-glow { position: absolute; inset: -30% -10% auto; height: 720px; pointer-events: none;
-  background: radial-gradient(40% 50% at 30% 30%, color-mix(in srgb, #10b981 22%, transparent), transparent 70%),
-              radial-gradient(35% 45% at 75% 20%, color-mix(in srgb, #0ea5e9 18%, transparent), transparent 70%); }
+  background: radial-gradient(40% 50% at 30% 30%, color-mix(in srgb, #6d6af2 20%, transparent), transparent 70%),
+              radial-gradient(35% 45% at 75% 20%, color-mix(in srgb, #4a47d6 14%, transparent), transparent 70%); }
 .l-hero-inner { position: relative; text-align: center; display: flex; flex-direction: column; align-items: center; }
 .l-eyebrow { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px 5px 8px; border-radius: 999px; margin: 0 0 22px;
   border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font: 500 13px/1 var(--display); box-shadow: var(--shadow-sm); }
@@ -32,7 +32,7 @@
 
 .l-shot { position: relative; margin: 56px auto 0; max-width: 1120px; border-radius: 16px 16px 0 0; overflow: hidden;
   border: 1px solid var(--border-strong); border-bottom: 0; background: var(--surface);
-  box-shadow: 0 -10px 60px color-mix(in srgb, #10b981 18%, transparent), var(--shadow-lg); }
+  box-shadow: 0 -10px 60px color-mix(in srgb, #6d6af2 16%, transparent), var(--shadow-lg); }
 .l-shot-bar { display: flex; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
 .l-shot-bar span { width: 10px; height: 10px; border-radius: 50%; background: var(--border-strong); }
 .l-shot img { display: block; width: 100%; height: auto; }
@@ -96,8 +96,8 @@
 .mark-lg { width: 64px; height: 64px; }
 .l-final h2 { font-family: var(--display); font-size: clamp(30px, 4.4vw, 48px); letter-spacing: -0.03em; color: #f1f7f5; margin: 0; }
 .l-final p { color: #b9d1ca; margin: 0 0 8px; font-size: 17px; }
-.l-final .btn-primary { background: #10b981; border-color: #10b981; color: #04241b; }
-.l-final .btn-primary:hover { background: #34d399; border-color: #34d399; }
+.l-final .btn-primary { background: #6d6af2; border-color: #6d6af2; color: #ffffff; }
+.l-final .btn-primary:hover { background: #8e8bff; border-color: #8e8bff; }
 
 .l-footer { border-top: 1px solid var(--border); background: var(--bg-elev); padding: 48px 0 24px; font-size: 14px; }
 .l-footer-inner { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 32px; }
