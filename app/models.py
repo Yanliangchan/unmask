@@ -172,7 +172,7 @@ class ScanRun(Base):
     __table_args__ = (
         UniqueConstraint("case_id", "run_number", name="uq_scan_runs_case_run"),
         CheckConstraint(
-            "triggered_by IN ('manual', 'watch_mode', 'pivot_chain', 'health_check')",
+            "triggered_by IN ('manual', 'watch_mode', 'pivot_chain', 'health_check', 'import')",
             name="ck_scan_runs_triggered_by",
         ),
     )
@@ -282,7 +282,9 @@ class EntityObservation(Base):
 class Relation(Base):
     __tablename__ = "relations"
     __table_args__ = (
-        CheckConstraint("basis IN ('observed', 'rule', 'similarity', 'analyst')", name="ck_relations_basis"),
+        CheckConstraint(
+            "basis IN ('observed', 'rule', 'similarity', 'analyst', 'imported')", name="ck_relations_basis"
+        ),
         Index("ix_relations_lookup", "entity_a_id", "entity_b_id", "relation_type", "source_tool"),
     )
 
@@ -318,6 +320,7 @@ RELATION_BASIS = {
     "rule": "Rule: two values match by a fixed string rule",
     "similarity": "Similarity: two values look alike above a threshold; not proof",
     "analyst": "Analyst: a person decided it",
+    "imported": "Imported: came in a file from elsewhere; never observed by this platform",
 }
 
 

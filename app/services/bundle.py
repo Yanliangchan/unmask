@@ -79,7 +79,8 @@ async def _provenance(session: AsyncSession, case: Investigation) -> dict:
     ]  # fmt: skip
     return {"findings": findings, "links": links,
             "basis": {"observed": "a tool reported it or a fetched page shows it", "rule": "a fixed string rule",
-                      "similarity": "values look alike; not proof", "analyst": "a person decided it"}}  # fmt: skip
+                      "similarity": "values look alike; not proof", "analyst": "a person decided it",
+                      "imported": "came in a file from elsewhere; never observed here"}}  # fmt: skip
 
 
 async def _audit(session: AsyncSession, case: Investigation) -> list[dict]:

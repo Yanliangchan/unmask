@@ -29,7 +29,8 @@
     observed: { label: "Observed", text: "A tool reported this link, or a fetched page shows it." },
     rule: { label: "Rule match", text: "Two values match by a fixed rule (same handle, address at a domain). It links values, not people." },
     similarity: { label: "Similarity", text: "Two values look alike above a threshold. Similarity suggests a link; it does not establish one." },
-    analyst: { label: "Analyst", text: "A person decided this." }
+    analyst: { label: "Analyst", text: "A person decided this." },
+    imported: { label: "Imported", text: "Came in a file from elsewhere. This platform never observed it; treat it as a lead, not evidence." }
   };
   var RANK = { target: 6, confirmed: 5, likely: 4, possible: 3, unlikely: 2, unchecked: 1 };
   var BIG = 600, HUGE = 2500;

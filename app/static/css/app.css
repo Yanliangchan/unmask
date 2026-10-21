@@ -1375,3 +1375,5 @@ input[type="radio"], input[type="checkbox"] { accent-color: var(--text-strong); 
 .pin p { margin: 2px 0; }
 .pin .t-type { color: var(--faint); font: 500 10px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; margin-right: 6px; }
 @media (max-width: 900px) { .worklog { grid-template-columns: 1fr; } .worklog-side { border-left: 0; padding-left: 0; } }
+.import-report { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--border); border-left: 3px solid var(--mark); border-radius: var(--radius-sm); background: var(--surface); }
+.import-report .kv { margin: 0; }

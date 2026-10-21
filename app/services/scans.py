@@ -38,7 +38,7 @@ log = logging.getLogger(__name__)
 CANCELLED = "cancelled"
 ACTIVE = ("queued", "running")
 
-TRIGGER_PRIORITY = {"manual": 0, "pivot_chain": 5, "watch_mode": 10, "health_check": 20}
+TRIGGER_PRIORITY = {"manual": 0, "import": 0, "pivot_chain": 5, "watch_mode": 10, "health_check": 20}
 
 
 @dataclass

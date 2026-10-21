@@ -22,6 +22,7 @@ from app.routes import (
     cases,
     correlation,
     evidence,
+    imports,
     inbox,
     integrations,
     pivots,
@@ -224,6 +225,7 @@ def create_app() -> FastAPI:
     app.include_router(search.router)
     app.include_router(workspace.router)
     app.include_router(worklog_routes.router)
+    app.include_router(imports.router)
     app.include_router(inbox.router)
     app.include_router(evidence.router)
     app.include_router(integrations.router)

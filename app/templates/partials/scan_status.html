@@ -8,7 +8,7 @@
      {% if active %}hx-get="/cases/{{ case.id }}/scan-status?was_running=1&amp;seen={{ run.jobs_done }}" hx-trigger="every 2s, tab-visible from:body" data-poll hx-swap="outerHTML"{% endif %}>
   {{ ui.run_status(run.status) }}
   <span>
-    Scan {{ run.run_number }}{% if run.triggered_by == 'pivot_chain' %} (automatic follow-up){% elif run.triggered_by == 'watch_mode' %} (watch mode){% endif %}
+    Scan {{ run.run_number }}{% if run.triggered_by == 'pivot_chain' %} (automatic follow-up){% elif run.triggered_by == 'watch_mode' %} (watch mode){% elif run.triggered_by == 'import' %} (import){% endif %}
     {% if run.status == 'queued' %}
       is waiting to start{% if workers == 0 %}: <span class="text-warn">no scan worker is running, so this scan cannot start yet.</span>{% endif %}
     {% elif run.status == 'running' %}

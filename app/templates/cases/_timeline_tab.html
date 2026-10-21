@@ -6,7 +6,7 @@
     {% for p in track %}
     <a class="track-point{% if p.failed %} has-failed{% endif %}{% if run_b and p.run.id == run_b.id %} is-current{% endif %} trig-{{ p.run.triggered_by }}"
        href="/cases/{{ case.id }}/timeline?a={{ track[loop.index0 - 1].run.run_number if not loop.first else p.run.run_number }}&b={{ p.run.run_number }}" role="listitem"
-       aria-label="Scan {{ p.run.run_number }}, {{ p.at | isodate }}{% if p.run.triggered_by != 'manual' %} ({{ 'follow-up' if p.run.triggered_by == 'pivot_chain' else 'watch' }}){% endif %}: {{ p.new }} new, {{ p.seen }} seen{% if p.failed %}, {{ p.failed }} tool{{ 's' if p.failed != 1 }} failed{% endif %}. Compare with the scan before."
+       aria-label="Scan {{ p.run.run_number }}, {{ p.at | isodate }}{% if p.run.triggered_by != 'manual' %} ({{ {'pivot_chain': 'follow-up', 'import': 'import'}.get(p.run.triggered_by, 'watch') }}){% endif %}: {{ p.new }} new, {{ p.seen }} seen{% if p.failed %}, {{ p.failed }} tool{{ 's' if p.failed != 1 }} failed{% endif %}. Compare with the scan before."
        title="Scan {{ p.run.run_number }}: {{ p.new }} new, {{ p.seen }} seen{% if p.failed %}, {{ p.failed }} failed{% endif %}"
        style="left: {{ '%.2f' | format(p.position * 100) }}%">
       <span class="track-bar" aria-hidden="true" style="height: {{ '%.0f' | format(4 + 56 * (p.new / peak if peak else 0)) }}px"></span>
@@ -34,12 +34,12 @@
   <span class="muted">Compare scan</span>
   <label class="visually-hidden" for="cmp-a">From scan</label>
   <select id="cmp-a" name="a">
-    {% for r in runs %}<option value="{{ r.run_number }}" {% if run_a and r.id == run_a.id %}selected{% endif %}>{{ r.run_number }}{% if r.triggered_by != 'manual' %} ({{ 'follow-up' if r.triggered_by == 'pivot_chain' else 'watch' }}){% endif %} · {{ (r.completed_at or r.created_at).strftime('%-d %b %H:%M') }}</option>{% endfor %}
+    {% for r in runs %}<option value="{{ r.run_number }}" {% if run_a and r.id == run_a.id %}selected{% endif %}>{{ r.run_number }}{% if r.triggered_by != 'manual' %} ({{ {'pivot_chain': 'follow-up', 'import': 'import'}.get(r.triggered_by, 'watch') }}){% endif %} · {{ (r.completed_at or r.created_at).strftime('%-d %b %H:%M') }}</option>{% endfor %}
   </select>
   <span class="muted">with</span>
   <label class="visually-hidden" for="cmp-b">To scan</label>
   <select id="cmp-b" name="b">
-    {% for r in runs %}<option value="{{ r.run_number }}" {% if run_b and r.id == run_b.id %}selected{% endif %}>{{ r.run_number }}{% if r.triggered_by != 'manual' %} ({{ 'follow-up' if r.triggered_by == 'pivot_chain' else 'watch' }}){% endif %} · {{ (r.completed_at or r.created_at).strftime('%-d %b %H:%M') }}</option>{% endfor %}
+    {% for r in runs %}<option value="{{ r.run_number }}" {% if run_b and r.id == run_b.id %}selected{% endif %}>{{ r.run_number }}{% if r.triggered_by != 'manual' %} ({{ {'pivot_chain': 'follow-up', 'import': 'import'}.get(r.triggered_by, 'watch') }}){% endif %} · {{ (r.completed_at or r.created_at).strftime('%-d %b %H:%M') }}</option>{% endfor %}
   </select>
   <noscript><button class="btn btn-sm" type="submit">Compare</button></noscript>
 </form>

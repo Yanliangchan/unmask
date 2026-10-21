@@ -62,6 +62,52 @@
   </div>
 </section>
 
+{% if not case.is_sample %}
+<section class="settings-section" id="import">
+  <header>
+    <h2>Import findings</h2>
+    <p>Bring in findings from another tool or another case: a STIX 2.1 bundle or an UNMASK JSON export. Imported findings are leads, not evidence: they are marked as imported, start with a low score and grade F, are never treated as observed, and links in the file never raise a score.</p>
+  </header>
+  <div class="body">
+    {% if import_error %}<p class="alert alert-error" role="alert">Can't import that file: {{ import_error }}.</p>{% endif %}
+    {% if import_plan %}
+    {% set p = import_plan %}
+    <div class="import-report" role="region" aria-label="Import check">
+      <p><strong>{{ p.filename }}</strong> <span class="faint">· {{ p.format }}</span></p>
+      <dl class="kv">
+        <div><dt>Findings to add</dt><dd>{{ p.items | length }}{% if p.counts %} <span class="faint">({% for t, n in p.counts | dictsort %}{{ n }} {{ t | replace('_', ' ') }}{{ ", " if not loop.last }}{% endfor %})</span>{% endif %}</dd></div>
+        <div><dt>Links to add</dt><dd>{{ p.links | length }}{% if p.dropped_links %} <span class="faint">({{ p.dropped_links }} left out: an end was missing, invalid or repeated)</span>{% endif %}</dd></div>
+        {% if p.duplicates %}<div><dt>Repeated in the file</dt><dd>{{ p.duplicates }} <span class="faint">(added once)</span></dd></div>{% endif %}
+        <div><dt>Refused</dt><dd>{{ p.invalid | length }}</dd></div>
+        <div><dt>Not supported</dt><dd>{% if p.unsupported_objects %}{% for t, n in p.unsupported_objects | dictsort %}<span class="mono">{{ t }}</span> × {{ n }}{{ ", " if not loop.last }}{% endfor %}{% else %}none{% endif %}</dd></div>
+        <div><dt>Fields ignored</dt><dd>{% if p.ignored_fields %}{% for t, fields in p.ignored_fields | dictsort %}<span class="mono">{{ t }}</span>: {{ fields | join(", ") }}{{ "; " if not loop.last }}{% endfor %}{% else %}none{% endif %}</dd></div>
+      </dl>
+      {% if p.invalid %}
+      <details><summary class="small">Why {{ p.invalid | length }} {{ "was" if p.invalid | length == 1 else "were" }} refused</summary>
+        <ul class="small">{% for x in p.invalid[:50] %}<li><span class="mono">{{ x.ref }}</span> ({{ x.type }}): {{ x.reason }}</li>{% endfor %}{% if p.invalid | length > 50 %}<li class="faint">and {{ p.invalid | length - 50 }} more</li>{% endif %}</ul>
+      </details>
+      {% endif %}
+      {% if p.items %}
+      <form method="post" action="/cases/{{ case.id }}/import/commit" class="mt-8">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="token" value="{{ import_token }}">
+        <button class="btn btn-primary btn-sm" type="submit">Import {{ p.items | length }} finding{{ "s" if p.items | length != 1 }}</button>
+        <a class="btn btn-ghost btn-sm" href="/cases/{{ case.id }}/settings#import">Cancel</a>
+      </form>
+      {% else %}<p class="muted">Nothing in this file can be imported.</p>{% endif %}
+    </div>
+    {% else %}
+    <form method="post" action="/cases/{{ case.id }}/import/check" enctype="multipart/form-data" class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="field"><span class="visually-hidden">File</span><input type="file" name="file" accept=".json,application/json" required></label>
+      <button class="btn btn-sm" type="submit">Check file</button>
+    </form>
+    <p class="hint mt-8">Nothing is added until you've seen what the file contains and confirmed. Up to 5 MB and 2,000 findings.</p>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
 {% if is_owner %}
 <section class="settings-section" id="share-links">
   <header>

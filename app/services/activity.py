@@ -64,6 +64,9 @@ def _describe(row: AccessLog) -> tuple[str, str] | None:
         "run_correlation": ("re-ran matching", "refresh"),
         "add_finding": ("added a finding by hand", "plus"),
         "add_note": (None, "note"),  # shown from the note itself
+        "import_findings": (
+            f"imported {_plural(d.get('findings', 0), 'finding')} from a {d.get('format', 'file')}", "plus"
+        ),
         "log_entry": (None, "note"),
         "pin": (None, "note"),
         "unpin": ("unpinned something from the working log", "note"),
@@ -131,7 +134,7 @@ async def case_activity(session: AsyncSession, case_id: uuid.UUID, limit: int = 
             url = f"/cases/{case_id}/log"
         events.append(Event(n.created_at, users.get(n.author_id, "Former user"), text, "note", url, entity, n.body))
     for run in runs:
-        who = {"watch_mode": "Watch mode", "pivot_chain": "Follow-up"}.get(run.triggered_by, "Scan")
+        who = {"watch_mode": "Watch mode", "pivot_chain": "Follow-up", "import": "Import"}.get(run.triggered_by, "Scan")
         failed = f", {_plural(len(run.tools_failed), 'tool')} failed" if run.tools_failed else ""
         events.append(Event(run.completed_at, "unmask", f"{who} {run.run_number} finished ({run.status}){failed}",
                             "refresh", f"/cases/{case_id}/timeline?b={run.run_number}"))  # fmt: skip

@@ -25,7 +25,7 @@ MAX_LABEL = 42
 MAX_NODES = 1500
 MAX_EVIDENCE = 12
 # Strongest first: an edge is as well established as its best piece of evidence.
-BASIS_RANK = {"analyst": 4, "observed": 3, "rule": 2, "similarity": 1}
+BASIS_RANK = {"analyst": 4, "observed": 3, "rule": 2, "similarity": 1, "imported": 0}
 
 
 def pagerank(nodes: list[uuid.UUID], edges: list[tuple[uuid.UUID, uuid.UUID]], iterations: int = 40) -> dict:
