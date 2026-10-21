@@ -62,6 +62,8 @@ class Settings(BaseSettings):
     queue_backend: str = Field(default="inline", alias="UNMASK_QUEUE")
     # Wall-clock cap for one scan run on a worker.
     scan_job_timeout_seconds: int = Field(default=2 * 60 * 60, alias="UNMASK_SCAN_JOB_TIMEOUT")
+    # Tool jobs one scan runs at once (each holds database connections and fetches pages).
+    max_jobs_per_run: int = Field(default=8, alias="UNMASK_MAX_JOBS_PER_RUN")
 
     # Per-tool settings. API keys are written to a 0600 config file inside the
     # tool's throwaway working directory, never passed on the command line.

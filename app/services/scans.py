@@ -16,8 +16,10 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
+from redis.exceptions import RedisError
 from sqlalchemy import func, select, text
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crypto
@@ -448,10 +450,19 @@ async def _run_job(
         error, count_against_tool = f"invalid target: {exc}", False
     except AdapterError as exc:
         error = str(exc) or exc.__class__.__name__
+    except (SQLAlchemyError, RedisError) as exc:
+        # The platform's own database or queue failed, not the tool: don't trip its breaker.
+        log.exception("platform error during %s job", adapter.name)
+        error, count_against_tool = f"platform error ({exc.__class__.__name__}), not the tool's fault", False
     except Exception as exc:  # noqa: BLE001 — a crashing adapter must not kill the scan
         log.exception("adapter %s crashed", adapter.name)
         error = f"unexpected error: {exc.__class__.__name__}: {exc}"
-    await _record_job_outcome(run_id, case_id, adapter.name, error, count_against_tool)
+    try:
+        await _record_job_outcome(run_id, case_id, adapter.name, error, count_against_tool)
+    except Exception:
+        # Losing one job's bookkeeping must not take the other jobs down with it; the run
+        # still finishes, and its jobs_done is squared up at the end.
+        log.exception("could not record the %s job of run %s", adapter.name, run_id)
 
 
 async def execute_scan_run(run_id: uuid.UUID) -> None:
@@ -471,12 +482,14 @@ async def execute_scan_run(run_id: uuid.UUID) -> None:
         await session.commit()
         case_id = case.id
 
-    tasks = []
-    for job in jobs:
-        adapter = get_adapter(job.tool)
-        if adapter is None:
-            continue
-        tasks.append(_run_job(run_id, case_id, job, adapter, cfgs[job.tool]))
+    # Bounded: each job holds database connections and may fetch hundreds of pages.
+    gate = asyncio.Semaphore(max(1, get_settings().max_jobs_per_run))
+
+    async def bounded(job: Job, adapter: ToolAdapter) -> None:
+        async with gate:
+            await _run_job(run_id, case_id, job, adapter, cfgs[job.tool])
+
+    tasks = [bounded(job, adapter) for job in jobs if (adapter := get_adapter(job.tool)) is not None]
     await asyncio.gather(*tasks)
 
     async with sessionmaker()() as session:
@@ -548,19 +561,40 @@ async def _pivot_after_run(run_id: uuid.UUID, case_id: uuid.UUID) -> None:
                 await session.commit()
 
 
+# Per case: is a quick rescore running, and has another tool reported since it started?
+_rescoring: dict[uuid.UUID, dict[str, bool]] = {}
+QUICK_RESCORE_GAP = 2.0
+
+
 async def _quick_rescore(case_id: uuid.UUID) -> None:
     """Merge and rescore right after a tool reports, so its results show up scored mid-scan.
 
-    Pass 2 (embeddings) waits for the end of the run. Failures here are only
-    logged: the full correlation after the run is the one that is recorded.
+    Coalesced per case: a full rescore loads every finding under the case lock, so when
+    tools report while one is running they don't each start another. The running one
+    goes round once more (after a short gap) to pick them up. Pass 2 (embeddings) waits
+    for the end of the run. Failures are only logged: the correlation after the run is
+    the one that is recorded.
     """
     from app.correlation.engine import correlate_and_commit
 
+    state = _rescoring.get(case_id)
+    if state is not None:
+        state["dirty"] = True
+        return
+    state = _rescoring[case_id] = {"dirty": False}
     try:
-        async with sessionmaker()() as session:
-            await correlate_and_commit(session, case_id, semantic=False)
-    except Exception:
-        log.exception("quick rescore failed for case %s", case_id)
+        while True:
+            state["dirty"] = False
+            try:
+                async with sessionmaker()() as session:
+                    await correlate_and_commit(session, case_id, semantic=False)
+            except Exception:
+                log.exception("quick rescore failed for case %s", case_id)
+            if not state["dirty"]:
+                break
+            await asyncio.sleep(QUICK_RESCORE_GAP)
+    finally:
+        _rescoring.pop(case_id, None)
 
 
 async def _correlate_after_run(run_id: uuid.UUID, case_id: uuid.UUID) -> None:
