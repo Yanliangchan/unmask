@@ -12,10 +12,10 @@ audit trail, time-aware diffing between scans, and an open tool-adapter architec
 
 ### Brand
 
-- **Name:** UNMASK (wordmark in capitals). **Descriptor:** Open-source intelligence platform. **Tagline:** Discover. Correlate. Investigate.
-- **Colours:** emerald `#059669` (text and buttons use `#047857` in light mode for contrast), sky `#0EA5E9`, deep slate `#0B1417`, mist `#F6F9F8`.
-- **Type:** Sora (headings and wordmark), Inter (interface), JetBrains Mono (identifiers), all self-hosted under the SIL Open Font License.
-- **Mark:** a shield with mask eye cut-outs, the right eye seeing (`ui.mark` / `ui.lockup` in `app/templates/components/ui.html`; brand strings live in `app/brand.py`).
+- **Name:** UNMASK (wordmark in capitals). **Descriptor:** Open-source intelligence platform. **Tagline:** Discover. Correlate. Investigate. **Lead line:** Investigations you can defend.
+- **Look:** a case file, not a dashboard template. Paper and ink neutrals (Paper `#F2F1EC`, ink `#121110`; dark "Carbon" `#131311`), ink-black primary actions, and one highlighter yellow (`#F2D34B`) used only for what the analyst is looking at: selection, search hits, quoted evidence. Green, amber and red appear only for status and confidence. Square corners, hairline rules; no gradients, glows or blur.
+- **Type:** IBM Plex Sans (interface and headings) and IBM Plex Mono (identifiers, labels, the wordmark), self-hosted under the SIL Open Font License.
+- **Mark:** U-N-M-A-S-K typed on a phone keypad, drawn as one unlock-pattern stroke in a single colour (`ui.mark` / `ui.lockup` in `app/templates/components/ui.html`; brand strings in `app/brand.py`).
 
 ---
 
@@ -26,6 +26,7 @@ audit trail, time-aware diffing between scans, and an open tool-adapter architec
 - [Architecture](#architecture)
 - [Local development](#local-development)
 - [Deploying to Railway](#deploying-to-railway)
+- [Upgrading and rolling back](#upgrading-and-rolling-back)
 - [Key management](#key-management)
 - [Writing a tool adapter](#writing-a-tool-adapter)
 - [Operational footprint & ethics](#operational-footprint--ethics)
@@ -40,7 +41,14 @@ audit trail, time-aware diffing between scans, and an open tool-adapter architec
 | **Failure isolation** | One broken tool never fails a scan. Every failure is written to `scan_runs.tools_failed` / `failure_details` and shown on the case. |
 | **Circuit breaker** | Three consecutive failures auto-disable a tool and raise a banner. A passing health check (against a known-good target, validated by content signature) re-enables it. |
 | **Reliability ≠ confidence** | Every entity carries a source-reliability rating (Admiralty A–F: trust in the *source class*) separately from confidence (is this the *same person*). |
-| **Audit trail** | Logins, case views, scans, confirmations and health checks are written to `access_log`, which survives case deletion. |
+| **Audit trail** | Logins, case views, scans, confirmations, exports, API requests and health checks are written to `access_log`, which survives case deletion. |
+| **Graph workspace** | Four layouts, filters, multi-select, expand/isolate/hide/collapse, undo, in-graph search, an inspector for findings and links, minimap and subgraph export. Filters never re-run the layout. See [docs/graph-workspace.md](docs/graph-workspace.md). |
+| **Evidence on every link** | Each relation records how it was established (observed, rule, similarity, analyst), its direction, and when and how often it was seen. Inferred links are drawn and labelled as inferred. |
+| **Path analysis** | The strongest evidence paths between two findings, ranked by link kind and confidence, discounted through hubs, each naming its weakest link — association, never identity. |
+| **Provenance** | Every sighting stores what the tool reported, the page it came from, the finding it was searched from and the source grade at the time. |
+| **Identity Resolution Lab** | `python -m app.cli lab` measures precision, recall, false merges and calibration on labelled cases built around how attribution fails, and gates regressions. See [docs/lab/](docs/lab/README.md). |
+| **Misuse limits** | At most 25 targets per case, daily per-account target and scan quotas, owner-only scope-widening settings, exports gated on a written assessment. |
+| **API v1** | Scoped, hashed, expiring API keys; the same visibility and gates as the app. See [docs/api.md](docs/api.md). |
 
 ## Status
 
@@ -58,8 +66,9 @@ Phase 9's case sharing already works (owner-only, from Case Settings); its extra
 | 6 | Timeline diffs, watch mode (jittered, staggered), retention purges, scheduled health checks, alerts | ✅ |
 | 7 | DuckDuckGo (Instant Answers) + Brave Search adapters, search-link and reverse-image buttons | ✅ |
 | 8 | Case Settings screen, report export (Markdown + print-ready PDF) gated on a written analyst assessment | ✅ |
-| 9 | GHunt, PhoneInfoga, ExifTool (disabled by default), multi-user sharing | ⏳ |
-| 10 | AI synthesis layer | ⏳ |
+| 9 | GHunt, PhoneInfoga, ExifTool (disabled by default), multi-user sharing | ⏳ (sharing ✅) |
+| 10 | AI synthesis layer | deferred (see the audit) |
+| 11 | October 2026 overhaul: security fixes, design system, graph workspace, provenance, path analysis, Identity Lab, source behaviour, API v1 | ✅ ([audit](docs/audit/2026-10-overhaul-audit.md), [changelog](CHANGELOG.md)) |
 
 ## Correlation
 
@@ -348,6 +357,9 @@ default (`UNMASK_USERNAME_SITES=all` for everything they know).
    | `UNMASK_PROXY_URL`, `UNMASK_PROXY_TOOLS` | optional outbound proxy (a residential one works best) for tools that sites block from cloud IPs; defaults to Holehe, Sherlock, Maigret and the profile-page check. Holehe stays switched off without one (its sites rate-limit cloud servers), unless `UNMASK_HOLEHE_DIRECT=true` on a home or office network |
    | `UNMASK_OPERATOR_NAME`, `UNMASK_LEGAL_CONTACT`, `UNMASK_SECURITY_CONTACT`, `UNMASK_GOVERNING_LAW` | who runs this deployment and how to reach them; shown in the Terms, Privacy Notice and Trust pages and in `/.well-known/security.txt`. Governing law defaults to Singapore |
    | `UNMASK_SMTP_HOST`, `UNMASK_SMTP_PORT`, `UNMASK_SMTP_USER`, `UNMASK_SMTP_PASSWORD`, `UNMASK_SMTP_FROM` | optional mail server for email notifications (port 465 uses TLS, others STARTTLS); emails never contain case names or findings |
+   | `UNMASK_TRUSTED_PROXY_HOPS` | proxies in front of the app that append to `X-Forwarded-For`. The image sets `1` (Railway's edge); set `0` if nothing sits in front, or the client could choose its own address |
+   | `UNMASK_MAX_TARGETS_PER_CASE`, `UNMASK_MAX_TARGETS_PER_DAY`, `UNMASK_MAX_SCANS_PER_DAY` | misuse limits, default 25 / 150 / 80 per account |
+   | `UNMASK_SESSION_ABSOLUTE` | seconds a sign-in lasts however active it is (default 7 days); signing out ends every session of the account |
    | `UNMASK_SERPER_KEY` (or `UNMASK_SERPAPI_KEY`, `UNMASK_GOOGLE_API_KEY` + `UNMASK_GOOGLE_CX`, `UNMASK_BRAVE_API_KEY`) | web search provider for the targeted searches and the Web tab; without one, web search stays "Not configured" |
 
 5. **Generate a domain** for the web service.
@@ -357,6 +369,32 @@ default (`UNMASK_USERNAME_SITES=all` for everything they know).
 `UNMASK_ENV=production` (set in the image) refuses to start with a weak `SECRET_KEY`, missing
 encryption keys, or a secret key that reuses encryption key material, and turns on secure
 cookies and HSTS.
+
+## Upgrading and rolling back
+
+Migrations run on start (`alembic upgrade head` in `scripts/start.sh`). The October 2026
+release adds four, each with a working downgrade:
+
+| Revision | Adds |
+|---|---|
+| 0010 | `users.session_epoch` (signing out ends every session; existing sessions end once) |
+| 0011 | relation provenance: `basis`, `directed`, `last_seen`, `seen_count`, run links, a lookup index; backfilled from existing rows |
+| 0012 | observation provenance: `reported`, `source_url`, `parent_entity_id`, `reliability`; `scan_run_id` becomes nullable |
+| 0013 | `api_keys` |
+
+Before upgrading, take a database backup (Railway: a manual snapshot; otherwise `pg_dump`).
+To roll back the code, redeploy the previous image, then downgrade the schema to the matching
+revision from a one-off shell with the same environment:
+
+```bash
+python -m alembic downgrade 0009    # back to the release before the overhaul
+```
+
+Downgrading 0013 deletes API keys; 0012 deletes the observations of hand-added findings (they
+have no scan run) and the new provenance columns; 0011 drops relation provenance. Restoring
+the backup is the safer path if the release ran for long. Verify a deployment with
+`curl $PUBLIC_BASE_URL/healthz`, a sign-in, the sample case's Graph tab, and
+`python -m app.cli lab --baseline docs/lab/baseline.json`.
 
 ## Key management
 

@@ -33,3 +33,10 @@ def test_calibration_and_threshold_metrics():
 def test_the_generator_is_deterministic():
     assert [c.name for c in lab.generate(5)] == [c.name for c in lab.generate(5)]
     assert lab.generate(3)[0].findings[0].value == lab.generate(3)[0].findings[0].value
+
+
+async def test_a_large_lab_run_is_not_stopped_by_the_daily_quota(db, monkeypatch):
+    from app.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "max_targets_per_day", 2)
+    assert lab.report(await lab.run(db, lab.generate(3)))["findings"] > 0

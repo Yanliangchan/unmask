@@ -74,6 +74,7 @@ async def create_case(
     targets: list[TargetInput],
     disabled_tools: list[str],
     notes: str | None = None,
+    enforce_quota: bool = True,
 ) -> Investigation:
     errors: list[str] = []
     if not name.strip():
@@ -94,7 +95,11 @@ async def create_case(
             f"A case can hold at most {settings.max_targets_per_case} targets. A case is about one subject: "
             "split unrelated people into separate cases, each with its own authorization."
         )
-    elif real_targets and (problem := await quota_problem(session, owner, new_targets=len(real_targets))):
+    elif (
+        enforce_quota
+        and real_targets
+        and (problem := await quota_problem(session, owner, new_targets=len(real_targets)))
+    ):
         errors.append(problem)
     if errors:
         raise CaseValidationError(errors)

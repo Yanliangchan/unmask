@@ -178,3 +178,83 @@ CSRF on all 50+ POSTs, argon2 with dummy-hash timing, safe `next` redirects, SSR
 snapshot fetcher, subprocesses without a shell and with scrubbed env and `--` separators,
 autoescaping with no `|safe`, sandboxed raw snapshot downloads, strict CSP, 256-bit
 hashed share-link tokens, CSV formula neutralisation, startup refusal of weak keys.
+
+## Appendix C — graph and visualisation
+
+Benchmarked in headless Node and Chromium: at 2–5k nodes the cost is the **layout**, not the
+renderer (CoSE: 9 s at 500 nodes, 154 s at 2,000; fCoSE draft: 0.3 s and 0.5 s). Decision:
+**keep Cytoscape** (shapes/glyphs, compound nodes, existing styling and CSP work) and vendor
+fCoSE (MIT, 33 KB gzip, loaded only for the force layout). Sigma.js/WebGL would not fix layout
+time and would cost per-type glyph encoding. Patterns adopted from Maltego (block layout by
+type, collapse of leaf findings), Linkurious (filters that don't move the picture, undo),
+Neo4j Bloom (expand/dismiss/shortest path); not copied: Maltego's transform marketplace,
+Group-IB's automatic multi-hop expansion (it conflicts with the case gate's scope).
+
+## Outcome (end of the overhaul)
+
+| # | Weakness | Status |
+|---|---|---|
+| 1 | Stuck runs block scans and purges | **Fixed**: reaped every scheduler tick; enqueue failure fails the run |
+| 2 | SSRF in verification | **Fixed**: every hop checked; regression test |
+| 3 | Soft-404 "verified" | **Fixed**: no canonical match; body not-found check unless the page declares a profile |
+| 4 | Correlation presented as identity | **Improved**: evidence against lowers scores; unanchored common handles capped; inferred links labelled; paths say "not proof" |
+| 5 | Coherence counted as attribution | **Fixed**: corroboration weighted by the other end (decoys 12/12 → 0/12) |
+| 6 | Optimistic merges | **Fixed** for phones and name order (false merges 10 → 0). Merges still take the best source grade and keep confirmation, deliberately: they only join *identical* identifiers |
+| 7 | Relations without direction, evidence or history | **Fixed**: migration 0011 |
+| 8 | Fan-out and full correlation under the case lock | **Open** (see next steps) |
+| 9 | Races | **Fixed**: duplicate runs, stale suggestion merges. `cancel_scan_run` read-modify-write remains |
+| 10 | Graph is a picture | **Fixed**: workspace, paths, inspector, filters, undo, export, performance |
+
+| Security finding | Status |
+|---|---|
+| H1 bulk targeting | Fixed (per-case cap, daily quotas, audited) |
+| M1 spoofable client IP | Fixed (trusted hop count) |
+| M2 sessions | Fixed (absolute lifetime, epoch; no password-change flow yet) |
+| M3 SSRF | Fixed |
+| M4 exports ungated | Fixed (and the API follows the same rule) |
+| M5 collaborator settings | Fixed for retention, watch, pivots; the assessment stays editable by collaborators on purpose (drafting the conclusion is shared work; share links stay owner-only) |
+| L1 webhook URL logged | Fixed |
+| L4 admin actions | Health checks fixed; integrations page still readable by non-admins (shows last four characters only) |
+| L6 authorisation note | Fixed (minimum length) |
+| L8 link schemes | Fixed (`safe_url`) |
+| L2, L3, L5, L7, L9, L10 | Open (low) |
+
+Verification at the end: 345 tests pass (304 at baseline), `ruff check` and
+`ruff format --check` clean, `alembic check` reports no drift, `pip-audit` finds no known
+vulnerabilities, axe-core finds no WCAG 2 A/AA violations on 11 key screens in both themes,
+the Identity Lab shows no regressions against `docs/lab/baseline.json`.
+
+### Deferred, and why
+
+- **Evidence-grounded AI analyst.** Every material claim would need a citation into the
+  provenance ledger, which only exists from this release; sending case data to a hosted model
+  conflicts with the self-hosted, encrypted-at-rest promise; and a local model large enough
+  to be useful does not fit the deployment's memory budget. Revisit with a local model and
+  citation-checked output.
+- **STIX import.** Import must never let untrusted data look like collected evidence; that
+  needs an "imported" basis and provenance kind first (now possible on the 0011/0012 schema).
+- **Collaboration (roles, approver workflow, review handover).** The data model now supports
+  per-relation and per-observation history; roles and an approver step are the top paid-tier
+  ask and should come with SSO/MFA.
+- **Signed webhooks; per-key case restrictions.** Documented in docs/api.md as not yet.
+- **Value-of-information pivot scheduler; retryable skipped pivots.** Needs the Lab extended to
+  pivots so the change can be measured.
+- **Calibration map.** Not fitted to synthetic data on purpose; fit only on consented ground truth.
+
+### Remaining limitations
+
+- Recall at "Likely" is 0.60 on the synthetic set because login-walled accounts stay unproven.
+- Pan frame rate at 1,500 findings was 16 fps in a GPU-less container; real browsers with a GPU
+  should do better, but this was not measured.
+- Correlation still reloads the whole case after each tool job (weakness 8).
+- No SSO, MFA or roles beyond owner/admin.
+- The legal pages need review by a lawyer where the deployment operates.
+
+### Recommended next steps
+
+1. Debounce the per-job quick rescore and cap jobs per run (weakness 8); measure scan wall time.
+2. SSO (OIDC) with enforced MFA, then viewer/analyst/owner roles and an approver step.
+3. Extend the Lab to verification (replay stored pages) and to pivots; collect consented ground
+   truth and fit a versioned calibration map.
+4. Signed webhooks for scan completion and watch-mode changes.
+5. Audit-log export (SIEM) and a chain-of-custody bundle (report + snapshots + hashes + provenance).

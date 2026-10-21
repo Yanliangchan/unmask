@@ -192,6 +192,8 @@ async def run(session: AsyncSession, cases: list[LabCase]) -> list[Outcome]:
                 session, owner=owner, name=c.name, lawful_basis_confirmed=True, disabled_tools=[],
                 authorization_note="Identity Resolution Lab: synthetic data, rolled back after measuring.",
                 targets=[TargetInput(v, t, list(c.tags)) for t, v in c.seeds.items()],
+                # Synthetic and rolled back: the misuse quota (which commits when it trips) must not apply.
+                enforce_quota=False,
             )  # fmt: skip
             now = datetime.now(UTC)
             run_ = ScanRun(case_id=case.id, run_number=1, status="completed", triggered_by="manual",
