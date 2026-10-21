@@ -141,8 +141,8 @@ def evaluate(path: str, tools: list[str], json_out: str | None) -> None:
         print(f"\nDetails (missed accounts, false positives) written to {json_out}")
 
 
-async def _lab(cases_file: str | None, n: int) -> dict:
-    from app import lab
+async def _lab(cases_file: str | None, n: int, pages_file: str | None = None) -> dict:
+    from app import lab, lab_pages
 
     s = get_settings()
     crypto.cipher.configure(s.data_keys, s.index_key)
@@ -150,23 +150,29 @@ async def _lab(cases_file: str | None, n: int) -> dict:
     async with sessionmaker()() as session:
         outcomes = await lab.run(session, cases)
     await dispose_engine()
-    return lab.report(outcomes)
+    pages = lab_pages.load(pages_file) if pages_file else lab_pages.generate()
+    return {**lab.report(outcomes), "verification": lab_pages.report(lab_pages.replay(pages))}
 
 
-def run_lab(cases_file: str | None, n: int, json_out: str | None, baseline: str | None) -> None:
+def run_lab(
+    cases_file: str | None, n: int, json_out: str | None, baseline: str | None, pages_file: str | None = None
+) -> None:
     import json
 
-    from app import lab
+    from app import lab, lab_pages
 
-    result = asyncio.run(_lab(cases_file, n))
+    result = asyncio.run(_lab(cases_file, n, pages_file))
     print("\n".join(lab.summary_lines(result)))
+    print("\n".join(lab_pages.summary_lines(result["verification"])))
     if json_out:
         with open(json_out, "w") as fh:
             json.dump(result, fh, indent=2)
         print(f"\nReport written to {json_out}")
     if baseline:
         with open(baseline) as fh:
-            problems = lab.regressions(result, json.load(fh))
+            saved = json.load(fh)
+        problems = lab.regressions(result, saved)
+        problems += lab_pages.regressions(result["verification"], saved.get("verification"))
         if problems:
             print("\nRegressions against the baseline:", *(f"  - {p}" for p in problems), sep="\n")
             sys.exit(1)
@@ -191,6 +197,7 @@ def main() -> None:
     lb.add_argument("-n", type=int, default=40, help="synthetic cases to generate")
     lb.add_argument("--json", dest="json_out")
     lb.add_argument("--baseline", help="a saved report; exit 1 if this run is worse")
+    lb.add_argument("--pages", help="recorded pages (JSONL) to replay through verification (default: synthetic)")
     pf = sub.add_parser("preflight", help="check configuration and wait for the database (run before migrations)")
     pf.add_argument("--wait", type=int, default=int(os.environ.get("UNMASK_DB_WAIT", "60")))
     args = parser.parse_args()
@@ -204,7 +211,7 @@ def main() -> None:
     elif args.cmd == "eval":
         evaluate(args.file, [t.strip() for t in args.tools.split(",") if t.strip()], args.json_out)
     elif args.cmd == "lab":
-        run_lab(args.cases, args.n, args.json_out, args.baseline)
+        run_lab(args.cases, args.n, args.json_out, args.baseline, args.pages)
     elif args.cmd == "preflight":
         preflight(args.wait)
 

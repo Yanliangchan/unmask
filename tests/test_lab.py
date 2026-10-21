@@ -40,3 +40,30 @@ async def test_a_large_lab_run_is_not_stopped_by_the_daily_quota(db, monkeypatch
 
     monkeypatch.setattr(get_settings(), "max_targets_per_day", 2)
     assert lab.report(await lab.run(db, lab.generate(3)))["findings"] > 0
+
+
+def test_verification_replay_never_verifies_a_page_that_is_not_the_profile():
+    from app import lab_pages
+
+    r = lab_pages.report(lab_pages.replay(lab_pages.generate()))
+    assert r["false_verified"] == 0 and r["accuracy"] == 1.0
+    assert set(r["kinds"]) == set(lab_pages.KINDS)
+    worse = {**r, "false_verified": 1, "accuracy": 0.9}
+    problems = lab_pages.regressions(worse, r)
+    assert any("wrongly marked" in p for p in problems) and any("accuracy fell" in p for p in problems)
+
+
+def test_recorded_pages_load_and_are_validated(tmp_path):
+    import json
+
+    import pytest
+
+    from app import lab_pages
+
+    good = {"url": "https://x.example/jo", "username": "jo", "status": 404, "page": "", "expected": "rejected"}
+    f = tmp_path / "pages.jsonl"
+    f.write_text(json.dumps(good) + "\n")
+    assert lab_pages.report(lab_pages.replay(lab_pages.load(f)))["accuracy"] == 1.0
+    f.write_text(json.dumps({**good, "expected": "maybe"}) + "\n")
+    with pytest.raises(ValueError, match="line 1"):
+        lab_pages.load(f)

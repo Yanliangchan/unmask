@@ -1,6 +1,17 @@
 {% extends "cases/_layout.html" %}
 {% block tab %}
 <p class="muted small">Every follow-up the platform started on its own, and every one it decided not to start, with the reason. {% if not auto_pivot %}<strong>Automatic pivots are off for this case.</strong> {% endif %}<a href="/cases/{{ case.id }}/settings#pivots">Change in settings</a>.</p>
+{% if why %}<div class="alert alert-warn"><p>Not retried: {{ why }}.</p></div>
+{% elif retried is not none %}<div class="alert alert-info" role="status"><p>{% if retried | int %}{{ retried }} pivot{{ "s" if retried | int != 1 }} started as a follow-up scan.{% else %}Nothing could be retried.{% endif %}{% if refused | int %} {{ refused }} still can't run; the reason is on each row.{% endif %}</p></div>{% endif %}
+{% set skipped = rows | selectattr("skipped_reason") | list %}
+{% if skipped and not case.is_sample %}
+<form class="toolbar" method="post" action="/cases/{{ case.id }}/pivots/retry-skipped">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <span class="muted small">{{ skipped | length }} skipped. Retrying is your decision, so the depth limit and budget don't apply; a tool that is still off or not set up is not run.</span>
+  <span class="spacer"></span>
+  <button class="btn btn-sm" type="submit">{{ ui.icon("refresh") }}Retry all skipped</button>
+</form>
+{% endif %}
 {% if rows %}
 <div class="table-wrap">
 <table class="table pivots">
@@ -12,7 +23,9 @@
       <td>{% if p.entity %}<span class="ident">{{ p.entity.value }}</span> <span class="faint small">{{ p.entity.type }}</span>{% else %}<span class="faint">Deleted entity</span>{% endif %}</td>
       <td class="small">{{ p.rule_label }}{% if p.row.confidence_at_trigger is not none %} <span class="faint">at {{ '%.2f' | format(p.row.confidence_at_trigger) }}</span>{% endif %}</td>
       <td class="nowrap">{{ p.tool_label }}</td>
-      <td>{% if p.skipped_reason %}<span class="why">Skipped: {{ p.skipped_reason }}</span>{% elif p.pivot_run %}Scan {{ p.pivot_run.run_number }}, {{ p.pivot_run.status }}{% endif %}</td>
+      <td>{% if p.skipped_reason %}<span class="why">Skipped: {{ p.skipped_reason }}</span>
+        {% if not case.is_sample %}<form class="retry-form" method="post" action="/cases/{{ case.id }}/pivots/{{ p.row.id }}/retry"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="link-btn small" type="submit">Retry</button></form>{% endif %}
+        {% elif p.pivot_run %}Scan {{ p.pivot_run.run_number }}, {{ p.pivot_run.status }}{% if p.retried %} <span class="faint small" title="Skipped first: {{ p.retried }}">retried by you</span>{% endif %}{% if p.value %} <span class="faint small" title="Ranked by the finding's score times how often this tool's pivots have found something">value {{ p.value }}</span>{% endif %}{% endif %}</td>
       <td class="hide-sm faint small nowrap" title="{{ p.row.created_at | isodate }}">{{ p.row.created_at | timeago }}</td>
     </tr>
     {% endfor %}

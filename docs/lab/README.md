@@ -58,8 +58,35 @@ What changed, and why:
    the profile does not exist is rejected even if its title echoes the username
    (`tests/test_verify.py`).
 
-\* The lab hands the scorer pre-verified pages, so it cannot see fix 5; the remaining soft-404
-false positive is caught by the verifier, which has its own tests.
+\* The lab hands the scorer pre-verified pages, so it cannot see fix 5; the verification
+replay below measures that part.
+
+## Verification replay
+
+`python -m app.cli lab` also replays web pages through the page classifier
+(`app/verify.py: classify`) with no network, and reports how often it got the verdict right
+(`app/lab_pages.py`). The synthetic set covers the ways sites misreport whether a profile
+exists: real profiles, profiles whose sidebar says "not found", hard and soft 404s, error
+pages that echo the requested name, login and home-page redirects, bot walls, rate limits,
+login walls, a name mentioned in passing, and server errors.
+
+```
+python -m app.cli lab --pages recorded.jsonl     # replay pages you recorded instead
+```
+
+Each line of the file is `{"url", "username", "status", "final_url", "page", "expected"}`,
+with `expected` one of `verified`, `rejected`, `unverified`. A page marked *verified* that is
+not the profile (`false_verified`) fails the baseline check outright: that is the mistake
+that puts a stranger's account in a report. A real profile left unconfirmed only costs recall.
+
+## Which pivots run first
+
+When a scan produces more follow-ups than the per-evaluation budget, they are ranked by
+expected value: the finding's score × how often that tool's pivots have found anything
+before (`(productive + 1) / (run + 2)`, counted across cases, counts only) × ½ when every
+input is a guess. The value is shown on the Pivot Log. A skipped pivot can be retried there,
+one at a time or all together; the depth limit and budget don't apply to an analyst's retry,
+but a tool that is still disabled, unconfigured or excluded is still refused.
 
 ## Reading the numbers honestly
 

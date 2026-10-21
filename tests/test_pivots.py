@@ -174,3 +174,61 @@ async def test_auto_pivot_switch(pivot_env, client, db):
     assert last.failure_details["_pivots"] == "automatic pivoting is off for this case"
     actions = set((await db.scalars(select(AccessLog.action).where(AccessLog.case_id == case_id))).all())
     assert "auto_pivot_off" in actions
+
+
+async def test_a_skipped_pivot_can_be_retried_by_the_analyst(pivot_env, client, db):
+    pivot_env.pivot_max_depth = 1
+    csrf = await login(client)
+    case_id = await start_case(client, csrf)
+    skipped = [r.id for r in await rows_for(db, case_id) if r.scan_run_id is None]
+    assert len(skipped) == 1
+    page = (await client.get(f"/cases/{case_id}/pivots")).text
+    assert "Retry all skipped" in page and f"/pivots/{skipped[0]}/retry" in page
+
+    r = await client.post(f"/cases/{case_id}/pivots/{skipped[0]}/retry", data={"csrf_token": csrf})
+    assert r.status_code == 303 and "retried=1" in r.headers["location"]
+    await jobs.wait_for_all()
+    db.expire_all()
+    row = await db.get(PivotLog, skipped[0])
+    assert row.scan_run_id is not None and "retried by analyst (pivot depth limit (1) reached)" in row.rule_matched
+    runs = await runs_for(db, case_id)
+    assert runs[-1].triggered_by == "pivot_chain" and runs[-1].tools_included == ["fake_domain"]
+    assert any(a == "retry_pivots" for a in (await db.scalars(select(AccessLog.action))).all())
+    hosts = (await db.scalars(select(Entity).where(Entity.case_id == case_id, Entity.type == "hostname"))).all()
+    assert hosts  # the retried pivot really ran
+    assert "retried by you" in (await client.get(f"/cases/{case_id}/pivots")).text
+
+    # Nothing left to retry: a second attempt on the same row is a 404, not a second run.
+    again = await client.post(f"/cases/{case_id}/pivots/{skipped[0]}/retry", data={"csrf_token": csrf})
+    assert again.status_code == 404
+
+
+async def test_a_retry_still_refuses_a_tool_that_cannot_run(pivot_env, client, db):
+    csrf = await login(client)
+    case_id = await start_case(client, csrf, tools=["fake_ok", "fake_domain"])
+    r = await client.post(f"/cases/{case_id}/pivots/retry-skipped", data={"csrf_token": csrf})
+    assert "retried=0" in r.headers["location"] and "refused=1" in r.headers["location"]
+    assert len(await runs_for(db, case_id)) == 1
+    page = (await client.get(r.headers["location"])).text
+    assert "Nothing could be retried" in page
+
+
+def test_pivots_are_ranked_by_expected_value():
+    from app.pivots.engine import expected_value
+    from app.pivots.rules import PivotInput
+
+    real, guess = [PivotInput("email", "a@b.example")], [PivotInput("email", "a@gmail.com", guessed=True)]
+    assert expected_value(0.9, 0.5, real) == 0.45
+    assert expected_value(0.9, 0.5, guess) == 0.225  # guesses are worth half
+    assert expected_value(0.7, 0.9, real) > expected_value(0.9, 0.5, real)  # a tool that usually finds wins
+
+
+async def test_tool_yield_learns_from_pivots_that_found_something(pivot_env, client, db):
+    from app.pivots.engine import tool_yields
+
+    csrf = await login(client)
+    case_id = await start_case(client, csrf)
+    yields = await tool_yields(db)
+    assert yields["fake_email"] > 0.5 and yields["fake_domain"] > 0.5
+    rows = await rows_for(db, case_id)
+    assert all(" — value " in r.rule_matched for r in rows)

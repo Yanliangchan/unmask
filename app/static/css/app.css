@@ -1357,3 +1357,4 @@ input[type="radio"], input[type="checkbox"] { accent-color: var(--text-strong); 
 .gx:fullscreen { height: 100vh; border: 0; border-radius: 0; }
 .gx.gx-full { position: fixed; inset: 0; z-index: 90; height: auto !important; border: 0; border-radius: 0; }
 .gx-asof .gx-range button { flex: none; }
+.retry-form { display: inline; margin-left: 6px; }
