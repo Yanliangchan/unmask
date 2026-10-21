@@ -26,7 +26,7 @@ async def test_new_user_home_has_the_checklist_and_a_sample_case(client, db):
     email, csrf = await _fresh_user(client, db)
     home = (await client.get("/")).text
     assert "Getting started" in home and 'aria-label="0 of 5 done"' in home
-    assert "Start your first investigation" in home and "Explore a sample case" in home
+    assert "Open a case file" in home and "Explore the sample case" in home and "Person due diligence" in home
     assert "Needs you" not in home and "stat-value" not in home
 
     r = await client.post("/onboarding/sample", data={"csrf_token": csrf})
@@ -43,7 +43,7 @@ async def test_new_user_home_has_the_checklist_and_a_sample_case(client, db):
     home = (await client.get("/")).text
     # The sample sits apart from real cases, and doesn't count as your first case.
     assert "Remove sample" in home and "made-up data, removed automatically" in home
-    assert 'aria-label="0 of 5 done"' in home and "Explore a sample case" not in home
+    assert 'aria-label="0 of 5 done"' in home and "Explore the sample case" not in home
     await client.post("/onboarding/dismiss", data={"csrf_token": csrf})
     assert "Getting started" not in (await client.get("/")).text
     await client.post("/account/checklist", data={"csrf_token": csrf})

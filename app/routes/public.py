@@ -29,6 +29,24 @@ def available_tool_labels() -> list[str]:
     return [a.label for a in all_adapters() if a.configured() is None]
 
 
+INPUT_LABELS = {"username": "Usernames", "email": "Email addresses", "name": "Names", "domain": "Domains",
+                "phone": "Phone numbers", "ip": "IP addresses"}  # fmt: skip
+
+
+def tool_groups() -> list[tuple[str, list[str]]]:
+    """What this deployment can look up, by what you give it."""
+    from app.adapters.registry import all_adapters
+
+    groups: dict[str, list[str]] = {k: [] for k in INPUT_LABELS}
+    for a in all_adapters():
+        if a.configured() is not None:
+            continue
+        for t in a.input_types:
+            if t in groups and a.label not in groups[t]:
+                groups[t].append(a.label)
+    return [(INPUT_LABELS[k], sorted(v)) for k, v in groups.items() if v]
+
+
 def _tool_sentence(labels: list[str]) -> str:
     if not labels:
         return "open-source OSINT tools"
@@ -53,6 +71,10 @@ FAQ = [
     ("Is my data safe?",
      "UNMASK is self-hosted, so case data stays on your infrastructure. Identifiers are encrypted at rest, every "
      "decision and export is audited, and cases are deleted when their retention period ends."),
+    ("Does a high score mean it is the same person?",
+     "No. A score says how much the collected evidence ties a finding to the subject: a checked profile page, the same "
+     "handle on several sites, a link from one profile to another. Every score lists what raised and lowered it, "
+     "inferred links are marked as inferred, and only a person can confirm a finding."),
     ("Can I use it on anyone?",
      "No. Every case needs a documented lawful basis and authorisation, and the Acceptable Use Policy prohibits "
      "stalking, harassment and discrimination. You are responsible for how you use it."),
@@ -79,7 +101,7 @@ def landing_seo() -> Seo:
                 "description": SITE_DESCRIPTION,
                 "url": base + "/",
                 "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
-                "screenshot": base + "/static/img/screenshot-case.png",
+                "screenshot": base + "/static/img/screenshot-graph.png",
                 "image": base + "/static/img/og-image.png",
                 "featureList": [
                     f"Runs {_tool_sentence(available_tool_labels())} as one case",
@@ -112,8 +134,19 @@ def render_landing(request: Request):
     return render(
         request,
         "public/landing.html",
-        {"seo": landing_seo(), "tools_sentence": _tool_sentence(labels), "tool_labels": labels, "faq": FAQ},
+        {"seo": landing_seo(), "tools_sentence": _tool_sentence(labels), "tool_labels": labels, "faq": FAQ,
+         "tool_groups": tool_groups()},
     )
+
+
+@router.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    # Browsers ask for /favicon.ico on pages that don't name an icon (raw files, JSON).
+    from fastapi.responses import RedirectResponse
+
+    from app.web import static_url
+
+    return RedirectResponse(static_url("img/favicon.svg"), status_code=301)
 
 
 @router.get("/robots.txt", response_class=PlainTextResponse, include_in_schema=False)

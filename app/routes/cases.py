@@ -102,6 +102,7 @@ async def dashboard(
             "seo": Seo(title="Home", path="/"),
             "user": user,
             "greeting": greeting(datetime.now(UTC)),
+            "templates": TEMPLATES,
             "rows": [r for r in rows if VIEWS[view][1](r)],
             "all_rows": rows,
             "sample": sample,

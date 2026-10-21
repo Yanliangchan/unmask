@@ -59,7 +59,6 @@
     </p>
   </div>
   <div class="home-actions">
-    <button class="palette-trigger home-search" type="button" data-palette-open>{{ ui.icon("search") }}<span>Search cases and findings</span><kbd data-mod-key>Ctrl K</kbd></button>
     <a class="btn btn-primary" href="/cases/new">{{ ui.icon("plus") }}New case</a>
   </div>
 </header>
@@ -95,23 +94,30 @@
     <p class="case-list-empty muted">No cases match this view. <a href="/">Show all cases</a></p>
     {% endif %}
     {% else %}
-    <div class="home-empty">
-      {{ ui.mark("empty-art", "g-empty") }}
-      <h2 id="cases-title">Start your first investigation</h2>
-      <p>A case holds the people or identifiers you're authorised to research, every scan against them, and your conclusions.</p>
-      <div class="empty-actions">
-        <a class="btn btn-primary" href="/cases/new">{{ ui.icon("plus") }}New case</a>
-        {% if not sample %}
-        <form method="post" action="/onboarding/sample">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button class="btn" type="submit">{{ ui.icon("folder") }}Explore a sample case</button>
-        </form>
-        {% endif %}
+    <div class="home-start">
+      <div class="home-start-intro">
+        <p class="eyebrow">No cases yet</p>
+        <h2 id="cases-title">Open a case file</h2>
+        <p>A case holds the identifiers you are authorised to research, every scan run against them, the evidence each finding rests on, and your written conclusion.</p>
+        <p class="muted small">Every case starts with who authorised it and why. Nothing is looked up before that is on record.</p>
+        <div class="empty-actions">
+          <a class="btn btn-primary" href="/cases/new">{{ ui.icon("plus") }}New case</a>
+          {% if not sample %}
+          <form method="post" action="/onboarding/sample">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="btn" type="submit">Explore the sample case</button>
+          </form>
+          {% endif %}
+        </div>
       </div>
-      <p class="template-quick faint small">Or start from a template:
-        <a href="/cases/new?template=due_diligence">Person due diligence</a> ·
-        <a href="/cases/new?template=username_sweep">Username sweep</a> ·
-        <a href="/cases/new?template=domain_footprint">Domain footprint</a></p>
+      <div class="home-start-templates">
+        <p class="eyebrow">Or start from a template</p>
+        <ul class="template-rows" role="list">
+          {% for t in templates %}
+          <li><a href="/cases/new?template={{ t.key }}"><strong>{{ t.label }}</strong><span>{{ t.summary }}</span>{{ ui.icon("chevron", "icon template-chev") }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
     </div>
     {% endif %}
 
@@ -127,8 +133,8 @@
     {% set pct = (100 * done / steps | length) | round | int %}
     <section class="rail-card" aria-labelledby="gs-title">
       <div class="rail-head">
-        <span class="progress-ring" style="--p: {{ pct }}" role="img" aria-label="{{ done }} of {{ steps | length }} done"><span>{{ done }}/{{ steps | length }}</span></span>
         <h2 id="gs-title">Getting started</h2>
+        <span class="mono small faint" aria-label="{{ done }} of {{ steps | length }} done">{{ done }}/{{ steps | length }}</span>
         <form method="post" action="/onboarding/dismiss">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <button class="link-btn small" type="submit">Hide</button>
