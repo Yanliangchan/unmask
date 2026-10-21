@@ -657,6 +657,57 @@
     if (!document.hidden) htmx.trigger(document.body, "tab-visible");
   });
 
+  // Copy buttons ([data-copy]): copy the attribute's text, e.g. a citation for a finding.
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest && e.target.closest("[data-copy]");
+    if (!btn) return;
+    var text = btn.getAttribute("data-copy");
+    var done = function () { toast(btn.dataset.copied || "Copied.", "info"); };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done, function () { toast("Couldn't copy: your browser blocked it.", "error"); });
+    } else {
+      var area = document.createElement("textarea");
+      area.value = text; area.setAttribute("readonly", ""); area.style.position = "fixed"; area.style.opacity = "0";
+      document.body.appendChild(area); area.select();
+      try { document.execCommand("copy"); done(); } catch (err) { toast("Couldn't copy: your browser blocked it.", "error"); }
+      area.remove();
+    }
+  });
+
+  // Score breakdown popovers sit outside the scrolling table, next to what they explain.
+  function placeWhy(e) {
+    var host = e.target.closest && e.target.closest(".why-hover");
+    var pop = host && host.querySelector(".why-pop");
+    if (!pop) return;
+    var r = host.getBoundingClientRect(), w = Math.min(340, window.innerWidth * 0.8);
+    var left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
+    var below = window.innerHeight - r.bottom > 220;
+    pop.style.left = left + "px";
+    pop.style.top = below ? (r.bottom + 6) + "px" : "auto";
+    pop.style.bottom = below ? "auto" : (window.innerHeight - r.top + 6) + "px";
+  }
+  document.addEventListener("mouseover", placeWhy);
+  document.addEventListener("focusin", placeWhy);
+  window.addEventListener("scroll", function () {
+    var a = document.activeElement;
+    if (a && a.classList && a.classList.contains("why-hover")) a.blur();
+  }, true);
+
+  // Table density: comfortable or compact, remembered per browser.
+  function applyDensity(dense) {
+    document.documentElement.classList.toggle("dense", dense);
+    document.querySelectorAll("[data-density]").forEach(function (b) { b.setAttribute("aria-pressed", String(dense)); });
+  }
+  try { applyDensity(localStorage.getItem("unmask:density") === "compact"); } catch (err) { /* storage blocked */ }
+  document.addEventListener("click", function (e) {
+    var btn = e.target.closest && e.target.closest("[data-density]");
+    if (!btn) return;
+    var dense = !document.documentElement.classList.contains("dense");
+    applyDensity(dense);
+    try { localStorage.setItem("unmask:density", dense ? "compact" : "comfortable"); } catch (err) { /* not remembered */ }
+  });
+  document.addEventListener("htmx:afterSettle", function () { applyDensity(document.documentElement.classList.contains("dense")); });
+
   document.addEventListener("DOMContentLoaded", function () { init(document); syncRunButton(); });
   document.addEventListener("htmx:load", function (e) { init(e.detail.elt); });
   document.addEventListener("htmx:afterSettle", syncRunButton);

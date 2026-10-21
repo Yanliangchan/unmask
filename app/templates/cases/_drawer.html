@@ -33,6 +33,7 @@
   </details>
   <button class="btn btn-ghost btn-sm" type="button" hx-post="/cases/{{ case.id }}/entities/{{ entity.id }}/pin" hx-swap="none"
           title="Keep this finding on the case's working log">{{ ui.icon("pin") }}Pin to log</button>
+  <button class="btn btn-ghost btn-sm" type="button" data-copy="{{ citation }}" data-copied="Citation copied." title="{{ citation }}">{{ ui.icon("copy") }}Copy as citation</button>
 </div>
 {% endif %}
 

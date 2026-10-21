@@ -1386,3 +1386,19 @@ input[type="radio"], input[type="checkbox"] { accent-color: var(--text-strong); 
 .export-option strong { display: block; color: var(--text-strong); font-weight: 600; }
 .export-option .hint { display: block; margin-top: 2px; }
 .mt-16 { margin-top: 16px; }
+
+/* Score breakdown: hover or focus the strength to see how the score was worked out. */
+.why-hover { position: relative; display: inline-block; outline-offset: 2px; }
+.why-pop { display: none; position: fixed; z-index: 60; left: 0; top: 0; width: 340px; max-width: 80vw; padding: 10px 12px; border: 1px solid var(--border-strong);
+  border-radius: var(--radius); background: var(--bg-elev); box-shadow: var(--shadow); color: var(--text); font-size: 12px; line-height: 1.45; white-space: normal; text-align: left; }
+.why-pop-head { display: block; font: 500 10.5px/1.3 var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.why-pop ol { margin: 0; padding-left: 18px; }
+.why-pop li + li { margin-top: 3px; }
+.why-hover:hover .why-pop, .why-hover:focus .why-pop, .why-hover:focus-within .why-pop { display: block; }
+@media (hover: none) { .why-hover:hover .why-pop { display: none; } .why-hover:focus .why-pop { display: block; } }
+
+/* Compact density for long tables. */
+.dense .table.entities td, .dense .table.entities th { padding-top: 3px; padding-bottom: 3px; }
+.dense .table.entities .flags { display: none; }
+.dense .table.entities { font-size: 12.5px; }
+[data-density][aria-pressed="true"] { background: var(--accent-soft); color: var(--soft-text); }

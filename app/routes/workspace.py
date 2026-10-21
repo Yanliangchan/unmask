@@ -71,7 +71,42 @@ async def _drawer_context(session: AsyncSession, case, entity_id: uuid.UUID) -> 
         "members": sorted((await _case_members(session, case)).keys()),
         "snapshots": await snapshots_for(session, case.id, entity_id),
         "ev": await entity_evidence(session, case.id, detail),
+        "citation": await _citation(session, case, detail),
     }
+
+
+async def _citation(session: AsyncSession, case, detail) -> str:
+    """One finding, cited: what it is, who reported it and when, how strongly it is held, and where it is kept."""
+    from datetime import UTC, datetime
+
+    from app import brand
+    from app.models import EntityObservation, Snapshot
+    from app.services.document import STRENGTHS, _strength, clean
+
+    e = detail.entity
+    ids = [e.id, *(m.id for m in detail.members)]
+    tools = sorted(set((await session.scalars(
+        select(EntityObservation.source_tool).where(EntityObservation.entity_id.in_(ids)).distinct()
+    )).all()) | {e.source_tool})  # fmt: skip
+    snap = await session.scalar(
+        select(Snapshot).where(Snapshot.entity_id == e.id).order_by(Snapshot.created_at.desc()).limit(1)
+    )
+    day = "%-d %b %Y"
+    url = (e.attributes or {}).get("url")
+    parts = [
+        f"{clean(e.value, 300)} ({e.type.replace('_', ' ')}).",
+        f"Reported by {', '.join(tools)}; first seen {e.first_seen.astimezone(UTC).strftime(day)}, "
+        f"last seen {e.last_verified.astimezone(UTC).strftime(day)}.",
+        f"{STRENGTHS[_strength(e)]}, score {e.confidence:.2f}; source grade {e.source_reliability}.",
+    ]
+    if url and url != e.value:
+        parts.append(f"<{clean(url, 500)}>.")
+    if snap is not None:
+        parts.append(f"Page captured {snap.created_at.astimezone(UTC).strftime(day + ' %H:%M')} UTC, "
+                     f"SHA-256 {snap.sha256}.")  # fmt: skip
+    parts.append(f"{brand.NAME} case \"{clean(case.name, 160)}\" ({case.id}), retrieved "
+                 f"{datetime.now(UTC).strftime(day)}.")  # fmt: skip
+    return " ".join(parts)
 
 
 @router.get("/cases/{case_id}/entities/{entity_id}/drawer")

@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-10 — investigation workflow
+
+Schema: migrations 0014–0016 (webhooks; working log notes; imported findings).
+
+- **Reports in every format.** Settings › Download the report: PDF, Word, HTML, Markdown, raw data
+  (text) and the evidence bundle; pick several to get one ZIP with a SHA-256 list. Laid out for
+  decision makers (summary), investigators (findings, connections) and legal/audit (method,
+  authorisation, evidence), with TLP:AMBER and a reference on every page and a Brief option.
+  Also `GET /api/v1/cases/{id}/report`.
+- **Evidence bundle** (ZIP) with a verifiable manifest; **signed webhooks** for `scan.finished` and
+  `watch.changes`; **audit log export** (CSV, JSONL, API).
+- **Faster scans:** bounded parallel jobs, coalesced rescoring; platform errors no longer count
+  against a tool.
+- **Case timeline:** "since you last looked" strip, `?since=` on findings, new findings marked in the
+  graph, and an "As of" slider that replays the case scan by scan.
+- **Lab:** offline replay of page verification; pivots ranked by expected value; skipped pivots can
+  be retried from the Pivot Log.
+- **Working log:** case-level entries, pinned findings and links, and a draft assessment laid out
+  from them.
+- **Import** from STIX 2.1 or an UNMASK export: checked before anything is written, marked
+  imported and never observed, links that never raise a score.
+- **Workspace:** score breakdown on hover, compact tables, graph full screen, copy a finding as a
+  citation.
+
 ## 2026-10 — overhaul
 
 Driven by the audit in [docs/audit/2026-10-overhaul-audit.md](docs/audit/2026-10-overhaul-audit.md).

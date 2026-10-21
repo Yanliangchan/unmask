@@ -37,6 +37,7 @@
     {% for name in tool_names %}<option value="{{ name }}">{{ name }}</option>{% endfor %}
   </select>
   <span class="spacer"></span>
+  <button class="btn btn-ghost btn-sm" type="button" data-density aria-pressed="false" title="Show more rows at once">Compact</button>
   <button class="btn btn-ghost btn-sm" type="button" hx-post="/cases/{{ case.id }}/correlate" hx-swap="none"
           hx-disabled-elt="this" title="Re-run duplicate detection, cross-links and scoring">{{ ui.icon("refresh") }}Re-run matching</button>
 </form>
