@@ -76,6 +76,8 @@ async def test_scopes_visibility_and_the_assessment_gate(client, db):
     assert body["format"] == "unmask-case-export" and body["findings"]
     graph = (await client.get(f"/api/v1/cases/{case_id}/graph", headers=_auth(full))).json()
     assert graph["edges"] and "evidence" in graph["edges"][0]
+    zipped = await client.get(f"/api/v1/cases/{case_id}/bundle", headers=_auth(full))
+    assert zipped.headers["content-type"] == "application/zip" and len(zipped.headers["x-manifest-sha256"]) == 64
     stix = await client.get(f"/api/v1/cases/{case_id}/stix", headers=_auth(full))
     assert stix.headers["content-type"].startswith("application/stix+json") and stix.json()["type"] == "bundle"
     logged = (

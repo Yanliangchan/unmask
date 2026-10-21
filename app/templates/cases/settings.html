@@ -54,6 +54,10 @@
       <button class="btn btn-sm" type="submit" formaction="/cases/{{ case.id }}/export.stix">{{ ui.icon("download") }}STIX 2.1</button>
     </form>
     <p class="hint mt-8">STIX bundles are marked TLP:AMBER. For a PDF, open the report and choose Print or save as PDF. Every export is recorded in the audit log.</p>
+    <div class="bundle-row">
+      <a class="btn btn-sm" href="/cases/{{ case.id }}/bundle.zip">{{ ui.icon("download") }}Evidence bundle (ZIP)</a>
+      <p class="hint">For handing the case over: the report, all findings, STIX, every sighting and link with its evidence, the audit trail and the captured pages, with a manifest of SHA-256 fingerprints to check nothing was changed.</p>
+    </div>
   </div>
 </section>
 

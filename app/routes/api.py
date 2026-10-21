@@ -172,6 +172,22 @@ async def stix(case_id: uuid.UUID, request: Request, include: str = INCLUDE,
     return JSONResponse(body, media_type="application/stix+json;version=2.1")
 
 
+@router.get("/cases/{case_id}/bundle")
+async def bundle(case_id: uuid.UUID, request: Request, p: Principal = Depends(principal),
+                 session: AsyncSession = Depends(get_session)):  # fmt: skip
+    """The evidence bundle (ZIP): report, data, STIX, provenance, audit trail, snapshots, SHA-256 manifest."""
+    from fastapi.responses import Response
+
+    from app.services.bundle import build_bundle
+
+    p.need("findings:read")
+    case = await _case(session, p, case_id, data_out=True)
+    _audit(session, request, p, "export_bundle", case.id)
+    await session.commit()
+    data, digest = await build_bundle(session, case, p.user)
+    return Response(data, media_type="application/zip", headers={"X-Manifest-SHA256": digest})
+
+
 @router.get("/cases/{case_id}/graph")
 async def graph(case_id: uuid.UUID, request: Request, p: Principal = Depends(principal),
                 session: AsyncSession = Depends(get_session)):  # fmt: skip

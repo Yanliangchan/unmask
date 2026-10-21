@@ -170,6 +170,28 @@ async def export_case(
     )
 
 
+@router.get("/cases/{case_id}/bundle.zip")
+async def evidence_bundle(
+    request: Request,
+    case_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(current_user),
+):
+    from app.services.bundle import build_bundle
+
+    case = await get_case_for_user(session, case_id, user)
+    if not assessment_ready(case):
+        return RedirectResponse(f"/cases/{case.id}/settings?error=assessment#report", status_code=303)
+    log_access(session, "export_bundle", user_id=user.id, case_id=case.id, ip=client_ip(request))
+    await session.commit()
+    data, digest = await build_bundle(session, case, user)
+    stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M")
+    return Response(data, media_type="application/zip", headers={
+        "Content-Disposition": f'attachment; filename="unmask-evidence-{case.id}-{stamp}.zip"',
+        "X-Manifest-SHA256": digest,
+    })  # fmt: skip
+
+
 # --- Share links -------------------------------------------------------------------------------
 
 

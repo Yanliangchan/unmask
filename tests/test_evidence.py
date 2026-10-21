@@ -169,3 +169,29 @@ async def test_share_links_are_read_only_expiring_and_revocable(client, db, app)
     db.expire_all()
     link = await db.get(ShareLink, link_id)
     assert link.views == 1 and link.revoked_at is not None
+
+
+async def test_the_evidence_bundle_carries_everything_with_a_verifiable_manifest(client, db):
+    import zipfile
+
+    case_id, csrf = await _case(client, db, name="Bundle")
+    assert (await client.get(f"/cases/{case_id}/bundle.zip")).status_code == 303  # needs the assessment
+    written = {"csrf_token": csrf, "analyst_assessment": "The handle janedoe on alpha is the subject."}
+    await client.post(f"/cases/{case_id}/settings/assessment", data=written)
+    r = await client.get(f"/cases/{case_id}/bundle.zip")
+    assert r.status_code == 200 and r.headers["content-type"] == "application/zip"
+    z = zipfile.ZipFile(io.BytesIO(r.content))
+    names = set(z.namelist())
+    assert {"README.txt", "manifest.json", "report.md", "case.json", "case.stix.json", "provenance.json",
+            "audit.json", "snapshots.json"} <= names  # fmt: skip
+    manifest = z.read("manifest.json")
+    assert hashlib.sha256(manifest).hexdigest() == r.headers["x-manifest-sha256"]
+    assert r.headers["x-manifest-sha256"] in z.read("README.txt").decode()
+    for f in json.loads(manifest)["files"]:
+        assert hashlib.sha256(z.read(f["name"])).hexdigest() == f["sha256"]
+    prov = json.loads(z.read("provenance.json"))
+    assert any(
+        s["tool"] == "fake_ok" and s["searched_from"] == "janedoe" for f in prov["findings"] for s in f["sightings"]
+    )
+    audit = json.loads(z.read("audit.json"))
+    assert any(a["action"] == "export_bundle" for a in audit)

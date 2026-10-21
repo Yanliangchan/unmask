@@ -1341,3 +1341,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--focus); box-shad
 @media (max-width: 900px) { .home-start { grid-template-columns: 1fr; } .home-start-intro { border-right: 0; border-bottom: 1px solid var(--border); } }
 .rel { text-decoration: none; display: inline-grid; place-items: center; width: 18px; height: 18px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font: 500 11px/1 var(--mono); }
 input[type="radio"], input[type="checkbox"] { accent-color: var(--text-strong); }
+
+.bundle-row { display: flex; gap: 12px; align-items: flex-start; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.bundle-row .hint { margin: 4px 0 0; max-width: 70ch; }
