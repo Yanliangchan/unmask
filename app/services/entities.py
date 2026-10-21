@@ -196,6 +196,20 @@ class RelationView:
     direction: str  # "out" | "in"
 
 
+class Sighting:
+    """One tool (or analyst) reporting this value: when, in which scan, from what, and what it said."""
+
+    def __init__(self, obs: EntityObservation, run_number: int | None, parent: Entity | None):
+        self.obs, self.run_number, self.parent = obs, run_number, parent
+        reported = obs.reported or {}
+        self.why = reported.get("_why") or ""
+        self.relation = (reported.get("_relation") or "").replace("_", " ")
+        self.verification = reported.get("verification") or ""
+
+    def __iter__(self):  # (obs, run_number) for older templates
+        return iter((self.obs, self.run_number))
+
+
 @dataclass
 class EntityDetail:
     entity: Entity
@@ -227,14 +241,22 @@ async def entity_detail(session: AsyncSession, case_id: uuid.UUID, entity_id: uu
             continue  # links inside the merge group are shown as members
         views.append(RelationView(r, others[other_id], "out" if r.entity_a_id in ids else "in"))
     views.sort(key=lambda v: (v.relation.relation_type != POSSIBLE_SAME, v.relation.relation_type))
-    observations = (
+    rows = (
         await session.execute(
             select(EntityObservation, ScanRun.run_number)
-            .join(ScanRun, ScanRun.id == EntityObservation.scan_run_id)
+            .outerjoin(ScanRun, ScanRun.id == EntityObservation.scan_run_id)
             .where(EntityObservation.entity_id.in_(ids))
-            .order_by(ScanRun.run_number)
+            .order_by(EntityObservation.observed_at)
         )
     ).all()
+    # Each sighting's step before it in the chain: the finding (or target) it was searched from.
+    parent_ids = {o.parent_entity_id for o, _ in rows if o.parent_entity_id}
+    parents = (
+        {e.id: e for e in (await session.scalars(select(Entity).where(Entity.id.in_(parent_ids)))).all()}
+        if parent_ids
+        else {}
+    )
+    observations = [Sighting(o, run_number, parents.get(o.parent_entity_id)) for o, run_number in rows]
     merged_into = await session.get(Entity, entity.merged_into_id) if entity.merged_into_id else None
     return EntityDetail(entity, views, members, observations, merged_into)
 

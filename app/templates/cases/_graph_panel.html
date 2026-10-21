@@ -17,4 +17,8 @@
   </div>
   {% endif %}
   {% include "cases/_evidence.html" %}
+  {% if d.observations %}
+  <h3 class="eyebrow gx-prov-title">Provenance</h3>
+  {% include "cases/_provenance.html" %}
+  {% endif %}
 </div>

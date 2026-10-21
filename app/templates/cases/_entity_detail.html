@@ -54,13 +54,9 @@
     </ul>
     {% else %}<p class="muted small">No links to other entities.</p>{% endif %}
 
-    <h3>Seen in</h3>
+    <h3>Provenance</h3>
     {% if d.observations %}
-    <ul class="plain-list">
-      {% for obs, run_number in d.observations %}
-      <li class="small">Scan {{ run_number }} <span class="sub">by {{ obs.source_tool }}, {{ obs.observed_at | isodate }}</span></li>
-      {% endfor %}
-    </ul>
+    {% include "cases/_provenance.html" %}
     {% else %}<p class="muted small">Added by you as a target. No tool has reported it yet.</p>{% endif %}
   </div>
 

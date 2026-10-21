@@ -1,0 +1,16 @@
+{# Where a finding came from: every sighting, oldest first, with the step before it. #}
+<ol class="prov">
+  {% for sg in d.observations %}
+  {% set o = sg.obs %}
+  <li>
+    <p class="prov-head"><strong>{{ "You" if o.source_tool == "analyst" else o.source_tool | tool_label }}</strong>
+      <span class="faint small">{% if sg.run_number %}scan {{ sg.run_number }} · {% endif %}{{ o.observed_at | isodate }}{% if o.reliability %} · grade {{ o.reliability }}{% endif %}</span></p>
+    <p class="small">
+      {%- if sg.parent %}searched from <span class="ident">{{ sg.parent.value }}</span>{% if sg.parent.is_seed %} (target){% endif %}{% if sg.relation %}: {{ sg.relation }}{% endif %}{% elif o.source_tool == "analyst" %}added by hand{% endif %}
+      {%- if sg.why %} — {{ sg.why }}{% endif %}
+      {%- if sg.verification %} · page {{ "checked" if sg.verification == "verified" else "not checked" }}{% endif %}
+    </p>
+    {% if o.source_url %}<p class="small"><a href="{{ o.source_url | safe_url }}" target="_blank" rel="noopener noreferrer nofollow" class="wrap">{{ o.source_url }}</a></p>{% endif %}
+  </li>
+  {% endfor %}
+</ol>

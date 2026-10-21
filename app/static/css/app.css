@@ -1314,3 +1314,11 @@ input:focus, select:focus, textarea:focus { border-color: var(--focus); box-shad
 .section-head { margin-bottom: 10px; }
 .section-head h2 { margin-bottom: 4px; }
 .section-head p { margin: 0; max-width: 80ch; }
+
+/* --- Provenance: every sighting of a finding ------------------------------------------------------ */
+.prov { list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 1px solid var(--border-strong); display: grid; gap: 10px; }
+.prov li { position: relative; }
+.prov li::before { content: ""; position: absolute; left: -18px; top: 6px; width: 7px; height: 7px; background: var(--bg); border: 1.5px solid var(--muted); }
+.prov p { margin: 0; overflow-wrap: anywhere; }
+.prov-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.gx-prov-title { margin: 16px 0 8px; }

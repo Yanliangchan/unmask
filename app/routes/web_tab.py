@@ -15,7 +15,7 @@ from app.adapters.registry import get_adapter
 from app.audit import log_access
 from app.correlation.engine import lock_case, rescore_case
 from app.db import get_session
-from app.models import Entity, User
+from app.models import Entity, EntityObservation, User
 from app.routes.shell import case_shell
 from app.search.providers import active_provider, setup_hint
 from app.security import client_ip, current_user, verify_csrf
@@ -150,6 +150,11 @@ async def add_finding(
     else:
         entity.attributes = {**(entity.attributes or {}), **attrs}
         entity.confirmed_flag, entity.dismissed_flag = True, False
+    await session.flush()
+    # The analyst's own sighting, so the finding's provenance says who added it, when and why.
+    session.add(EntityObservation(entity_id=entity.id, scan_run_id=None, source_tool="analyst", confidence=1.0,
+                                  observed_at=now, reported={**attrs, "_why": "added by an analyst"},
+                                  source_url=attrs.get("url"), reliability="B"))  # fmt: skip
     await session.flush()
     log_access(session, "add_finding", user_id=user.id, case_id=case.id, ip=client_ip(request),
                entity_id=str(entity.id), entity_type=type)  # fmt: skip

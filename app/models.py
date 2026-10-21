@@ -244,7 +244,10 @@ class Entity(Base):
     merged_into_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("entities.id", ondelete="SET NULL"), index=True)
 
     observations: Mapped[list[EntityObservation]] = relationship(
-        back_populates="entity", cascade="all, delete-orphan", order_by="EntityObservation.observed_at"
+        back_populates="entity",
+        cascade="all, delete-orphan",
+        order_by="EntityObservation.observed_at",
+        foreign_keys="EntityObservation.entity_id",
     )
 
 
@@ -258,15 +261,22 @@ class EntityObservation(Base):
     entity_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("entities.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    scan_run_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("scan_runs.id", ondelete="CASCADE"), nullable=False, index=True
+    # Null for a finding an analyst added by hand.
+    scan_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("scan_runs.id", ondelete="CASCADE"), nullable=True, index=True
     )
     source_tool: Mapped[str] = mapped_column(Text, nullable=False)
     confidence: Mapped[float | None] = mapped_column(Float)
     attributes_digest: Mapped[str | None] = mapped_column(String(64))
     observed_at: Mapped[datetime] = _now()
+    # Provenance: what the tool reported this time, the page it came from, the finding it was
+    # searched from (the step before it in the chain), and the source grade at the time.
+    reported: Mapped[dict[str, Any] | None] = mapped_column(EncryptedJSON)
+    source_url: Mapped[str | None] = mapped_column(EncryptedText)
+    parent_entity_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("entities.id", ondelete="SET NULL"))
+    reliability: Mapped[str | None] = mapped_column(String(1))
 
-    entity: Mapped[Entity] = relationship(back_populates="observations")
+    entity: Mapped[Entity] = relationship(back_populates="observations", foreign_keys=[entity_id])
 
 
 class Relation(Base):

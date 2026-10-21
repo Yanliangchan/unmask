@@ -107,6 +107,20 @@ def _attributes_digest(attrs: dict) -> str:
     return hashlib.sha256(json.dumps(attrs, sort_keys=True, default=str).encode()).hexdigest()
 
 
+# What an observation keeps of a tool's report: the details, not bulky page copies (a snapshot
+# is the place for those) and not the internal score explanation.
+_NOT_REPORTED = {"_score_explanation", "excerpt"}
+
+
+def _reported(cand: EntityCandidate) -> dict:
+    out = {k: v for k, v in cand.attributes.items() if k not in _NOT_REPORTED}
+    if isinstance(out.get("preview"), dict):
+        out["preview"] = {k: v for k, v in out["preview"].items() if k not in ("excerpt", "links")}
+    out["_relation"] = cand.relation_type
+    out["_why"] = cand.relation_explanation
+    return out
+
+
 async def _lock_case(session: AsyncSession, case_id: uuid.UUID) -> None:
     await session.execute(text("SELECT pg_advisory_xact_lock(hashtext(:k))"), {"k": str(case_id)})
 
@@ -190,6 +204,11 @@ async def persist_candidates(
                 confidence=cand.confidence,
                 attributes_digest=_attributes_digest(cand.attributes),
                 observed_at=now,
+                # Encrypted by the column types, like every other case value.
+                reported=_reported(cand),
+                source_url=cand.attributes.get("url"),
+                parent_entity_id=seed.id if seed is not None else None,
+                reliability=cand.source_reliability,
             )
             .on_conflict_do_nothing(constraint="uq_entity_observations")
         )
