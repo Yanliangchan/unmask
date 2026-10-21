@@ -271,6 +271,10 @@ class EntityObservation(Base):
 
 class Relation(Base):
     __tablename__ = "relations"
+    __table_args__ = (
+        CheckConstraint("basis IN ('observed', 'rule', 'similarity', 'analyst')", name="ck_relations_basis"),
+        Index("ix_relations_lookup", "entity_a_id", "entity_b_id", "relation_type", "source_tool"),
+    )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     case_id: Mapped[uuid.UUID] = mapped_column(
@@ -289,6 +293,22 @@ class Relation(Base):
     confidence: Mapped[float | None] = mapped_column(Float)
     created_by: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'engine'"))
     created_at: Mapped[datetime] = _now()
+    # How the link was established (see RELATION_BASIS). Inferred links are never shown as observed.
+    basis: Mapped[str] = mapped_column(String(16), nullable=False, server_default=text("'observed'"))
+    # Tool links run from what was searched to what was found; correlation links have no direction.
+    directed: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    last_seen: Mapped[datetime] = _now()
+    seen_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
+    scan_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scan_runs.id", ondelete="SET NULL"))
+    last_scan_run_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("scan_runs.id", ondelete="SET NULL"))
+
+
+RELATION_BASIS = {
+    "observed": "Observed: a tool reported it or a fetched page shows it",
+    "rule": "Rule: two values match by a fixed string rule",
+    "similarity": "Similarity: two values look alike above a threshold; not proof",
+    "analyst": "Analyst: a person decided it",
+}
 
 
 class PivotLog(Base):

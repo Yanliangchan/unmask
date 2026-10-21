@@ -417,7 +417,7 @@
     var chip = e.target.closest("[data-entity-open]");
     if (!chip || e.metaKey || e.ctrlKey || e.shiftKey) return;
     var id = chip.dataset.entityOpen, caseId = chip.dataset.case;
-    if (chip.closest(".graph-panel")) {
+    if (chip.closest(".gx-inspect")) {
       e.preventDefault();
       document.dispatchEvent(new CustomEvent("unmask:graph-select", { detail: { id: id } }));
       return;

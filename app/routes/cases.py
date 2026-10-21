@@ -555,3 +555,20 @@ async def graph_json(
 ):
     case = await get_case_for_user(session, case_id, user)
     return JSONResponse(await case_graph(session, case.id, include_all=request.query_params.get("all") == "1"))
+
+
+@router.get("/cases/{case_id}/paths.json")
+async def paths_json(
+    case_id: uuid.UUID,
+    a: str,
+    b: str,
+    suggested: bool = True,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(current_user),
+):
+    """The strongest evidence-backed paths between two findings (see app/services/paths.py)."""
+    from app.services.paths import find_paths
+
+    case = await get_case_for_user(session, case_id, user)
+    graph = await case_graph(session, case.id, include_all=True)
+    return JSONResponse(find_paths(graph, a, b, include_suggested=suggested))

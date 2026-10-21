@@ -1,57 +1,96 @@
 {% import "components/ui.html" as ui %}
-<div class="graph-tab" data-graph="/cases/{{ case.id }}/graph.json" data-case="{{ case.id }}" data-case-name="{{ case.name }}">
-  <div class="graph-toolbar" role="toolbar" aria-label="Graph controls">
-    <div class="graph-search">
+{# The graph workspace. Everything here changes the view only; decisions (same person, not them)
+   go through the same endpoints as the Entities tab and are audited the same way. #}
+<div class="gx" data-graph="/cases/{{ case.id }}/graph.json" data-paths="/cases/{{ case.id }}/paths.json"
+     data-case="{{ case.id }}" data-case-name="{{ case.name }}" data-sample="{{ 'true' if case.is_sample else 'false' }}">
+  <div class="gx-bar" role="toolbar" aria-label="Graph tools">
+    <div class="gx-find">
       {{ ui.icon("search") }}
-      <label class="visually-hidden" for="graph-find">Find in graph</label>
-      <input id="graph-find" type="search" list="graph-find-list" placeholder="Find a finding…" autocomplete="off" data-graph-find>
-      <datalist id="graph-find-list"></datalist>
+      <label class="visually-hidden" for="gx-find">Find in graph</label>
+      <input id="gx-find" type="search" placeholder="Find…  type:email  tool:sherlock" autocomplete="off" spellcheck="false" data-gx-find>
+      <span class="gx-find-count" data-gx-find-count aria-live="polite"></span>
+      <button class="btn btn-ghost btn-xs btn-icon" type="button" data-gx="find-prev" aria-label="Previous match" title="Previous match (Shift+Enter)">‹</button>
+      <button class="btn btn-ghost btn-xs btn-icon" type="button" data-gx="find-next" aria-label="Next match" title="Next match (Enter)">›</button>
     </div>
     <div class="seg" role="group" aria-label="Layout">
-      <button type="button" class="seg-btn" data-graph-layout="radial" aria-pressed="true" title="The subject in the middle, stronger findings closer">Radial</button>
-      <button type="button" class="seg-btn" data-graph-layout="force" aria-pressed="false" title="Connected findings pulled together">Force</button>
+      <button type="button" class="seg-btn" data-gx-layout="rings" aria-pressed="true" title="Targets in the middle; stronger findings closer">Rings</button>
+      <button type="button" class="seg-btn" data-gx-layout="force" aria-pressed="false" title="Connected findings pulled together">Force</button>
+      <button type="button" class="seg-btn" data-gx-layout="tree" aria-pressed="false" title="Each finding under what it was found from">Tree</button>
+      <button type="button" class="seg-btn" data-gx-layout="groups" aria-pressed="false" title="Findings in blocks by type">Groups</button>
     </div>
-    <div class="graph-filters" role="group" aria-label="Filters">
-      <label class="chip-toggle"><input type="checkbox" data-graph-filter="confirmed"><span>Confirmed only</span></label>
-      <label class="chip-toggle"><input type="checkbox" data-graph-filter="weak"><span>Hide weak</span></label>
-      <label class="chip-toggle"><input type="checkbox" data-graph-filter="pivot"><span>Pivots only</span></label>
-      <label class="chip-toggle"><input type="checkbox" data-graph-filter="suggested" checked><span>Possible duplicates</span></label>
-      <label class="chip-toggle" title="Select a node to show only it and its direct links; select more nodes to expand"><input type="checkbox" data-graph-focus><span>Focus</span></label>
+    <div class="gx-tools" role="group" aria-label="Selection">
+      <button class="btn btn-sm" type="button" data-gx="expand" title="Show hidden links of the selection (E)" disabled>Expand</button>
+      <button class="btn btn-sm" type="button" data-gx="isolate" title="Show only the selection and its direct links (I)" disabled>Isolate</button>
+      <button class="btn btn-sm" type="button" data-gx="hide" title="Hide the selection from this view (H)" disabled>Hide</button>
+      <button class="btn btn-sm" type="button" data-gx="paths" title="Strongest evidence paths between two selected findings (P)" disabled>Paths</button>
     </div>
-    <div class="graph-tools">
-      <button class="btn btn-sm" type="button" data-graph-unfocus hidden>Show everything</button>
-      <button class="btn btn-ghost btn-sm btn-icon" type="button" data-graph-zoom="out" aria-label="Zoom out" title="Zoom out">−</button>
-      <button class="btn btn-ghost btn-sm btn-icon" type="button" data-graph-zoom="in" aria-label="Zoom in" title="Zoom in">+</button>
-      <button class="btn btn-ghost btn-sm" type="button" data-graph-reset title="Fit everything and clear filters">Fit</button>
-      <button class="btn btn-ghost btn-sm" type="button" data-graph-png>{{ ui.icon("download") }}PNG</button>
+    <div class="gx-tools" role="group" aria-label="History">
+      <button class="btn btn-ghost btn-sm btn-icon" type="button" data-gx="undo" aria-label="Undo" title="Undo view change (Ctrl+Z)" disabled>{{ ui.icon("undo") }}</button>
+      <button class="btn btn-ghost btn-sm btn-icon" type="button" data-gx="redo" aria-label="Redo" title="Redo (Ctrl+Shift+Z)" disabled>{{ ui.icon("redo") }}</button>
     </div>
-  </div>
-  <p class="graph-stats" data-graph-stats aria-live="polite"></p>
-  <div class="graph-wrap">
-    <div class="graph-canvas" id="cy" role="img" aria-label="Findings as nodes around the subject, coloured and shaped by type, sized by score, joined by their links. The Entities tab lists the same data."></div>
-    <div class="graph-tip" data-graph-tip hidden></div>
-    <aside class="graph-panel" data-graph-panel hidden aria-label="Selected finding">
-      <div class="graph-panel-head">
-        <span class="faint small" data-graph-panel-title></span>
-        <button class="btn btn-ghost btn-sm btn-icon" type="button" data-graph-panel-close aria-label="Close">{{ ui.icon("x") }}</button>
+    <span class="gx-spacer"></span>
+    <button class="btn btn-ghost btn-sm" type="button" data-gx="filters" aria-expanded="true" aria-controls="gx-filters">{{ ui.icon("filter") }}Filters<span class="count" data-gx-filter-count hidden></span></button>
+    <button class="btn btn-ghost btn-sm" type="button" data-gx="relayout" title="Lay out what is shown again">{{ ui.icon("refresh") }}Re-layout</button>
+    <button class="btn btn-ghost btn-sm" type="button" data-gx="fit" title="Fit everything shown (F)">Fit</button>
+    <details class="menu gx-export">
+      <summary class="btn btn-ghost btn-sm">{{ ui.icon("download") }}Export</summary>
+      <div class="menu-list" role="menu">
+        <button type="button" role="menuitem" data-gx="png-view">Picture of this view (PNG)</button>
+        <button type="button" role="menuitem" data-gx="png-all">Picture of everything shown (PNG)</button>
+        <button type="button" role="menuitem" data-gx="json">Subgraph shown, with evidence (JSON)</button>
+        <p class="menu-note">Exports what is on screen. Full case exports live in Settings.</p>
       </div>
-      <div id="graph-panel-body" class="graph-panel-body"></div>
-    </aside>
-    <details class="graph-legend">
-      <summary>Legend</summary>
-      <ul class="legend-types" data-graph-legend role="list"></ul>
-      <ul class="legend-keys" role="list">
-        <li><span class="lk lk-node lk-target" aria-hidden="true"></span>Target</li>
-        <li><span class="lk lk-node lk-confirmed" aria-hidden="true"></span>Confirmed</li>
-        <li><span class="lk lk-node lk-possible" aria-hidden="true"></span>Possible</li>
-        <li><span class="lk lk-node lk-faded" aria-hidden="true"></span>Weak or unchecked</li>
-        <li><span class="lk lk-edge lk-strong" aria-hidden="true"></span>Evidence link</li>
-        <li><span class="lk lk-edge" aria-hidden="true"></span>Found from</li>
-        <li><span class="lk lk-edge lk-suggested" aria-hidden="true"></span>Possible duplicate</li>
-      </ul>
-      <p class="faint small">Bigger means a higher score. Hover a node to see what it connects to.</p>
     </details>
+  </div>
+
+  <div class="gx-body">
+    <aside class="gx-filters" id="gx-filters" data-gx-filters aria-label="Filters">
+      <div class="gx-filters-head"><span class="eyebrow">Filters</span><button class="link-btn small" type="button" data-gx="reset">Reset view</button></div>
+      <fieldset><legend class="eyebrow">Findings</legend>
+        <label class="check"><input type="checkbox" data-gx-f="strength" value="target" checked> Targets</label>
+        <label class="check"><input type="checkbox" data-gx-f="strength" value="confirmed" checked> Confirmed</label>
+        <label class="check"><input type="checkbox" data-gx-f="strength" value="likely" checked> Likely</label>
+        <label class="check"><input type="checkbox" data-gx-f="strength" value="possible" checked> Possible</label>
+        <label class="check"><input type="checkbox" data-gx-f="strength" value="unlikely" checked> Unlikely</label>
+        <label class="check"><input type="checkbox" data-gx-f="strength" value="unchecked" checked> Page not checked</label>
+      </fieldset>
+      <fieldset><legend class="eyebrow">Links</legend>
+        <label class="check" title="A tool reported it, or a fetched page shows it"><input type="checkbox" data-gx-f="basis" value="observed" checked> <span class="gx-key gx-key-observed" aria-hidden="true"></span>Observed</label>
+        <label class="check" title="Two values match by a fixed rule"><input type="checkbox" data-gx-f="basis" value="rule" checked> <span class="gx-key gx-key-rule" aria-hidden="true"></span>Rule match</label>
+        <label class="check" title="Two values look alike; suggests, does not establish"><input type="checkbox" data-gx-f="basis" value="similarity" checked> <span class="gx-key gx-key-similarity" aria-hidden="true"></span>Similarity</label>
+        <label class="check" title="A person decided it"><input type="checkbox" data-gx-f="basis" value="analyst" checked> <span class="gx-key gx-key-analyst" aria-hidden="true"></span>Analyst</label>
+      </fieldset>
+      <fieldset><legend class="eyebrow">Types</legend><div data-gx-types></div></fieldset>
+      <fieldset><legend class="eyebrow">Found by</legend><div data-gx-sources></div></fieldset>
+      <fieldset><legend class="eyebrow">Score at least</legend>
+        <div class="gx-range"><input type="range" min="0" max="100" step="5" value="0" data-gx-f="min" aria-label="Minimum score"><output data-gx-min-out>0.00</output></div>
+      </fieldset>
+      <fieldset><legend class="eyebrow">First seen</legend>
+        <label class="field"><span class="visually-hidden">From</span><input type="date" data-gx-f="from" aria-label="First seen on or after"></label>
+      </fieldset>
+      <fieldset><legend class="eyebrow">Size by</legend>
+        <label class="check"><input type="radio" name="gx-size" value="score" data-gx-f="size" checked> Score</label>
+        <label class="check"><input type="radio" name="gx-size" value="links" data-gx-f="size"> Connections</label>
+        <p class="hint">Well-connected is not the same as important or suspicious: shared providers connect everything.</p>
+      </fieldset>
+    </aside>
+
+    <div class="gx-stage" tabindex="0" aria-describedby="gx-help">
+      <div class="gx-canvas" id="cy" role="img" aria-label="Findings as nodes, joined by the links between them. The Entities tab lists the same data as a table."></div>
+      <div class="gx-state" data-gx-state role="status">
+        <div class="skeleton" aria-hidden="true"><div class="sk w-40"></div><div class="sk w-60"></div></div>
+        <p>Loading the graph…</p>
+      </div>
+      <p class="gx-status" data-gx-status aria-live="polite"></p>
+      <div class="gx-legend" data-gx-legend aria-label="Legend"></div>
+      <canvas class="gx-minimap" data-gx-minimap width="180" height="120" aria-hidden="true" title="Overview: click to move there"></canvas>
+      <p id="gx-help" class="visually-hidden">Keys: arrows move between linked findings, Enter opens the selected one, H hides, I isolates, E expands, P finds paths between two selected findings, F fits, Ctrl+Z undoes. Shift-drag selects an area; Shift-click adds to the selection.</p>
+    </div>
+
+    <aside class="gx-inspect" data-gx-inspect aria-label="Inspector">
+      <div class="gx-inspect-body" id="gx-inspect-body" data-gx-inspect-body></div>
+    </aside>
   </div>
   <noscript><p class="muted">The graph needs JavaScript. The Entities tab shows the same data.</p></noscript>
 </div>
-<script src="{{ static_url('js/graph.js') }}" data-cytoscape="{{ static_url('js/vendor/cytoscape.min.js') }}"></script>
+<script src="{{ static_url('js/graph.js') }}" data-cytoscape="{{ static_url('js/vendor/cytoscape.min.js') }}" data-fcose="{{ static_url('js/vendor/cytoscape-fcose.min.js') }}"></script>

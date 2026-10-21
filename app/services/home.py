@@ -10,6 +10,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import crypto
 from app.adapters.base import EntityCandidate
 from app.models import AccessLog, Entity, Investigation, ScanRun, User
 from app.services.cases import TargetInput, create_case, visible_case_ids
@@ -301,19 +302,30 @@ def _mention(url: str, title: str, snippet: str, reliability: str, prior: float,
     return EntityCandidate("web_mention", url, attrs, reliability, prior, {"value": prior}, "mentioned_in", note)
 
 
-_SAMPLE_FINDINGS: dict[str, list[EntityCandidate]] = {
-    "sherlock": [
-        _account("code.example", "alexrivera", "CodeHub (example)", "C", 0.62, "verified",
-                 "profile page names the username in its title", "Alex Rivera · Portland · product designer",
-                 {"title": "alexrivera (Alex Rivera) · CodeHub", "username": "alexrivera",
-                  "description": "Product designer in Portland. Accessible checkout flows and design systems.",
-                  "matched_in": ["title", "username"], "links": ["https://photos.example/alexrivera"],
-                  "excerpt": "Alex Rivera alexrivera · Product designer · Portland, OR · 214 followers · "
-                             "Pinned: checkout-a11y, tokens-playground"}),
+def _found(etype: str, value: str, tool_rel: str, why: str, reliability: str, prior: float, **attrs):
+    return EntityCandidate(etype, value, attrs, reliability, prior, {"value": prior}, tool_rel, why)
+
+
+_CODEHUB = _account(
+    "code.example", "alexrivera", "CodeHub (example)", "C", 0.62, "verified",
+    "profile page names the username in its title", "Alex Rivera · Portland · product designer",
+    {"title": "alexrivera (Alex Rivera) · CodeHub", "username": "alexrivera",
+     "description": "Product designer in Portland. Accessible checkout flows and design systems.",
+     "matched_in": ["title", "username"],
+     "links": ["https://photos.example/alexrivera", "https://riverastudio.example/"],
+     "excerpt": "Alex Rivera alexrivera · Product designer · Portland, OR · 214 followers · "
+                "Pinned: checkout-a11y, tokens-playground · riverastudio.example"},
+)  # fmt: skip
+
+# (tool, what it was run on, findings). "What it was run on" is a target type, or the value of a
+# finding an earlier step produced (an automatic pivot).
+_SAMPLE_STEPS: list[tuple[str, str, list[EntityCandidate]]] = [
+    ("sherlock", "username", [
+        _CODEHUB,
         _account("photos.example", "alexrivera", "Photoshare (example)", "C", 0.55, "verified",
                  "profile page names the username in its title", "alexrivera: photos from Portland",
                  {"title": "alexrivera on Photoshare", "description": "Photos from Portland and the coast.",
-                  "matched_in": ["title"]}),
+                  "matched_in": ["title"], "links": ["https://code.example/alexrivera"]}),
         _account("games.example", "u/alexrivera", "Gamerlist (example)", "D", 0.35, "unverified",
                  "the page loads for any username, so it proves nothing"),
         _account("forum.example", "members/alexrivera", "Makers forum (example)", "C", 0.4, "verified",
@@ -321,20 +333,57 @@ _SAMPLE_FINDINGS: dict[str, list[EntityCandidate]] = {
                  {"title": "Alejandro Rivera (alexrivera) · Makers forum", "username": "alexrivera",
                   "description": "Woodworking and furniture restoration in Madrid since 2011.",
                   "matched_in": ["title", "username"]}),
-    ],
-    "holehe": [
-        EntityCandidate("registration", "Design community (example)",
-                        {"site": "Design community (example)", "email": "alex.rivera@example.com"},
-                        "B", 0.7, {"value": 0.7}, "registered_on", "email is registered"),
-    ],
-    "websearch": [
+        _account("dribble.example", "alexrivera", "Shotboard (example)", "C", 0.58, "verified",
+                 "profile page names the username in its title", "Alex Rivera · design systems",
+                 {"title": "Alex Rivera (alexrivera) · Shotboard", "username": "alexrivera",
+                  "description": "Design systems and checkout UX. Portland.", "matched_in": ["title", "username"],
+                  "links": ["https://riverastudio.example/"]}),
+        _account("music.example", "alexrivera", "Tunes (example)", "D", 0.3, "unverified",
+                 "login wall: the profile is only visible when signed in"),
+    ]),
+    ("maigret", "username", [
+        _CODEHUB,
+        _account("runners.example", "athletes/alexrivera", "PDX Runners (example)", "C", 0.5, "verified",
+                 "profile page names the username in its title", "Alex R. · Portland · 10k",
+                 {"title": "alexrivera · PDX Runners", "username": "alexrivera",
+                  "description": "Weekend 10k runs along the Willamette.", "matched_in": ["title", "username"]}),
+        _account("video.example", "@alexrivera", "Clips (example)", "D", 0.32, "unverified",
+                 "the page does not mention the username"),
+    ]),
+    ("holehe", "email", [
+        _found("registration", "Design community (example)", "registered_on", "email is registered", "B", 0.7,
+               site="Design community (example)", email="alex.rivera@example.com"),
+        _found("registration", "Photo printing (example)", "registered_on", "email is registered", "B", 0.65,
+               site="Photo printing (example)", email="alex.rivera@example.com"),
+    ]),
+    ("gravatar", "email", [
+        _found("account", "https://avatars.example/alexriverapdx", "has_account", "the address has a public profile",
+               "B", 0.72, site="Avatars (example)", url="https://avatars.example/alexriverapdx",
+               username="alexriverapdx", verification="verified",
+               verification_reason="the profile is the address's own", title="Alex Rivera"),
+        _found("username", "alex_rivera", "uses_handle", "handle listed on the address's profile", "B", 0.6),
+    ]),
+    ("leakcheck", "email", [
+        _found("breach", "ShopExample 2019 breach", "appears_in", "the address is in this breach's records", "C", 0.6,
+               source="ShopExample (example)", date="2019-03", fields=["email", "name"]),
+    ]),
+    ("websearch", "name", [
         _mention("https://news.example/2024/portland-design-week-speakers", "Portland Design Week: speakers",
                  "…product designer Alex Rivera will talk about accessible checkout flows…", "D", 0.5,
                  "search result names the subject"),
         _mention("https://people.example/alex-rivera-realtor", "Alex Rivera, realtor in Phoenix",
                  "Alex Rivera has sold homes in Phoenix since 2009…", "E", 0.3, "same name, different person"),
-    ],
-}  # fmt: skip
+        _found("domain", "riverastudio.example", "mentioned_in", "the speaker page links to the studio site", "D", 0.5),
+    ]),
+    ("rdap", "riverastudio.example", [
+        _found("name", "Rivera Studio LLC", "registered_to", "registrant organisation in the domain record", "B", 0.55,
+               registrar="Example Registrar", created="2018-06-02"),
+    ]),
+    ("crtsh", "riverastudio.example", [
+        _found("hostname", f"{h}.riverastudio.example", "has_subdomain", "certificate transparency log", "B", 0.6)
+        for h in ("www", "shop", "mail")
+    ]),
+]  # fmt: skip
 
 
 async def create_sample_case(session: AsyncSession, user: User) -> Investigation:
@@ -359,22 +408,29 @@ async def create_sample_case(session: AsyncSession, user: User) -> Investigation
     case.is_sample = True
     case.retention_days = 30
     now = datetime.now(UTC)
+    tools = sorted({tool for tool, _, _ in _SAMPLE_STEPS})
     run = ScanRun(case_id=case.id, run_number=1, status="completed", triggered_by="manual",
-                  tools_included=sorted(_SAMPLE_FINDINGS), tools_completed=sorted(_SAMPLE_FINDINGS), tools_failed=[],
-                  failure_details={}, jobs_total=len(_SAMPLE_FINDINGS), jobs_done=len(_SAMPLE_FINDINGS),
+                  tools_included=tools, tools_completed=tools, tools_failed=[],
+                  failure_details={}, jobs_total=len(_SAMPLE_STEPS), jobs_done=len(_SAMPLE_STEPS),
                   started_at=now, completed_at=now)  # fmt: skip
     session.add(run)
     await session.flush()
-    seeds = {
+    found = {
         e.type: e
         for e in (
             await session.scalars(select(Entity).where(Entity.case_id == case.id, Entity.is_seed.is_(True)))
         ).all()
     }
-    parents = {"sherlock": seeds["username"], "holehe": seeds["email"], "websearch": seeds["name"]}
-    for tool, candidates in _SAMPLE_FINDINGS.items():
-        await persist_candidates(session, run=run, parent=parents[tool], tool=tool, candidates=candidates)
-    await session.flush()
+    for tool, parent_key, candidates in _SAMPLE_STEPS:
+        parent = found.get(parent_key)
+        if parent is None:  # a pivot: run on a finding an earlier step produced
+            parent = await session.scalar(
+                select(Entity).where(
+                    Entity.case_id == case.id, Entity.value_digest == crypto.digest("domain", parent_key)
+                )
+            )
+        await persist_candidates(session, run=run, parent=parent, tool=tool, candidates=candidates)
+        await session.flush()
     await correlate_case(session, case.id, semantic=False)
     case.last_reviewed_run_number = 1
     return case

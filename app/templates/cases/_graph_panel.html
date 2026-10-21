@@ -1,10 +1,8 @@
 {% import "components/ui.html" as ui %}
 {% set a = entity.attributes %}
 <div class="graph-panel-entity" data-entity="{{ entity.id }}">
-  <p class="faint small">{{ entity.type | replace('_', ' ') | capitalize }}{% if a.get('site') %} on {{ a.site }}{% endif %}{% if entity.source_tool %} · found by {{ entity.source_tool }}{% endif %}</p>
-  <h3 class="graph-panel-value">
-    {% if a.get('url') %}<a href="{{ a.url | safe_url }}" target="_blank" rel="noopener noreferrer nofollow">{{ entity.value }}{{ ui.icon("external", "icon") }}</a>{% else %}<span class="ident">{{ entity.value }}</span>{% endif %}
-  </h3>
+  {# The graph inspector shows the type, value and view actions; this is the decision and the evidence. #}
+  {% if a.get('url') %}<p class="small"><a href="{{ a.url | safe_url }}" target="_blank" rel="noopener noreferrer nofollow">Open the page{{ ui.icon("external", "icon") }}</a></p>{% endif %}
   {% if not entity.is_seed %}
   <div class="graph-panel-actions">
     {% if entity.dismissed_flag %}

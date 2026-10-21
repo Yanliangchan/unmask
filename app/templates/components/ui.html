@@ -1,12 +1,10 @@
 {# Shared UI components. Import with: {% import "components/ui.html" as ui %} #}
 
 {# The UNMASK mark: U-N-M-A-S-K typed on a phone keypad (8-6-6-2-7-5), drawn as one unlock-pattern stroke
-   in ink, ending on the centre key, which is marked like a highlighted line in a case file.
-   gid is accepted for older callers and ignored: the mark has no gradient. #}
+   ending on the centre key. Drawn in one colour (currentColor); gid is accepted for older callers. #}
 {% macro mark(cls="mark", gid=none) -%}
 <svg class="{{ cls }}" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-<path d="M16 26 26 16 16 6 6 26 16 16" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="square" stroke-linejoin="miter"/>
-<rect class="mark-key" x="12.5" y="12.5" width="7" height="7"/></svg>
+<path d="M16 26 26 16 16 6 6 26 16 16" fill="none" stroke="currentColor" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
 {%- endmacro %}
 
 {# Mark and wordmark together; descriptor=True adds the descriptor line under the name. #}
@@ -38,6 +36,9 @@
 {%- elif name == "camera" %}<path d="M2.5 5.5a1 1 0 0 1 1-1h1.8l1-1.5h3.4l1 1.5h1.8a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1z"/><circle cx="8" cy="8.5" r="2.2"/>
 {%- elif name == "x" %}<path d="M4 4l8 8M12 4l-8 8"/>
 {%- elif name == "shield" %}<path d="M8 2l5 2v4c0 3-2.2 5.2-5 6-2.8-.8-5-3-5-6V4z"/>
+{%- elif name == "undo" %}<path d="M5.5 4L2.5 7l3 3M3 7h6.5a3.5 3.5 0 0 1 0 7H8"/>
+{%- elif name == "redo" %}<path d="M10.5 4l3 3-3 3M13 7H6.5a3.5 3.5 0 0 0 0 7H8"/>
+{%- elif name == "filter" %}<path d="M2.5 3.5h11l-4.2 5v4l-2.6 1.2V8.5z"/>
 {%- elif name == "logo" %}<path d="M2.5 6.2C4.2 4.4 6 3.5 8 3.5s3.8.9 5.5 2.7c0 4-2.5 6.8-5.5 6.8S2.5 10.2 2.5 6.2z"/><circle cx="6" cy="7.2" r=".9" fill="currentColor" stroke="none"/><circle cx="10" cy="7.2" r=".9" fill="currentColor" stroke="none"/>
 {%- endif %}
 </svg>

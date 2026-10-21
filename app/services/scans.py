@@ -194,15 +194,15 @@ async def persist_candidates(
             .on_conflict_do_nothing(constraint="uq_entity_observations")
         )
         if seed is not None and cand.relation_type and seed.id != entity.id:
-            exists = await session.scalar(
-                select(Relation.id).where(
+            existing = await session.scalar(
+                select(Relation).where(
                     Relation.entity_a_id == seed.id,
                     Relation.entity_b_id == entity.id,
                     Relation.relation_type == cand.relation_type,
                     Relation.source_tool == tool,
                 )
             )
-            if exists is None:
+            if existing is None:
                 session.add(
                     Relation(
                         case_id=run.case_id,
@@ -212,8 +212,17 @@ async def persist_candidates(
                         source_tool=tool,
                         match_explanation=cand.relation_explanation,
                         confidence=cand.confidence,
+                        basis="observed",
+                        directed=True,
+                        scan_run_id=run.id,
+                        last_scan_run_id=run.id,
                     )
                 )
+            elif existing.last_scan_run_id != run.id:
+                # Seen again: the link's history grows instead of a duplicate row.
+                existing.last_seen = now
+                existing.last_scan_run_id = run.id
+                existing.seen_count += 1
     if seed is not None:
         seed.last_verified = now
     return created

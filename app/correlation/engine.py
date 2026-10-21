@@ -166,6 +166,7 @@ async def merge_entities(session: AsyncSession, a: Entity, b: Entity, *, created
             match_explanation=explanation,
             confidence=1.0,
             created_by=created_by,
+            basis="rule" if created_by == "engine" else "analyst",
         )
     )
     await session.flush()
@@ -196,6 +197,7 @@ async def split_entity(session: AsyncSession, member: Entity, *, created_by: str
             match_explanation=explanation,
             confidence=1.0,
             created_by=created_by,
+            basis="analyst",
         )
     )
     await session.flush()
@@ -208,6 +210,7 @@ async def dismiss_suggestion(session: AsyncSession, relation: Relation, *, creat
     relation.relation_type = NOT_SAME
     relation.source_tool = "analyst"
     relation.created_by = created_by
+    relation.basis = "analyst"
     relation.match_explanation = f"dismissed by analyst (was: {relation.match_explanation})"
     await session.flush()
 
@@ -215,10 +218,19 @@ async def dismiss_suggestion(session: AsyncSession, relation: Relation, *, creat
 # --- The engine ------------------------------------------------------------------
 
 
+# How each kind of link is established (Relation.basis). A profile that links out is seen on the
+# fetched page; handle and domain matches are fixed rules; everything scored by a ratio is similarity.
+LINK_BASIS = {"shares_handle": "rule", "email_at_domain": "rule", "profile_links_to": "observed",
+              "profile_name_match": "similarity", POSSIBLE_SAME: "similarity"}  # fmt: skip
+
+
 def _link(session, graph, case_id, a: Entity, b: Entity, rtype: str, explanation: str, confidence: float) -> bool:
     if a.id == b.id or graph.has(a.id, b.id, rtype) or graph.has(a.id, b.id, NOT_SAME):
         return False
-    first, second = _pair(a.id, b.id)
+    basis = LINK_BASIS.get(rtype, "rule")
+    # A page link has a direction (from the profile); the rest compare two values symmetrically.
+    directed = rtype == "profile_links_to"
+    first, second = (a.id, b.id) if directed else _pair(a.id, b.id)
     session.add(
         Relation(
             case_id=case_id,
@@ -229,6 +241,8 @@ def _link(session, graph, case_id, a: Entity, b: Entity, rtype: str, explanation
             match_explanation=explanation,
             confidence=confidence,
             created_by="engine",
+            basis=basis,
+            directed=directed,
         )
     )
     graph.add(a.id, b.id, rtype)

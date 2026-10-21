@@ -29,9 +29,12 @@ def _add(db, case, etype, value, confidence=0.5, **kw):
 
 
 def _rel(db, case, a, b, rtype, created_by="engine"):
+    # Like persist_candidates: a tool's link runs from what was searched to what was found.
+    observed = rtype not in (engine.POSSIBLE_SAME, engine.NOT_SAME, engine.SAME_AS)
     db.add(
-        Relation(case_id=case.id, entity_a_id=a.id, entity_b_id=b.id, relation_type=rtype,
-                 source_tool="fake_ok", created_by=created_by)
+        Relation(case_id=case.id, entity_a_id=a.id, entity_b_id=b.id, relation_type=rtype, source_tool="fake_ok",
+                 created_by=created_by, directed=observed,
+                 basis="analyst" if created_by.startswith("analyst") else "observed" if observed else "similarity")
     )  # fmt: skip
 
 
@@ -127,3 +130,102 @@ async def test_large_graphs_leave_weak_findings_out_until_asked(db, monkeypatch)
     assert len(trimmed["nodes"]) == 3 and trimmed["hidden"] == 5
     assert all(n["strength"] in ("target", "likely") for n in trimmed["nodes"])
     assert len((await case_graph(db, case.id, include_all=True))["nodes"]) == 8
+
+
+# --- Evidence on edges and path analysis -------------------------------------------------------
+
+
+async def test_parallel_relations_become_one_edge_with_all_their_evidence(db):
+    case = await _case(db)
+    seed = await db.scalar(select(Entity).where(Entity.case_id == case.id, Entity.is_seed.is_(True)))
+    name_a, name_b = _add(db, case, "name", "Jane Roe"), _add(db, case, "name", "Jane R. Roe")
+    await db.flush()
+    for a, b, why, conf in [(name_a, name_b, "86% name similarity", 0.86), (name_b, name_a, "embedding 0.91", 0.91)]:
+        db.add(Relation(case_id=case.id, entity_a_id=a.id, entity_b_id=b.id, relation_type="possible_same",
+                        source_tool="correlation", match_explanation=why, confidence=conf,
+                        basis="similarity"))  # fmt: skip
+    _rel(db, case, seed, name_a, "has_account")
+    await db.flush()
+    graph = await case_graph(db, case.id)
+    dup = [e for e in graph["edges"] if e["type"] == "possible_same"]
+    assert len(dup) == 1  # either order is the same undirected link
+    assert dup[0]["confidence"] == 0.91 and dup[0]["why"] == "embedding 0.91"
+    assert {ev["why"] for ev in dup[0]["evidence"]} == {"86% name similarity", "embedding 0.91"}
+    assert dup[0]["basis"] == "similarity" and not dup[0]["directed"]
+    found = next(e for e in graph["edges"] if e["type"] == "has_account")
+    assert found["directed"] and found["basis"] == "observed" and found["source"] == str(seed.id)
+    node = next(n for n in graph["nodes"] if n["id"] == str(name_a.id))
+    assert node["sources"] == ["fake_ok"] and node["degree"] == 2 and graph["clusters"] == 1
+
+
+def _g(nodes, edges):
+    return {
+        "nodes": [{"id": n, "label": n, "confidence": c, "degree": d, "seed": n == "seed"} for n, c, d in nodes],
+        "edges": [{"id": f"{a}-{b}", "source": a, "target": b, "basis": basis, "confidence": conf,
+                   "suggested": basis == "similarity"} for a, b, basis, conf in edges],
+    }  # fmt: skip
+
+
+def test_paths_prefer_observed_links_over_a_shorter_guess():
+    from app.services.paths import find_paths
+
+    graph = _g(
+        [("seed", 1, 2), ("gh", 0.8, 2), ("site", 0.8, 2), ("x", 0.5, 2)],
+        [
+            ("seed", "gh", "observed", 0.8),
+            ("gh", "site", "observed", 0.9),  # two observed links
+            ("seed", "x", "similarity", 0.5),
+            ("x", "site", "similarity", 0.5),
+        ],  # fmt: skip
+    )
+    result = find_paths(graph, "seed", "site")
+    best, alt = result["paths"][0], result["paths"][1]
+    assert best["nodes"] == ["seed", "gh", "site"] and best["observed"] == 2 and best["inferred"] == 0
+    assert alt["score"] < best["score"] and any("similarity" in f for f in alt["flags"])
+    assert alt["weakest"] in ("seed-x", "x-site")
+    assert "not proof" in result["caveat"]
+
+
+def test_paths_through_a_hub_are_discounted_and_flagged():
+    from app.services.paths import find_paths
+
+    graph = _g(
+        [("seed", 1, 2), ("gmail.com", 0.9, 40), ("other", 0.7, 2), ("via", 0.7, 2)],
+        [
+            ("seed", "gmail.com", "observed", 0.9),
+            ("gmail.com", "other", "observed", 0.9),
+            ("seed", "via", "observed", 0.7),
+            ("via", "other", "observed", 0.7),
+        ],  # fmt: skip
+    )
+    paths = find_paths(graph, "seed", "other")["paths"]
+    assert paths[0]["nodes"] == ["seed", "via", "other"]
+    assert any("hub" in f for f in paths[1]["flags"])
+
+
+def test_no_path_between_disconnected_findings():
+    from app.services.paths import find_paths
+
+    graph = _g([("seed", 1, 1), ("a", 0.5, 1), ("b", 0.5, 1)], [("seed", "a", "observed", 0.5)])
+    assert find_paths(graph, "seed", "b")["paths"] == []
+    assert find_paths(graph, "seed", "seed")["paths"] == []
+
+
+async def test_paths_endpoint_is_private(client, db):
+    csrf = await login(client)
+    case = await _case(db)
+    await db.commit()
+    seed = await db.scalar(select(Entity).where(Entity.case_id == case.id, Entity.is_seed.is_(True)))
+    r = await client.get(f"/cases/{case.id}/paths.json", params={"a": str(seed.id), "b": str(uuid.uuid4())})
+    assert r.status_code == 200 and r.json()["paths"] == []
+    await client.post("/logout", data={"csrf_token": csrf})
+    assert (await client.get(f"/cases/{case.id}/paths.json?a=x&b=y")).status_code == 303
+
+
+def test_a_target_in_the_middle_of_a_path_is_not_called_a_hub():
+    from app.services.paths import find_paths
+
+    graph = _g([("a", 0.8, 2), ("seed", 1, 30), ("b", 0.8, 2)],
+               [("a", "seed", "observed", 0.8), ("seed", "b", "observed", 0.8)])  # fmt: skip
+    path = find_paths(graph, "a", "b")["paths"][0]
+    assert path["nodes"] == ["a", "seed", "b"] and not any("hub" in f for f in path["flags"])
