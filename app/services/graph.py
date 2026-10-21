@@ -165,6 +165,7 @@ async def case_graph(session: AsyncSession, case_id: uuid.UUID, include_all: boo
                 "seen": 0,
                 "via": r.source_tool,
                 "why": evidence["why"],
+                "relation": str(r.id),  # the strongest record behind this edge, for pinning
                 "evidence": [],
             }
         ed["seen"] += r.seen_count
@@ -174,6 +175,7 @@ async def case_graph(session: AsyncSession, case_id: uuid.UUID, include_all: boo
             ed["basis"] = r.basis
         if (evidence["confidence"] or 0) > ed["confidence"]:
             ed["confidence"], ed["why"], ed["via"] = evidence["confidence"], evidence["why"], r.source_tool
+            ed["relation"] = str(r.id)
         if len(ed["evidence"]) < MAX_EVIDENCE:
             ed["evidence"].append(evidence)
     pairs = [(k[0], k[1]) for k in edges]

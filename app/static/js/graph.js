@@ -650,6 +650,7 @@
     acts.appendChild(actionBtn("Collapse", "collapse", "Fold findings that hang only off this one"));
     if (!d.seed) acts.appendChild(actionBtn("Hide", "hide"));
     acts.appendChild(actionBtn(S.pathFrom === n.id() ? "Pick the other end…" : "Path from here", "path-from", "Then click the other finding"));
+    var pinN = actionBtn("Pin to log", "pin", "Keep this finding on the case's working log"); pinN.dataset.pin = "entities/" + n.id(); acts.appendChild(pinN);
     b.appendChild(acts);
     var ev = el("div", "gx-evidence");
     ev.id = "gx-entity";
@@ -703,6 +704,10 @@
     var acts = el("div", "gx-actions");
     var both = actionBtn("Select both ends", "select-ends"); both.dataset.edge = e.id();
     acts.appendChild(both);
+    if (d.relation) {
+      var pin = actionBtn("Pin to log", "pin", "Keep this link on the case's working log"); pin.dataset.pin = "links/" + d.relation;
+      acts.appendChild(pin);
+    }
     b.appendChild(acts);
   }
 
@@ -1142,6 +1147,7 @@
       case "json": exportJson(); break;
       case "find-next": stepHit(1); break;
       case "find-prev": stepHit(-1); break;
+      case "pin": window.htmx.ajax("POST", "/cases/" + S.root.dataset.case + "/" + t.dataset.pin + "/pin", { source: S.root, swap: "none" }); break;
       case "select-ends": { var edge = S.cy.getElementById(t.dataset.edge); S.cy.elements().unselect(); edge.connectedNodes().select(); break; }
       case "bulk-confirm": bulk("confirm"); break;
       case "bulk-dismiss": bulk("dismiss"); break;

@@ -1358,3 +1358,20 @@ input[type="radio"], input[type="checkbox"] { accent-color: var(--text-strong); 
 .gx.gx-full { position: fixed; inset: 0; z-index: 90; height: auto !important; border: 0; border-radius: 0; }
 .gx-asof .gx-range button { flex: none; }
 .retry-form { display: inline; margin-left: 6px; }
+.hint-mark { border-left: 3px solid var(--mark); padding-left: 8px; }
+
+/* Working log: entries on the left, pinned evidence on the right. */
+.worklog { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; margin-top: 16px; }
+.worklog-head h2 { margin: 0 0 4px; }
+.worklog-form { display: grid; gap: 8px; justify-items: start; margin: 12px 0 20px; }
+.worklog-form textarea { width: 100%; }
+.worklog-entries { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--border-strong); }
+.worklog-entry { padding: 2px 0 14px 14px; position: relative; }
+.worklog-entry::before { content: ""; position: absolute; left: -4px; top: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--border-strong); }
+.worklog-entry:target::before { background: var(--mark); }
+.worklog-side { border-left: 1px solid var(--border); padding-left: 20px; display: grid; gap: 10px; align-content: start; }
+.pin-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.pin { padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.pin p { margin: 2px 0; }
+.pin .t-type { color: var(--faint); font: 500 10px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; margin-right: 6px; }
+@media (max-width: 900px) { .worklog { grid-template-columns: 1fr; } .worklog-side { border-left: 0; padding-left: 0; } }

@@ -64,6 +64,11 @@ async def settings_context(request: Request, session: AsyncSession, case: Invest
     owner = await session.get(User, case.owner_id) if case.owner_id else None
     error = request.query_params.get("error")
     ctx = await case_shell(session, case, user, "settings")
+    draft = None
+    if request.query_params.get("draft") == "log":
+        from app.services.worklog import draft_assessment
+
+        draft = await draft_assessment(session, case)
     return {
         **ctx,
         "owner": owner,
@@ -77,6 +82,7 @@ async def settings_context(request: Request, session: AsyncSession, case: Invest
         "errors": ERRORS,
         "share_links": await share_links_for(session, case.id),
         "now": datetime.now(UTC),
+        "assessment_draft": draft,
         **extra,
     }
 

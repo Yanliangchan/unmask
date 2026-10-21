@@ -33,6 +33,7 @@ from app.routes import (
     workspace,
 )
 from app.routes import settings as settings_routes
+from app.routes import worklog as worklog_routes
 from app.security import LoginRequired, TermsRequired, ensure_admin_user
 from app.services.scans import fail_interrupted_runs
 from app.services.tools import sync_tool_config
@@ -222,6 +223,7 @@ def create_app() -> FastAPI:
     app.include_router(review.router)
     app.include_router(search.router)
     app.include_router(workspace.router)
+    app.include_router(worklog_routes.router)
     app.include_router(inbox.router)
     app.include_router(evidence.router)
     app.include_router(integrations.router)

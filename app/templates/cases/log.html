@@ -1,0 +1,65 @@
+{% extends "cases/_layout.html" %}
+{% block tab %}
+<div class="worklog">
+  <section class="worklog-main" aria-labelledby="log-title">
+    <header class="worklog-head">
+      <h2 id="log-title">Working log</h2>
+      <p class="muted small">Your reasoning as you go: what you checked, what it showed, what to look at next. Everyone on the case sees it; it is not part of the report unless you put it in the assessment.</p>
+    </header>
+    <form class="worklog-form" method="post" action="/cases/{{ case.id }}/log">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="visually-hidden" for="log-body">New entry</label>
+      <textarea id="log-body" name="body" rows="3" maxlength="4000" required placeholder="What did you check, and what did it show?"></textarea>
+      <button class="btn btn-sm btn-primary" type="submit">Add to log</button>
+    </form>
+    {% if log.entries %}
+    <ol class="worklog-entries" role="list">
+      {% for n in log.entries | reverse %}
+      <li class="worklog-entry" id="entry-{{ n.id }}">
+        <p class="note-meta"><strong>{{ log.authors.get(n.author_id, "Former user") }}</strong>
+          <span class="faint mono small" title="{{ n.created_at | isodate }}">{{ n.created_at.strftime('%-d %b %Y %H:%M') }}</span>
+          {% if n.author_id == user.id or case.owner_id == user.id %}
+          <form class="retry-form" method="post" action="/cases/{{ case.id }}/log/{{ n.id }}/delete"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="link-btn small faint" type="submit">Remove</button></form>
+          {% endif %}</p>
+        <p class="note-body pre">{{ n.body }}</p>
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}
+    <p class="faint small">No entries yet.</p>
+    {% endif %}
+  </section>
+
+  <aside class="worklog-side" aria-labelledby="pins-title">
+    <h2 id="pins-title" class="h3">Pinned <span class="count">{{ log.pins | length }}</span></h2>
+    {% if log.pins %}
+    <ul class="pin-list" role="list">
+      {% for p in log.pins %}
+      <li class="pin">
+        {% if p.entity %}
+        <p class="pin-what"><span class="t-type">{{ p.entity.type | replace('_', ' ') }}</span>
+          <a class="ident" href="/cases/{{ case.id }}#ent-{{ p.entity.id }}">{{ p.entity.value }}</a></p>
+        <p class="faint small">score {{ '%.2f' | format(p.entity.confidence) }}{% if p.entity.confirmed_flag %} · confirmed{% elif p.entity.dismissed_flag %} · ruled out{% endif %}{% if p.gone %} · merged into another finding{% endif %}</p>
+        {% elif p.relation %}
+        {% set a, b = p.ends %}
+        <p class="pin-what"><span class="t-type">link</span>
+          <span class="ident">{{ a.value if a else '?' }}</span> {{ "→" if p.relation.directed else "—" }} <span class="ident">{{ b.value if b else '?' }}</span></p>
+        <p class="faint small">{{ p.relation.relation_type | replace('_', ' ') }} · {{ p.relation.basis }}{% if p.relation.basis in ('rule', 'similarity') %} · connects values, not people{% endif %}</p>
+        {% endif %}
+        {% if p.note.body %}<p class="small">{{ p.note.body }}</p>{% endif %}
+        {% if p.note.author_id == user.id or case.owner_id == user.id %}
+        <form class="retry-form" method="post" action="/cases/{{ case.id }}/log/{{ p.note.id }}/delete"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="link-btn small faint" type="submit">Unpin</button></form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="faint small">Pin findings from their evidence panel, and links from the graph inspector, to keep the ones that matter in view.</p>
+    {% endif %}
+    {% if log.pins or log.entries %}
+    <a class="btn btn-sm" href="/cases/{{ case.id }}/settings?draft=log#report">Draft the assessment from this log</a>
+    <p class="faint small">Lays out the pinned evidence and your entries. The conclusion stays yours to write.</p>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

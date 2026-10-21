@@ -7,6 +7,7 @@
     case.stix.json        the same as a STIX 2.1 bundle (TLP:AMBER)
     provenance.json       every sighting of every finding, and every link with its evidence
     audit.json            the case's audit trail: who did what, when, from where
+    worklog.json          the analysts' working log and what they pinned, in order
     snapshots.json        captured pages: URL, status, when, by whom, SHA-256, intact or not
     snapshots/<sha256>    the captured bytes, exactly as received
 
@@ -95,6 +96,19 @@ async def _audit(session: AsyncSession, case: Investigation) -> list[dict]:
     ]
 
 
+async def _worklog(session: AsyncSession, case: Investigation) -> dict:
+    from app.services.worklog import worklog
+
+    log = await worklog(session, case.id)
+    pins = [
+        {"at": _iso(p.note.created_at), "by": log.authors.get(p.note.author_id), "why": p.note.body,
+         "finding": str(p.entity.id) if p.entity else None, "link": str(p.relation.id) if p.relation else None}
+        for p in log.pins
+    ]  # fmt: skip
+    entries = [{"at": _iso(n.created_at), "by": log.authors.get(n.author_id), "text": n.body} for n in log.entries]
+    return {"entries": entries, "pinned": pins}
+
+
 async def build_bundle(session: AsyncSession, case: Investigation, user: User) -> tuple[bytes, str]:
     """(zip bytes, SHA-256 of the manifest). The case must already have its assessment."""
     from app.services.evidence import snapshot_body, snapshot_intact
@@ -108,6 +122,7 @@ async def build_bundle(session: AsyncSession, case: Investigation, user: User) -
         "case.stix.json": _json(await export_stix(session, case, "all")),
         "provenance.json": _json(await _provenance(session, case)),
         "audit.json": _json(await _audit(session, case)),
+        "worklog.json": _json(await _worklog(session, case)),
     }
     snaps = (
         await session.scalars(select(Snapshot).where(Snapshot.case_id == case.id).order_by(Snapshot.created_at))

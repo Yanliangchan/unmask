@@ -385,10 +385,23 @@ class SavedView(Base):
     created_at: Mapped[datetime] = _now()
 
 
+NOTE_KINDS = ("note", "log", "pin")
+
+
 class Note(Base):
-    """An analyst's note on a finding. The text is case content, so it is encrypted."""
+    """An analyst's note. The text is case content, so it is encrypted.
+
+    kind "note" is on a finding (entity_id); "log" is an entry in the case's working log;
+    "pin" keeps one finding (entity_id) or link (relation_id) on the log, body saying why.
+    """
 
     __tablename__ = "notes"
+    __table_args__ = (
+        CheckConstraint("kind IN ('note', 'log', 'pin')", name="ck_notes_kind"),
+        CheckConstraint(
+            "kind <> 'pin' OR (entity_id IS NOT NULL) <> (relation_id IS NOT NULL)", name="ck_notes_pin_target"
+        ),
+    )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     case_id: Mapped[uuid.UUID] = mapped_column(
@@ -396,6 +409,8 @@ class Note(Base):
     )
     entity_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("entities.id", ondelete="CASCADE"), index=True)
     author_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    kind: Mapped[str] = mapped_column(String(8), nullable=False, server_default=text("'note'"))
+    relation_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("relations.id", ondelete="CASCADE"), index=True)
     body: Mapped[str] = mapped_column(EncryptedText, nullable=False)
     # Users @mentioned in the note (ids), for notifications.
     mentions: Mapped[list[str]] = mapped_column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))

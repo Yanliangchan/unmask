@@ -17,6 +17,7 @@ TABS = [
     ("web", "Web", "/web"),
     ("graph", "Graph", "/graph"),
     ("timeline", "Timeline", "/timeline"),
+    ("log", "Log", "/log"),
     ("pivots", "Pivots", "/pivots"),
     ("activity", "Activity", "/activity"),
     ("settings", "Settings", "/settings"),

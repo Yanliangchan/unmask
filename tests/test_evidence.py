@@ -183,7 +183,7 @@ async def test_the_evidence_bundle_carries_everything_with_a_verifiable_manifest
     z = zipfile.ZipFile(io.BytesIO(r.content))
     names = set(z.namelist())
     assert {"README.txt", "manifest.json", "report.md", "case.json", "case.stix.json", "provenance.json",
-            "audit.json", "snapshots.json"} <= names  # fmt: skip
+            "audit.json", "snapshots.json", "worklog.json"} <= names  # fmt: skip
     manifest = z.read("manifest.json")
     assert hashlib.sha256(manifest).hexdigest() == r.headers["x-manifest-sha256"]
     assert r.headers["x-manifest-sha256"] in z.read("README.txt").decode()

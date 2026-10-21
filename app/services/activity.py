@@ -64,6 +64,11 @@ def _describe(row: AccessLog) -> tuple[str, str] | None:
         "run_correlation": ("re-ran matching", "refresh"),
         "add_finding": ("added a finding by hand", "plus"),
         "add_note": (None, "note"),  # shown from the note itself
+        "log_entry": (None, "note"),
+        "pin": (None, "note"),
+        "unpin": ("unpinned something from the working log", "note"),
+        "delete_log_entry": ("removed a working log entry", "x"),
+        "retry_pivots": (f"retried skipped follow-ups as scan {d.get('run_number', '')}".strip(), "refresh"),
         "share_case": ("shared the case with a colleague", "link"),
         "unshare_case": ("stopped sharing the case with a colleague", "link"),
         "watch_on": (f"turned on watch mode ({d.get('frequency', 'weekly')})", "bell"),
@@ -121,9 +126,10 @@ async def case_activity(session: AsyncSession, case_id: uuid.UUID, limit: int = 
     for n in notes:
         entity = values.get(n.entity_id) if n.entity_id else None
         url = f"/cases/{case_id}#ent-{n.entity_id}" if entity else None
-        events.append(
-            Event(n.created_at, users.get(n.author_id, "Former user"), "added a note", "note", url, entity, n.body)
-        )
+        text = {"log": "wrote in the working log", "pin": "pinned to the working log"}.get(n.kind, "added a note")
+        if n.kind != "note":
+            url = f"/cases/{case_id}/log"
+        events.append(Event(n.created_at, users.get(n.author_id, "Former user"), text, "note", url, entity, n.body))
     for run in runs:
         who = {"watch_mode": "Watch mode", "pivot_chain": "Follow-up"}.get(run.triggered_by, "Scan")
         failed = f", {_plural(len(run.tools_failed), 'tool')} failed" if run.tools_failed else ""

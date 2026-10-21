@@ -14,8 +14,9 @@
       <label class="field">
         <span>Analyst assessment <span class="req" aria-hidden="true">*</span></span>
         <textarea name="analyst_assessment" rows="7"
-          placeholder="What the evidence supports, how strongly, what is still uncertain, and what you ruled out.">{{ case.analyst_assessment or '' }}</textarea>
-        <span class="hint">{% if case.analyst_assessment_updated_at %}Saved {{ case.analyst_assessment_updated_at | isodate }}.{% else %}Not written yet.{% endif %}</span>
+          placeholder="What the evidence supports, how strongly, what is still uncertain, and what you ruled out.">{{ assessment_draft or case.analyst_assessment or '' }}</textarea>
+        {% if assessment_draft %}<span class="hint hint-mark">Drafted from the working log and not saved yet. Write the conclusion and the uncertainties in your own words, then save.{% if case.analyst_assessment %} Saving replaces the assessment saved {{ case.analyst_assessment_updated_at | isodate }}.{% endif %}</span>
+        {% else %}<span class="hint">{% if case.analyst_assessment_updated_at %}Saved {{ case.analyst_assessment_updated_at | isodate }}.{% else %}Not written yet.{% endif %} <a href="/cases/{{ case.id }}/settings?draft=log#report">Draft from the working log</a></span>{% endif %}
       </label>
       {% set ready = (case.analyst_assessment or '') | trim | length >= min_assessment %}
       <div class="form-actions split">

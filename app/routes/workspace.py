@@ -55,7 +55,11 @@ async def _drawer_context(session: AsyncSession, case, entity_id: uuid.UUID) -> 
     detail = await entity_detail(session, case.id, entity_id)
     if detail is None:
         raise HTTPException(status_code=404, detail="Entity not found")
-    notes = (await session.scalars(select(Note).where(Note.entity_id == entity_id).order_by(Note.created_at))).all()
+    notes = (
+        await session.scalars(
+            select(Note).where(Note.entity_id == entity_id, Note.kind == "note").order_by(Note.created_at)
+        )
+    ).all()
     authors = {u.id: u for u in (await _case_members(session, case)).values()}
     return {
         "case": case,

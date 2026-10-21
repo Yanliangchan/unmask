@@ -31,6 +31,8 @@
     <summary class="btn btn-ghost btn-sm">{{ ui.icon("search") }}Search the web</summary>
     <div class="menu-list" role="menu">{{ ui.search_items(entity.type, entity.value, case | case_tags) }}</div>
   </details>
+  <button class="btn btn-ghost btn-sm" type="button" hx-post="/cases/{{ case.id }}/entities/{{ entity.id }}/pin" hx-swap="none"
+          title="Keep this finding on the case's working log">{{ ui.icon("pin") }}Pin to log</button>
 </div>
 {% endif %}
 
