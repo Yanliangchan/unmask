@@ -38,6 +38,52 @@
   <button class="btn btn-primary" type="submit">Save</button>
 </form>
 
+<section class="form-section" id="api" aria-labelledby="api-title">
+  <h2 id="api-title">API keys</h2>
+  <p class="muted small">For scripts and other systems: <span class="mono">/api/v1</span>, documented at <a href="/api/v1/openapi.json">/api/v1/openapi.json</a>. A key acts as you and sees exactly the cases you can see. Findings leave only for cases with a written assessment, scans count against your daily limit, and every request is in the audit log.</p>
+  {% if new_token %}
+  <div class="alert alert-info" role="status">
+    <p><strong>Copy this key now.</strong> It is shown once and stored only as a fingerprint.</p>
+    <p><input type="text" class="mono" readonly value="{{ new_token }}" aria-label="New API key"></p>
+  </div>
+  {% endif %}
+  {% if api_keys %}
+  <div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>Name</th><th>Key</th><th>Permissions</th><th>Last used</th><th>Expires</th><th class="shrink"><span class="visually-hidden">Actions</span></th></tr></thead>
+    <tbody>
+      {% for k in api_keys %}
+      {% set dead = k.revoked_at or k.expires_at <= now %}
+      <tr class="{{ 'muted' if dead }}">
+        <td>{{ k.name }}</td>
+        <td class="mono small">umk_{{ k.prefix }}_…</td>
+        <td class="small">{{ k.scopes | join(", ") }}</td>
+        <td class="small">{{ k.last_used_at | timeago if k.last_used_at else "never" }}</td>
+        <td class="small">{% if k.revoked_at %}revoked{% elif dead %}expired{% else %}{{ k.expires_at | isodate }}{% endif %}</td>
+        <td class="shrink">{% if not dead %}
+          <form method="post" action="/account/api-keys/{{ k.id }}/revoke"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-sm btn-danger" type="submit">Revoke</button></form>
+        {% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+  <form class="form api-key-form" method="post" action="/account/api-keys">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label class="field"><span>Name</span><input type="text" name="name" maxlength="80" placeholder="e.g. SIEM enrichment job" required></label>
+    <fieldset><legend>Permissions</legend>
+      {% for scope, about in api_scopes.items() %}
+      <label class="check"><input type="checkbox" name="scopes" value="{{ scope }}" {% if scope == "cases:read" %}checked{% endif %}><span><span class="mono">{{ scope }}</span> <span class="muted small">{{ about }}</span></span></label>
+      {% endfor %}
+    </fieldset>
+    <label class="field"><span>Expires after</span>
+      <select name="days"><option value="30">30 days</option><option value="90" selected>90 days</option><option value="365">1 year</option></select>
+    </label>
+    <div><button class="btn" type="submit">Create key</button></div>
+  </form>
+</section>
+
 <section class="form-section">
   <h2>Getting started</h2>
   <form method="post" action="/account/checklist">

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.audit import log_access
@@ -117,10 +119,15 @@ async def notifications_read(session: AsyncSession = Depends(get_session), user:
 ACCOUNT_MESSAGES = {
     "saved": "Notification settings saved.",
     "checklist": "The getting-started checklist is back on Home.",
+    "key_revoked": "API key revoked. It stops working immediately.",
 }
 
 
-def _account(request: Request, user: User, *, error: str | None = None, status_code: int = 200):
+async def _account(request: Request, session: AsyncSession, user: User, *, error: str | None = None,
+                   status_code: int = 200, new_token: str | None = None):  # fmt: skip
+    from app.models import API_SCOPES
+    from app.services.apikeys import keys_for
+
     return render(
         request,
         "account.html",
@@ -133,14 +140,56 @@ def _account(request: Request, user: User, *, error: str | None = None, status_c
             "webhook_set": bool(user.slack_webhook),
             "saved": ACCOUNT_MESSAGES.get(request.query_params.get("saved", "")),
             "error": error,
+            "api_keys": await keys_for(session, user),
+            "api_scopes": API_SCOPES,
+            "new_token": new_token,
+            "now": datetime.now(UTC),
         },
         status_code=status_code,
     )
 
 
 @router.get("/account")
-async def account_page(request: Request, user: User = Depends(current_user)):
-    return _account(request, user)
+async def account_page(
+    request: Request, session: AsyncSession = Depends(get_session), user: User = Depends(current_user)
+):
+    return await _account(request, session, user)
+
+
+@router.post("/account/api-keys", dependencies=[Depends(verify_csrf)])
+async def create_api_key(
+    request: Request, session: AsyncSession = Depends(get_session), user: User = Depends(current_user)
+):
+    from app.services.apikeys import create_key
+
+    form = await request.form()
+    try:
+        days = int(str(form.get("days") or "90"))
+        key, token = await create_key(session, user, name=str(form.get("name") or ""),
+                                      scopes=[str(s) for s in form.getlist("scopes")], days=days)  # fmt: skip
+    except ValueError as exc:
+        return await _account(request, session, user, error=str(exc), status_code=422)
+    log_access(session, "api_key_created", user_id=user.id, ip=client_ip(request), prefix=key.prefix, scopes=key.scopes)
+    await session.commit()
+    # The only time the key is shown.
+    return await _account(request, session, user, new_token=token)
+
+
+@router.post("/account/api-keys/{key_id}/revoke", dependencies=[Depends(verify_csrf)])
+async def revoke_api_key(
+    request: Request, key_id: uuid.UUID, session: AsyncSession = Depends(get_session),
+    user: User = Depends(current_user),
+):  # fmt: skip
+    from app.models import ApiKey
+
+    key = await session.scalar(select(ApiKey).where(ApiKey.id == key_id, ApiKey.user_id == user.id))
+    if key is None:
+        raise HTTPException(status_code=404, detail="No such key")
+    if key.revoked_at is None:
+        key.revoked_at = datetime.now(UTC)
+        log_access(session, "api_key_revoked", user_id=user.id, ip=client_ip(request), prefix=key.prefix)
+        await session.commit()
+    return RedirectResponse("/account?saved=key_revoked#api", status_code=303)
 
 
 @router.post("/account/notifications", dependencies=[Depends(verify_csrf)])
@@ -154,7 +203,7 @@ async def save_notifications(
     elif webhook:
         problem = valid_webhook(webhook)
         if problem:
-            return _account(request, user, error=problem, status_code=422)
+            return await _account(request, session, user, error=problem, status_code=422)
         user.slack_webhook = webhook
     kinds = [k for k in form.getlist("kinds") if k in KINDS]
     _set_pref(user, "notify", {

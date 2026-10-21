@@ -134,8 +134,13 @@ def render_landing(request: Request):
     return render(
         request,
         "public/landing.html",
-        {"seo": landing_seo(), "tools_sentence": _tool_sentence(labels), "tool_labels": labels, "faq": FAQ,
-         "tool_groups": tool_groups()},
+        {
+            "seo": landing_seo(),
+            "tools_sentence": _tool_sentence(labels),
+            "tool_labels": labels,
+            "faq": FAQ,
+            "tool_groups": tool_groups(),
+        },
     )
 
 

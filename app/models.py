@@ -484,3 +484,32 @@ class AppSecret(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
+
+
+API_SCOPES = {
+    "cases:read": "List cases you can see, their targets and scan status",
+    "findings:read": "Read findings, the graph, paths and STIX (cases with a written assessment only)",
+    "scans:write": "Start scans (within your daily limits)",
+}
+
+
+class ApiKey(Base):
+    """A key for /api/v1. Only an HMAC of the key is stored; the key is shown once, when made."""
+
+    __tablename__ = "api_keys"
+    __table_args__ = (
+        UniqueConstraint("key_hash", name="uq_api_keys_hash"),
+        UniqueConstraint("prefix", name="uq_api_keys_prefix"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    prefix: Mapped[str] = mapped_column(String(16), nullable=False)
+    key_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    scopes: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False, server_default=text("'{}'::text[]"))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_used_ip: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = _now()

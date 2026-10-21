@@ -17,6 +17,7 @@ from app.config import get_settings
 from app.crypto import cipher
 from app.db import dispose_engine, sessionmaker
 from app.routes import (
+    api,
     auth,
     cases,
     correlation,
@@ -189,6 +190,10 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(HTTPException)
     async def _http_error(request: Request, exc: HTTPException):
+        if request.url.path.startswith("/api/"):
+            from fastapi.responses import JSONResponse
+
+            return JSONResponse({"error": exc.detail, "status": exc.status_code}, status_code=exc.status_code)
         if request.headers.get("hx-request") == "true" or not request.headers.get("accept", "").startswith("text/html"):
             return PlainTextResponse(str(exc.detail), status_code=exc.status_code)
         return render(
@@ -220,6 +225,7 @@ def create_app() -> FastAPI:
     app.include_router(inbox.router)
     app.include_router(evidence.router)
     app.include_router(integrations.router)
+    app.include_router(api.router)
     return app
 
 
