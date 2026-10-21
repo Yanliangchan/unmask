@@ -33,6 +33,7 @@ working if their account is deactivated or they have not accepted the current te
 | GET | `/api/v1/cases/{id}` | `cases:read` | targets, authorisation note, the last 20 scans |
 | GET | `/api/v1/cases/{id}/findings?include=visible\|confirmed\|all` | `findings:read` | the JSON export format (`unmask-case-export`) |
 | GET | `/api/v1/cases/{id}/stix?include=…` | `findings:read` | a STIX 2.1 bundle, TLP:AMBER |
+| GET | `/api/v1/cases/{id}/report?format=pdf\|docx\|html\|md\|txt&detail=full\|brief` | `findings:read` | the case report; its reference in `X-Report-Reference` |
 | GET | `/api/v1/cases/{id}/bundle` | `findings:read` | the evidence bundle (ZIP) with its manifest hash in `X-Manifest-SHA256` |
 | GET | `/api/v1/cases/{id}/graph` | `findings:read` | findings and links, each link with its evidence |
 | GET | `/api/v1/cases/{id}/paths?a=…&b=…` | `findings:read` | the strongest evidence paths between two findings |

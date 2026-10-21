@@ -38,27 +38,50 @@
 
 <section class="settings-section" id="export">
   <header>
-    <h2>Export data</h2>
-    <p>The findings behind the report, for spreadsheets, scripts or a threat-intelligence platform. Findings marked "Not them" are left out unless you include them.</p>
+    <h2>Download the report</h2>
+    <p>The report and its data in the formats people actually use. Pick one to get the file, or several to get them together in a ZIP. Every download is recorded in the audit log.</p>
   </header>
   <div class="body">
-    <form class="inline-form export-form" method="get" data-export-form>
-      <label class="field"><span>Include</span>
-        <select name="scope">
-          <option value="visible">All findings except "Not them"</option>
-          <option value="confirmed">Confirmed findings and targets only</option>
-          <option value="all">Everything, including "Not them"</option>
-        </select>
-      </label>
-      <button class="btn btn-sm" type="submit" formaction="/cases/{{ case.id }}/export.csv">{{ ui.icon("download") }}CSV</button>
-      <button class="btn btn-sm" type="submit" formaction="/cases/{{ case.id }}/export.json">{{ ui.icon("download") }}JSON</button>
-      <button class="btn btn-sm" type="submit" formaction="/cases/{{ case.id }}/export.stix">{{ ui.icon("download") }}STIX 2.1</button>
+    <form class="export-picker" method="get" action="/cases/{{ case.id }}/download">
+      <fieldset class="export-formats">
+        <legend class="eyebrow">Formats</legend>
+        {% for key, label, hint, on in [
+          ("pdf", "PDF", "Ready to send or print. Cover, summary, findings, method.", True),
+          ("docx", "Word", "Editable, for adding your own commentary or letterhead.", False),
+          ("html", "Web page", "One self-contained file; opens in any browser, offline.", False),
+          ("md", "Markdown", "For wikis, tickets and repositories.", False),
+          ("txt", "Raw data (text)", "Every value in full, for searching and comparing. Not formatted for reading.", False),
+          ("evidence", "Evidence bundle", "Findings, provenance, audit trail and captured pages, with SHA-256 manifest.", False),
+        ] %}
+        <label class="export-option"><input type="checkbox" name="f" value="{{ key }}" {% if on %}checked{% endif %}>
+          <span><strong>{{ label }}</strong><span class="hint">{{ hint }}</span></span></label>
+        {% endfor %}
+      </fieldset>
+      <div class="inline-form">
+        <label class="field"><span>Length</span>
+          <select name="detail">
+            <option value="full">Full report</option>
+            <option value="brief">Brief: summary and the strongest findings</option>
+          </select>
+        </label>
+        <label class="field"><span>Include</span>
+          <select name="scope">
+            <option value="visible">All findings except "Not them"</option>
+            <option value="confirmed">Confirmed findings and targets only</option>
+            <option value="all">Everything, including "Not them"</option>
+          </select>
+        </label>
+        <button class="btn btn-primary btn-sm" type="submit">{{ ui.icon("download") }}Download</button>
+      </div>
+      <p class="hint mt-8">Reports are marked TLP:AMBER and carry a reference number on every page. Raw data always lists every finding in scope, even with the brief.</p>
     </form>
-    <p class="hint mt-8">STIX bundles are marked TLP:AMBER. For a PDF, open the report and choose Print or save as PDF. Every export is recorded in the audit log.</p>
-    <div class="bundle-row">
-      <a class="btn btn-sm" href="/cases/{{ case.id }}/bundle.zip">{{ ui.icon("download") }}Evidence bundle (ZIP)</a>
-      <p class="hint">For handing the case over: the report, all findings, STIX, every sighting and link with its evidence, the audit trail and the captured pages, with a manifest of SHA-256 fingerprints to check nothing was changed.</p>
-    </div>
+    <form class="inline-form export-form mt-16" method="get" data-export-form>
+      <span class="hint">For spreadsheets and other tools:</span>
+      <input type="hidden" name="scope" value="visible">
+      <button class="btn btn-ghost btn-sm" type="submit" formaction="/cases/{{ case.id }}/export.csv">CSV</button>
+      <button class="btn btn-ghost btn-sm" type="submit" formaction="/cases/{{ case.id }}/export.json">JSON</button>
+      <button class="btn btn-ghost btn-sm" type="submit" formaction="/cases/{{ case.id }}/export.stix">STIX 2.1</button>
+    </form>
   </div>
 </section>
 

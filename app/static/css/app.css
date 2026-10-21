@@ -1377,3 +1377,12 @@ input[type="radio"], input[type="checkbox"] { accent-color: var(--text-strong); 
 @media (max-width: 900px) { .worklog { grid-template-columns: 1fr; } .worklog-side { border-left: 0; padding-left: 0; } }
 .import-report { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--border); border-left: 3px solid var(--mark); border-radius: var(--radius-sm); background: var(--surface); }
 .import-report .kv { margin: 0; }
+
+/* Download picker: formats as a checklist, one or many. */
+.export-formats { border: 0; padding: 0; margin: 0 0 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.export-option { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); cursor: pointer; }
+.export-option:has(input:checked) { border-color: var(--text-strong); box-shadow: inset 3px 0 0 var(--mark); }
+.export-option input { margin-top: 3px; }
+.export-option strong { display: block; color: var(--text-strong); font-weight: 600; }
+.export-option .hint { display: block; margin-top: 2px; }
+.mt-16 { margin-top: 16px; }

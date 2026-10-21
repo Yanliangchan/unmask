@@ -192,6 +192,66 @@ async def evidence_bundle(
     })  # fmt: skip
 
 
+@router.get("/cases/{case_id}/download")
+async def download(
+    request: Request,
+    case_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(current_user),
+):
+    """The report in one or more formats (?f=pdf&f=docx...). One format is sent as is; several come as a ZIP."""
+    from anyio import to_thread
+
+    from app.services import exporters
+    from app.services.bundle import build_bundle
+    from app.services.document import DETAILS, SCOPES, build_document
+
+    case = await get_case_for_user(session, case_id, user)
+    if not assessment_ready(case):
+        return RedirectResponse(f"/cases/{case.id}/settings?error=assessment#report", status_code=303)
+    q = request.query_params
+    formats = [f for f in dict.fromkeys(q.getlist("f")) if f in exporters.FORMATS]
+    if not formats:
+        return RedirectResponse(f"/cases/{case.id}/settings?error=formats#export", status_code=303)
+    scope = q.get("scope") if q.get("scope") in SCOPES else "visible"
+    detail = q.get("detail") if q.get("detail") in DETAILS else "full"
+    log_access(session, "export_report", user_id=user.id, case_id=case.id, ip=client_ip(request),
+               formats=formats, scope=scope, detail=detail)  # fmt: skip
+    await session.commit()
+
+    doc = await build_document(session, case, user, scope, detail)
+    # Raw data is always complete, whatever the presentation formats leave out.
+    raw_doc = doc if detail == "full" else await build_document(session, case, user, scope, "full")
+    base = f"{exporters.slug(case.name)}-{'brief' if detail == 'brief' else 'report'}-{doc.ref}"
+    files: dict[str, bytes] = {}
+    for f in formats:
+        _, _, ext = exporters.FORMATS[f]
+        if f == "pdf":
+            body = await to_thread.run_sync(exporters.render_pdf, doc)
+        elif f == "docx":
+            body = await to_thread.run_sync(exporters.render_docx, doc)
+        elif f == "html":
+            body = exporters.render_html(doc).encode()
+        elif f == "md":
+            body = exporters.render_markdown(doc).encode()
+        elif f == "txt":
+            body = exporters.render_text(raw_doc).encode()
+        else:
+            body, _digest = await build_bundle(session, case, user)
+            files[f"{exporters.slug(case.name)}-evidence-{doc.ref}.zip"] = body
+            continue
+        files[f"{base}.{ext}" if f != "txt" else f"{exporters.slug(case.name)}-data-{doc.ref}.txt"] = body
+    if len(files) == 1:
+        ((name, body),) = files.items()
+        media = exporters.FORMATS[formats[0]][1]
+    else:
+        name, body, media = f"{base}.zip", exporters.package(files, doc), "application/zip"
+    return Response(body, media_type=media, headers={
+        "Content-Disposition": f'attachment; filename="{name}"', "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+    })  # fmt: skip
+
+
 # --- Share links -------------------------------------------------------------------------------
 
 

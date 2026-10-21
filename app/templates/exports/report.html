@@ -1,0 +1,391 @@
+<!doctype html>
+{#- The case report as a standalone document: the HTML export, and the source of the PDF.
+    No scripts, no external requests: fonts and the mark are inline, and the CSP says so. -#}
+{%- macro date(dt) -%}{{ dt.astimezone(utc).strftime('%-d %b %Y') if dt else '—' }}{%- endmacro -%}
+{%- macro stamp(dt) -%}{{ dt.astimezone(utc).strftime('%-d %b %Y, %H:%M UTC') if dt else '—' }}{%- endmacro -%}
+{%- macro mark(cls="mark") -%}
+<svg class="{{ cls }}" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 26 26 16 16 6 6 26 16 16" fill="none" stroke="currentColor" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+{%- endmacro -%}
+{%- macro strength(f) -%}
+<span class="st st-{{ f.strength }}">{{ f.strength_label }}</span>
+{%- endmacro -%}
+{%- macro bar(score) -%}
+<span class="bar" title="Score {{ '%.2f' | format(score) }}"><span style="width: {{ (score * 100) | round | int }}%"></span></span><span class="num">{{ '%.2f' | format(score) }}</span>
+{%- endmacro -%}
+{%- macro value(f) -%}
+{%- if f.host -%}
+<span class="v v-url">{% if f.href %}<a href="{{ f.href }}">{% endif %}<b>{{ f.host }}</b>{{ f.path }}{% if f.href %}</a>{% endif %}</span>
+{%- else -%}
+<span class="v">{{ f.short }}</span>
+{%- endif -%}
+{%- endmacro -%}
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; font-src data:; img-src data:">
+<meta name="robots" content="noindex, nofollow">
+<meta name="generator" content="{{ d.product }}">
+<meta name="author" content="{{ d.generated_by }}">
+<meta name="description" content="{{ d.classification }}. {{ d.handling }}">
+<title>{{ d.title }} · {{ "Case brief" if d.brief else "Case report" }} · {{ d.product }}</title>
+<style>
+{{ font_css | safe }}
+:root {
+  --ink: #121110; --text: #23221e; --muted: #57544c; --faint: #7a766c; --rule: #d6d2c7; --rule-strong: #b9b3a5;
+  --paper: #ffffff; --tint: #f6f5f0; --mark: #f2d34b; --mark-soft: #fbf0b8; --ok: #2b6a43; --warn: #8c5600; --bad: #a3271c;
+  --amber: #ffc000;
+  --t-username: #3d5a99; --t-email: #a0522d; --t-account: #65508f; --t-registration: #864a79; --t-breach: #a3271c;
+  --t-name: #2b6a43; --t-domain: #7a6118; --t-hostname: #2a6b66; --t-ip: #59606b; --t-phone: #94405c;
+  --t-web_mention: #57544c; --t-image: #57544c; --t-location: #2a6b66;
+  --sans: "IBM Plex Sans", "Noto Sans", "DejaVu Sans", Arial, sans-serif;
+  --mono: "IBM Plex Mono", "Noto Sans Mono", "DejaVu Sans Mono", Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html { background: var(--tint); }
+body { margin: 0; color: var(--text); background: var(--paper); font: 400 10pt/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+.doc { max-width: 210mm; margin: 0 auto; padding: 18mm 18mm 24mm; }
+h1, h2, h3, h4 { color: var(--ink); font-weight: 600; line-height: 1.2; margin: 0; }
+h2 { font-size: 17pt; letter-spacing: -.01em; margin: 0 0 4mm; }
+h3 { font-size: 11.5pt; margin: 7mm 0 2.5mm; display: flex; align-items: baseline; gap: 6px; }
+h3 .count { font: 500 8.5pt var(--mono); color: var(--faint); }
+p { margin: 0 0 2.5mm; }
+a { color: inherit; text-decoration-color: var(--rule-strong); text-underline-offset: 2px; }
+.mono, .v, .num, code { font-family: var(--mono); }
+.muted { color: var(--muted); }
+.faint { color: var(--faint); }
+.small { font-size: 8.5pt; }
+.eyebrow { display: block; font: 500 7.5pt/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 2.5mm; }
+.eyebrow b { color: var(--ink); font-weight: 500; background: var(--mark-soft); padding: 1px 4px; }
+
+/* Lockup and classification */
+.lockup { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); }
+.mark { width: 20px; height: 20px; display: block; }
+.wordmark { font: 500 10pt/1 var(--mono); letter-spacing: .24em; }
+.tlp { display: inline-block; font: 600 8pt/1 var(--mono); letter-spacing: .08em; background: #000; color: var(--amber); padding: 4px 7px; }
+
+/* Cover */
+.cover { min-height: 255mm; display: flex; flex-direction: column; }
+.cover-top { display: flex; justify-content: space-between; align-items: center; padding-bottom: 6mm; border-bottom: 1.5px solid var(--ink); }
+.cover-main { padding: 42mm 0 30mm; }
+.cover-kind { font: 500 9pt/1 var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+.cover h1 { font-size: 30pt; letter-spacing: -.02em; margin: 5mm 0 6mm; max-width: 150mm; }
+.cover h1 .hl { background-color: var(--mark-soft); padding: 0 1.5mm; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.targets { margin: 0; padding: 0; list-style: none; }
+.target { display: inline-block; margin: 0 8mm 2mm 0; font-size: 9pt; white-space: nowrap; }
+.target .t { font: 500 7pt var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); margin-right: 5px; }
+.target .v { color: var(--ink); font-size: 10.5pt; }
+.target .tags { color: var(--faint); font-size: 8pt; margin-left: 5px; }
+.meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5mm 6mm; margin: 14mm 0 0; padding: 6mm 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.meta dt { font: 500 7pt/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); margin-bottom: 1.5mm; }
+.meta dd { margin: 0; font-size: 9.5pt; color: var(--ink); overflow-wrap: anywhere; }
+.howto { margin-top: auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6mm; }
+.howto div { border-top: 3px solid var(--ink); padding-top: 3mm; }
+.howto div:first-child { border-top-color: var(--mark); }
+.howto h4 { font-size: 9.5pt; margin-bottom: 1.5mm; }
+.howto p { font-size: 8.5pt; color: var(--muted); margin: 0; }
+.handling { margin-top: 8mm; font-size: 8pt; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+
+/* Sections */
+section.part { break-before: page; padding-top: 2mm; }
+.lead { font-size: 10.5pt; color: var(--muted); max-width: 160mm; margin-bottom: 6mm; }
+.conclusion { border-left: 4px solid var(--mark); background: var(--tint); padding: 5mm 6mm; margin: 0 0 6mm; }
+.conclusion .label { font: 500 7.5pt/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 3mm; display: block; }
+.conclusion p { font-size: 11pt; line-height: 1.55; color: var(--ink); }
+.conclusion p:last-of-type { margin-bottom: 0; }
+.conclusion .by { margin-top: 3mm; font-size: 8pt; color: var(--faint); }
+.stats { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid var(--rule-strong); margin-bottom: 4mm; }
+.stats div { padding: 3.5mm 4mm; border-left: 1px solid var(--rule); }
+.stats div:first-child { border-left: 0; }
+.stats .n { display: block; font: 500 20pt/1 var(--mono); color: var(--ink); }
+.stats .l { display: block; font-size: 8pt; color: var(--muted); margin-top: 1.5mm; }
+.dist { display: flex; height: 7px; margin: 0 0 1.5mm; background: var(--tint); }
+.dist span { display: block; height: 100%; }
+.dist .confirmed { background: var(--ink); } .dist .likely { background: #4a4740; } .dist .possible { background: #9c978b; } .dist .unlikely { background: #d6d2c7; }
+.dist-key { display: flex; flex-wrap: wrap; gap: 4mm; font-size: 7.5pt; color: var(--muted); margin-bottom: 7mm; }
+.dist-key i { display: inline-block; width: 8px; height: 8px; margin-right: 4px; vertical-align: -1px; }
+.two { display: grid; grid-template-columns: 1.35fr 1fr; gap: 8mm; }
+.keylist { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule-strong); }
+.keylist li { padding: 2.5mm 0; border-bottom: 1px solid var(--rule); break-inside: avoid; }
+.keylist .k-type { display: block; font: 500 7pt var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); margin-bottom: .8mm; }
+.keylist .v { display: block; font-size: 9pt; color: var(--ink); overflow-wrap: anywhere; margin-bottom: 1mm; }
+.keylist .meta-line { display: block; font-size: 8pt; color: var(--faint); }
+.keylist .meta-line .st { margin-right: 4px; }
+.caveats { list-style: none; margin: 0; padding: 0; }
+.caveats li { padding: 2mm 0 2mm 6mm; position: relative; border-bottom: 1px solid var(--rule); font-size: 9pt; }
+.caveats li::before { content: ""; position: absolute; left: 0; top: 3.6mm; width: 3mm; height: 3mm; background: var(--mark); }
+.none { color: var(--faint); font-size: 9pt; }
+
+/* Strength and scores */
+.st { display: inline-block; font: 500 7.5pt/1.3 var(--mono); letter-spacing: .04em; padding: 1px 5px; border: 1px solid var(--rule-strong); color: var(--muted); white-space: nowrap; }
+.st-target { background: var(--ink); color: #fff; border-color: var(--ink); }
+.st-confirmed { background: var(--mark); color: var(--ink); border-color: var(--mark); }
+.st-likely { color: var(--ink); border-color: var(--ink); }
+.st-unlikely { color: var(--faint); border-style: dotted; }
+.st-ruled_out { color: var(--faint); text-decoration: line-through; border-style: dashed; }
+.bar { display: inline-block; width: 34px; height: 5px; background: var(--tint); border: 1px solid var(--rule); vertical-align: 1px; margin-right: 4px; }
+.bar span { display: block; height: 100%; background: var(--ink); }
+.num { font-size: 8pt; color: var(--muted); }
+.grade { display: inline-block; width: 15px; text-align: center; font: 500 8pt/15px var(--mono); border: 1px solid var(--rule-strong); color: var(--ink); }
+
+/* Findings tables */
+table { width: 100%; border-collapse: collapse; font-size: 8.8pt; }
+thead th { text-align: left; font: 500 7pt/1.2 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--faint); padding: 0 2.5mm 2mm 0; border-bottom: 1.5px solid var(--ink); }
+tbody td { padding: 2.2mm 2.5mm 2.2mm 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+tbody tr { break-inside: avoid; }
+td.c-v { width: 46%; }
+td.c-v .v { color: var(--ink); overflow-wrap: anywhere; word-break: break-word; }
+td.c-v .v b { font-weight: 500; }
+td.c-v .sub { display: block; font-size: 8pt; color: var(--muted); margin-top: .8mm; overflow-wrap: anywhere; }
+td.c-v .flags { display: block; margin-top: 1mm; }
+.flag { display: inline-block; font: 500 6.8pt/1.4 var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--rule); padding: 0 4px; margin-right: 3px; }
+.flag-warn { color: var(--warn); border-color: currentColor; }
+td.c-src { color: var(--muted); font-size: 8pt; overflow-wrap: anywhere; }
+td.c-date { white-space: nowrap; color: var(--muted); font-size: 8pt; }
+.typehead::before { content: ""; width: 8px; height: 8px; display: inline-block; background: var(--dot, var(--muted)); align-self: center; }
+.more { font-size: 8.5pt; color: var(--faint); margin-top: 2mm; }
+
+/* Connections */
+.links { list-style: none; margin: 0; padding: 0; }
+.links li { padding: 2mm 0; border-bottom: 1px solid var(--rule); break-inside: avoid; font-size: 9pt; }
+.links .ends { font-family: var(--mono); color: var(--ink); overflow-wrap: anywhere; font-size: 8.6pt; }
+.links .arrow { color: var(--faint); padding: 0 4px; font-family: var(--sans); }
+.links .rel { display: block; color: var(--muted); font-size: 8.2pt; margin-top: .6mm; }
+.basis-note { font-size: 8.5pt; color: var(--muted); margin: -1mm 0 2mm; }
+
+/* Method */
+.kv { display: grid; grid-template-columns: 42mm 1fr; gap: 1.5mm 5mm; margin: 0 0 4mm; font-size: 9pt; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+blockquote { margin: 0 0 4mm; padding: 3mm 5mm; border-left: 3px solid var(--rule-strong); color: var(--text); background: var(--tint); font-size: 9.5pt; }
+.legend td:first-child { width: 30mm; }
+.hash { font: 400 7.2pt var(--mono); color: var(--muted); overflow-wrap: anywhere; word-break: break-all; }
+.end { margin-top: 12mm; padding-top: 4mm; border-top: 1.5px solid var(--ink); display: flex; justify-content: space-between; align-items: center; font-size: 8pt; color: var(--muted); }
+
+/* Screen only: a document on a desk. */
+@media screen {
+  .tlp-run { display: none; }
+  body { background: var(--tint); }
+  .doc { background: var(--paper); margin: 24px auto; box-shadow: 0 1px 0 rgba(20,18,12,.05), 0 12px 32px rgba(20,18,12,.10); }
+  .cover { min-height: 0; }
+  .cover-main { padding-top: 18mm; }
+  .howto { margin-top: 14mm; }
+  section.part { margin-top: 16mm; padding-top: 10mm; border-top: 1px solid var(--rule); }
+  .toc { display: flex; flex-wrap: wrap; gap: 4mm; font-size: 9pt; margin-top: 6mm; }
+  .toc a { color: var(--muted); }
+  @media (max-width: 720px) {
+    .doc { padding: 20px 16px; margin: 0; }
+    .meta, .howto, .two { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .stats div { border-left: 0; border-top: 1px solid var(--rule); }
+    .cover h1 { font-size: 22pt; }
+    td.c-src, td.c-date, th.c-src, th.c-date { display: none; }
+  }
+}
+
+/* Print: running heads, page numbers, the classification on every page. */
+@page {
+  size: A4; margin: 20mm 17mm 18mm;
+  @top-left { content: "{{ d.product }}  ·  " string(casename); font: 500 7pt "IBM Plex Mono", monospace; letter-spacing: .1em; color: #7a766c; }
+  @top-right { content: element(tlp); vertical-align: middle; }
+  @bottom-left { content: "Ref {{ d.ref }}  ·  {{ stamp(d.generated_at) }}"; font: 400 7pt "IBM Plex Mono", monospace; color: #7a766c; }
+  @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 400 7pt "IBM Plex Mono", monospace; color: #7a766c; }
+}
+@page :first { margin-top: 14mm; @top-left { content: none; } @top-right { content: none; } @bottom-left { content: none; } @bottom-right { content: none; } }
+@media print {
+  html, body { background: #fff; }
+  .doc { padding: 0; max-width: none; }
+  .toc { display: none; }
+  .cover h1 { string-set: casename content(); }
+  .tlp-run { display: block; position: running(tlp); text-align: right; }
+  .tlp-run span { font-size: 7pt; padding: 1mm 2mm; }
+  h2, h3 { break-after: avoid; }
+}
+</style>
+</head>
+<body>
+<main class="doc">
+  <div class="tlp-run" aria-hidden="true"><span class="tlp">{{ d.classification }}</span></div>
+  {# --- Cover ---------------------------------------------------------------------- #}
+  <header class="cover">
+    <div class="cover-top">
+      <span class="lockup">{{ mark() }}<span class="wordmark">{{ d.product }}</span></span>
+      <span class="tlp">{{ d.classification }}</span>
+    </div>
+    <div class="cover-main">
+      <span class="cover-kind">{{ "Case brief" if d.brief else "Case report" }}</span>
+      <h1><span class="hl">{{ d.title }}</span></h1>
+      <div class="targets" aria-label="Targets">
+        {% for t, v, tags in d.targets %}<span class="target"><span class="t">{{ t }}</span><span class="v">{{ v }}</span>{% if tags %}<span class="tags">{{ tags | join(", ") }}</span>{% endif %}</span>{% endfor %}
+      </div>
+      <dl class="meta">
+        <div><dt>Prepared by</dt><dd>{{ d.generated_by }}</dd></div>
+        <div><dt>Generated</dt><dd>{{ stamp(d.generated_at) }}</dd></div>
+        <div><dt>Reference</dt><dd class="mono">{{ d.ref }}</dd></div>
+        <div><dt>Includes</dt><dd>{{ d.scope_label }}</dd></div>
+        <div><dt>Findings</dt><dd>{{ d.stats.findings }} across {{ d.stats.scans }} scan{{ "s" if d.stats.scans != 1 }}</dd></div>
+        <div><dt>Conclusion</dt><dd>Updated {{ date(d.assessment_updated_at) }}</dd></div>
+      </dl>
+      <nav class="toc" aria-label="Contents"><a href="#summary">Summary</a><a href="#findings">Findings</a>{% if d.connections %}<a href="#connections">Connections</a>{% endif %}<a href="#method">Method &amp; authorisation</a>{% if not d.brief %}<a href="#evidence">Evidence</a>{% endif %}</nav>
+    </div>
+    <div class="howto">
+      <div><h4>Two minutes</h4><p>Read the Summary: the analyst's conclusion, the numbers and what to be careful about.</p></div>
+      <div><h4>Investigating</h4><p>Findings and Connections list everything, how strongly each is believed, and why.</p></div>
+      <div><h4>Checking the work</h4><p>Method &amp; authorisation{% if not d.brief %} and Evidence{% endif %} show the basis for the case, how scores are meant and what was captured.</p></div>
+    </div>
+    <p class="handling"><span class="tlp">{{ d.classification }}</span> {{ d.handling }}</p>
+  </header>
+
+  {# --- Summary --------------------------------------------------------------------- #}
+  <section class="part" id="summary">
+    <span class="eyebrow">For <b>decision makers</b></span>
+    <h2>Summary</h2>
+    <div class="conclusion">
+      <span class="label">The analyst's conclusion</span>
+      {% for p in d.assessment %}<p>{{ p }}</p>{% endfor %}
+      <p class="by">Written by the analyst, last updated {{ stamp(d.assessment_updated_at) }}. Scores below are evidence for this conclusion, not the conclusion itself.</p>
+    </div>
+    {% set s = d.stats %}
+    <div class="stats">
+      <div><span class="n">{{ s.confirmed }}</span><span class="l">Confirmed</span></div>
+      <div><span class="n">{{ s.likely }}</span><span class="l">Likely</span></div>
+      <div><span class="n">{{ s.possible }}</span><span class="l">Possible</span></div>
+      <div><span class="n">{{ s.links }}</span><span class="l">Connections</span></div>
+      <div><span class="n">{{ s.sources }}</span><span class="l">Sources</span></div>
+    </div>
+    {% set total = s.confirmed + s.likely + s.possible + s.unlikely %}
+    {% if total %}
+    <div class="dist" role="img" aria-label="{{ s.confirmed }} confirmed, {{ s.likely }} likely, {{ s.possible }} possible, {{ s.unlikely }} unlikely">
+      {% for k in ("confirmed", "likely", "possible", "unlikely") %}{% if s[k] %}<span class="{{ k }}" style="width: {{ (s[k] / total * 100) | round(2) }}%"></span>{% endif %}{% endfor %}
+    </div>
+    <div class="dist-key">{% for k, c in (("confirmed", "#121110"), ("likely", "#4a4740"), ("possible", "#9c978b"), ("unlikely", "#d6d2c7")) %}<span><i style="background: {{ c }}"></i>{{ k | capitalize }} {{ s[k] }}</span>{% endfor %}{% if s.ruled_out %}<span>Ruled out {{ s.ruled_out }}</span>{% endif %}</div>
+    {% endif %}
+    <div class="two">
+      <div>
+        <h3>Strongest findings</h3>
+        {% if d.key %}
+        <ul class="keylist">
+          {% for f in d.key %}
+          <li><span class="k-type">{{ f.type | replace('_', ' ') }}</span>{{ value(f) }}
+            <span class="meta-line">{{ strength(f) }} {{ '%.2f' | format(f.score) }} · {{ f.sources | length }} source{{ "s" if f.sources | length != 1 }}{% if f.page_check %} · {{ f.page_check | lower }}{% endif %}</span></li>
+          {% endfor %}
+        </ul>
+        {% else %}<p class="none">Nothing has reached Likely or been confirmed yet.</p>{% endif %}
+      </div>
+      <div>
+        <h3>Be careful about</h3>
+        {% if d.caveats %}<ul class="caveats">{% for c in d.caveats %}<li>{{ c }}</li>{% endfor %}</ul>
+        {% else %}<p class="none">Nothing flagged: every tool completed, no duplicates are waiting, and no sources contradict each other.</p>{% endif %}
+        {% if d.highlights %}
+        <h3>Pinned by the analyst</h3>
+        <ul class="caveats">{% for what, why in d.highlights[:6] %}<li><span class="mono small">{{ what }}</span>{% if why %}<br><span class="muted small">{{ why }}</span>{% endif %}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  {# --- Findings -------------------------------------------------------------------- #}
+  <section class="part" id="findings">
+    <span class="eyebrow">For <b>investigators</b></span>
+    <h2>Findings</h2>
+    <p class="lead">Grouped by kind, strongest first. <em>Strength</em> is how firmly a finding is tied to the subject; the <em>grade</em> rates the kind of source (A to F), independently of that. {{ d.scope_label }}.</p>
+    {% for label, rows, more in d.groups %}
+    <h3 class="typehead" style="--dot: var(--t-{{ rows[0].type }})">{{ label }} <span class="count">{{ rows | length + more }}</span></h3>
+    <table>
+      <thead><tr><th>Finding</th><th>Strength</th><th>Grade</th><th class="c-src">Found by</th><th class="c-date">First seen</th></tr></thead>
+      <tbody>
+        {% for f in rows %}
+        <tr>
+          <td class="c-v">{{ value(f) }}
+            {% if f.details %}<span class="sub">{% for k, v in f.details %}{{ k }}: {{ v }}{{ " · " if not loop.last }}{% endfor %}</span>{% endif %}
+            {% if f.merged or f.imported or f.page_check %}<span class="flags">{% if f.page_check %}<span class="flag">{{ f.page_check }}</span>{% endif %}{% if f.merged %}<span class="flag">+{{ f.merged }} merged</span>{% endif %}{% if f.imported %}<span class="flag flag-warn">Imported · not observed</span>{% endif %}</span>{% endif %}
+          </td>
+          <td>{{ strength(f) }}<br>{{ bar(f.score) }}</td>
+          <td><span class="grade" title="{{ f.grade_text }}">{{ f.grade }}</span></td>
+          <td class="c-src">{{ f.sources | join(", ") }}</td>
+          <td class="c-date">{{ date(f.first_seen) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if more %}<p class="more">{{ more }} weaker {{ label | lower }} not shown in the brief. The full report lists them.</p>{% endif %}
+    {% else %}
+    <p class="none">No findings in this export.</p>
+    {% endfor %}
+  </section>
+
+  {% if d.connections %}
+  <section class="part" id="connections">
+    <span class="eyebrow">For <b>investigators</b></span>
+    <h2>Connections</h2>
+    <p class="lead">How findings relate to each other, grouped by how each link was established. Links by rule or similarity connect values, not people.</p>
+    {% for basis, label, meaning, links in d.connections %}
+    <h3>{{ label }} <span class="count">{{ links | length }}</span></h3>
+    <p class="basis-note">{{ meaning }}</p>
+    <ul class="links">
+      {% for c in links %}
+      <li><span class="ends">{{ c.a }}<span class="arrow">{{ "→" if c.directed else "↔" }}</span>{{ c.b }}</span>
+        <span class="rel">{{ c.label }}{% if c.why %} · {{ c.why }}{% endif %}{% if c.tool and c.tool not in ("correlation", "import") %} · {{ c.tool }}{% endif %}</span></li>
+      {% endfor %}
+    </ul>
+    {% endfor %}
+    {% if d.contradictions %}
+    <h3>Where sources disagree</h3>
+    <ul class="caveats">{% for t, x in d.contradictions %}<li><strong>{{ t }}.</strong> {{ x }}</li>{% endfor %}</ul>
+    <p class="faint small">Flagged automatically by comparing profile fields. Check both before relying on either.</p>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {# --- Method ------------------------------------------------------------------------ #}
+  <section class="part" id="method">
+    <span class="eyebrow">For <b>legal, compliance and audit</b></span>
+    <h2>Method &amp; authorisation</h2>
+    <h3>Authorisation</h3>
+    <blockquote>{% for line in d.authorization %}{{ line }}{% if not loop.last %}<br>{% endif %}{% endfor %}</blockquote>
+    <dl class="kv">
+      <dt>Lawful basis confirmed</dt><dd>{{ stamp(d.lawful_basis_at) }}</dd>
+      <dt>Case reference</dt><dd class="mono">{{ d.case.id }}</dd>
+      <dt>Tools used</dt><dd>{{ d.tools | join(", ") or "—" }}</dd>
+      <dt>Automatic follow-ups</dt><dd>{{ d.pivots[0] }} run, {{ d.pivots[1] }} skipped</dd>
+      {% if d.diff_summary %}<dt>Latest change</dt><dd>{{ d.diff_summary }}</dd>{% endif %}
+    </dl>
+    <h3>Scans</h3>
+    <table>
+      <thead><tr><th>Scan</th><th>Started by</th><th>Status</th><th>When</th><th>Tools</th><th>Failed</th></tr></thead>
+      <tbody>{% for r in d.scans %}<tr><td class="mono">#{{ r.number }}</td><td>{{ r.trigger }}</td><td>{{ r.status }}</td><td class="c-date">{{ stamp(r.at) }}</td><td>{{ r.tools }}</td><td class="small">{{ r.failed | join(", ") or "—" }}</td></tr>{% endfor %}</tbody>
+    </table>
+    {% if d.gaps %}<h3>Coverage gaps</h3><ul class="caveats">{% for g in d.gaps %}<li>{{ g }}</li>{% endfor %}</ul>{% endif %}
+    <h3>How to read strength</h3>
+    <table class="legend"><tbody>{% for k, v in d.strengths.items() %}<tr><td><span class="st st-{{ k }}">{{ k | replace('_', ' ') | capitalize }}</span></td><td>{{ v }}</td></tr>{% endfor %}</tbody></table>
+    <h3>Source grades</h3>
+    <table class="legend"><tbody>{% for k, v in d.grades.items() %}<tr><td><span class="grade">{{ k }}</span></td><td>{{ v }}</td></tr>{% endfor %}</tbody></table>
+    <h3>Limits</h3>
+    <p>Scores combine the source's starting estimate, independent sources that agree, links between fields and matches to the case's context. Only identical identifiers are merged automatically; identity matches are decided by an analyst. A tool that could not complete is reported as failed, never as having found nothing. Open-source information can be wrong, out of date or planted: a finding is evidence about attribution, not proof of identity.</p>
+  </section>
+
+  {% if not d.brief %}
+  <section class="part" id="evidence">
+    <span class="eyebrow">For <b>legal, compliance and audit</b></span>
+    <h2>Evidence</h2>
+    {% if d.snapshots %}
+    <p class="lead">Pages captured during the case, exactly as received. The SHA-256 fingerprint identifies each capture; the evidence bundle holds the bytes.</p>
+    <table>
+      <thead><tr><th>Finding</th><th>Page</th><th>Captured</th><th>SHA-256</th></tr></thead>
+      <tbody>{% for s in d.snapshots %}<tr><td class="mono small">{{ s.finding }}</td><td class="small">{{ s.url }} <span class="faint">HTTP {{ s.status }}</span></td><td class="c-date">{{ stamp(s.at) }}</td><td class="hash">{{ s.sha256 }}</td></tr>{% endfor %}</tbody>
+    </table>
+    {% else %}<p class="none">No pages were captured for this case.</p>{% endif %}
+    {% if d.highlights %}
+    <h3>Pinned on the working log</h3>
+    <ul class="caveats">{% for what, why in d.highlights %}<li><span class="mono small">{{ what }}</span>{% if why %}<br><span class="muted small">{{ why }}</span>{% endif %}</li>{% endfor %}</ul>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <footer class="end">
+    <span class="lockup">{{ mark() }}<span class="wordmark">{{ d.product }}</span></span>
+    <span>End of {{ "brief" if d.brief else "report" }} · Ref <span class="mono">{{ d.ref }}</span> · <span class="tlp">{{ d.classification }}</span></span>
+  </footer>
+</main>
+</body>
+</html>

@@ -188,6 +188,30 @@ async def bundle(case_id: uuid.UUID, request: Request, p: Principal = Depends(pr
     return Response(data, media_type="application/zip", headers={"X-Manifest-SHA256": digest})
 
 
+@router.get("/cases/{case_id}/report")
+async def report(case_id: uuid.UUID, request: Request, format: str = Query("pdf", pattern="^(pdf|docx|html|md|txt)$"),
+                 detail: str = Query("full", pattern="^(full|brief)$"),
+                 scope: str = Query("visible", pattern="^(visible|confirmed|all)$"),
+                 p: Principal = Depends(principal), session: AsyncSession = Depends(get_session)):  # fmt: skip
+    """The case report as PDF, Word, HTML, Markdown or raw text."""
+    from anyio import to_thread
+    from fastapi.responses import Response
+
+    from app.services import exporters
+    from app.services.document import build_document
+
+    p.need("findings:read")
+    case = await _case(session, p, case_id, data_out=True)
+    _audit(session, request, p, "export_report", case.id, formats=[format], scope=scope, detail=detail)
+    await session.commit()
+    doc = await build_document(session, case, p.user, scope, "full" if format == "txt" else detail)
+    render = {"pdf": exporters.render_pdf, "docx": exporters.render_docx, "html": exporters.render_html,
+              "md": exporters.render_markdown, "txt": exporters.render_text}[format]  # fmt: skip
+    body = await to_thread.run_sync(render, doc)
+    return Response(body if isinstance(body, bytes) else body.encode(), media_type=exporters.FORMATS[format][1],
+                    headers={"X-Report-Reference": doc.ref})  # fmt: skip
+
+
 @router.get("/cases/{case_id}/graph")
 async def graph(case_id: uuid.UUID, request: Request, p: Principal = Depends(principal),
                 session: AsyncSession = Depends(get_session)):  # fmt: skip

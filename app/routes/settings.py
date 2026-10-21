@@ -92,6 +92,7 @@ ERRORS = {
     "not_owner": "Only the case owner can do that.",
     "confirm": "Type the case name exactly to confirm deletion.",
     "assessment": f"Write an analyst assessment of at least {MIN_ASSESSMENT_CHARS} characters before exporting.",
+    "formats": "Choose at least one format to download.",
 }
 
 
