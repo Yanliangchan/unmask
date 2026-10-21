@@ -13,7 +13,7 @@
     <td class="value-cell">
       <button type="button" class="sr-toggle" data-row-toggle aria-haspopup="dialog" aria-controls="drawer">Evidence for {{ e.value }}</button>
       {% if e.attributes.get('url') %}
-      <a class="ident ident-cut" href="{{ e.attributes.url }}" target="_blank" rel="noopener noreferrer nofollow" data-stop title="{{ e.value }}">{{ e.value }}</a>
+      <a class="ident ident-cut" href="{{ e.attributes.url | safe_url }}" target="_blank" rel="noopener noreferrer nofollow" data-stop title="{{ e.value }}">{{ e.value }}</a>
       {% else %}
       <span class="ident ident-cut" title="{{ e.value }}">{{ e.value }}</span>
       {% endif %}

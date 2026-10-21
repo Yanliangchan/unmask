@@ -12,7 +12,7 @@
   {% set a = e.attributes %}
   <li class="web-item{% if e.confirmed_flag %} is-kept{% endif %}">
     <div class="web-main">
-      <a class="web-title" href="{{ a.get('url', e.value) }}" target="_blank" rel="noopener noreferrer nofollow">{{ a.get('title') or e.value }}</a>
+      <a class="web-title" href="{{ a.get('url', e.value) | safe_url }}" target="_blank" rel="noopener noreferrer nofollow">{{ a.get('title') or e.value }}</a>
       <p class="web-url mono">{{ a.get('host') or '' }}</p>
       {% if a.get('snippet') %}<p class="web-snippet">{{ a.snippet }}</p>{% endif %}
       {% if a.get('note') %}<p class="web-snippet"><span class="faint">Note:</span> {{ a.note }}</p>{% endif %}

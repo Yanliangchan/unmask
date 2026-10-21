@@ -16,7 +16,7 @@ from app.models import Investigation, User
 from app.routes.shell import case_shell
 from app.scheduler import FREQUENCY_DAYS, purge_date, set_watch, watch_state
 from app.security import client_ip, current_user, verify_csrf
-from app.services.cases import delete_case, get_case_for_user
+from app.services.cases import delete_case, get_case_for_user, require_owner
 from app.services.report import MIN_ASSESSMENT_CHARS, AssessmentRequired, build_report, render_markdown
 from app.web import Seo, render
 
@@ -99,6 +99,7 @@ async def save_watch(
     user: User = Depends(current_user),
 ):
     case = await get_case_for_user(session, case_id, user)
+    require_owner(case, user)
     set_watch(case, enabled=enabled == "on", frequency=frequency)
     log_access(
         session, "watch_settings", user_id=user.id, case_id=case.id, ip=client_ip(request),
@@ -118,6 +119,7 @@ async def save_retention(
     user: User = Depends(current_user),
 ):
     case = await get_case_for_user(session, case_id, user)
+    require_owner(case, user)
     case.retention_days = max(1, min(3650, retention_days))
     case.permanently_active = permanently_active == "on"
     log_access(
@@ -137,6 +139,7 @@ async def save_pivot(
     user: User = Depends(current_user),
 ):
     case = await get_case_for_user(session, case_id, user)
+    require_owner(case, user)
     enabled = auto_pivot == "on"
     case.watch_config = {**(case.watch_config or {}), "auto_pivot": enabled}
     log_access(

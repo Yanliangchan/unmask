@@ -33,6 +33,7 @@ import httpx
 
 from app.adapters.base import EntityCandidate
 from app.config import get_settings
+from app.safefetch import BlockedURL
 
 VERIFIED, UNVERIFIED, REJECTED = "verified", "unverified", "rejected"
 
@@ -311,6 +312,8 @@ async def fetch_and_classify(client: httpx.AsyncClient, url: str, username: str)
             verdict, resp = await _fetch_once(client, url, username)
         except httpx.TooManyRedirects:
             return Verdict(REJECTED, "redirect loop")
+        except BlockedURL as exc:
+            return Verdict(REJECTED, f"not a public web page ({exc})")
         except (httpx.TimeoutException, httpx.ConnectError, httpx.RemoteProtocolError) as exc:
             if attempt == 1:
                 await asyncio.sleep(_retry_delay(None))
@@ -331,6 +334,13 @@ _clients: dict[tuple, httpx.AsyncClient] = {}
 _host_limits: dict[int, dict[str, asyncio.Semaphore]] = {}
 
 
+async def _guard(request: httpx.Request) -> None:
+    """Every hop, redirects included: tool output decides these URLs, so none may reach inside the network."""
+    from app.safefetch import check_url
+
+    await check_url(str(request.url))
+
+
 def _client() -> httpx.AsyncClient:
     from app.proxy import proxy_for
 
@@ -346,6 +356,7 @@ def _client() -> httpx.AsyncClient:
             timeout=settings.verify_timeout_seconds,
             follow_redirects=True,
             max_redirects=5,
+            event_hooks={"request": [_guard]},
             limits=httpx.Limits(max_connections=20, max_keepalive_connections=10, keepalive_expiry=30),
         )
     return client

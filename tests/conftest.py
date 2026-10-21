@@ -29,6 +29,10 @@ os.environ["REDIS_URL"] = "redis://127.0.0.1:1/0"
 # Optional real Redis for the RQ integration tests.
 TEST_REDIS = os.environ.get("TEST_REDIS_URL")
 os.environ["PUBLIC_BASE_URL"] = "https://unmask.example"
+# Every test signs in as the same admin, so daily quotas would trip part-way through a run;
+# the quota tests lower them explicitly.
+os.environ["UNMASK_MAX_SCANS_PER_DAY"] = "100000"
+os.environ["UNMASK_MAX_TARGETS_PER_DAY"] = "100000"
 # Tests drive the scheduler explicitly.
 os.environ["UNMASK_SCHEDULER"] = "false"
 
@@ -124,3 +128,14 @@ def _fresh_page_cache():
     pagecache.clear_all()
     yield
     pagecache.clear_all()
+
+
+@pytest.fixture(autouse=True)
+def _public_dns(monkeypatch):
+    """Outbound fetches are SSRF-checked; tests resolve every name to a public address without DNS,
+    except *.internal, which stands for a host inside the network."""
+    from app import safefetch
+
+    monkeypatch.setattr(
+        safefetch, "resolver", lambda host: ["10.0.0.5"] if host.endswith(".internal") else ["93.184.216.34"]
+    )

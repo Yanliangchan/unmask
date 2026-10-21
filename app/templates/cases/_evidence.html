@@ -56,7 +56,7 @@
     <a class="link-chip is-{{ c.state }}" href="/cases/{{ case.id }}#ent-{{ c.entity_id }}" data-entity-open="{{ c.entity_id }}" data-case="{{ case.id }}"
        title="{{ {'target': 'One of your targets', 'confirmed': 'Confirmed in this case', 'found': 'Also found in this case'}[c.state] }}">{{ c.label }}<span class="chip-state">{{ {'target': 'target', 'confirmed': 'confirmed', 'found': 'in case'}[c.state] }}</span></a>
     {% else %}
-    <a class="link-chip" href="{{ c.url if '@' not in c.url else 'mailto:' ~ c.url }}" target="_blank" rel="noopener noreferrer nofollow">{{ c.label }}</a>
+    <a class="link-chip" href="{{ (c.url if '@' not in c.url else 'mailto:' ~ c.url) | safe_url }}" target="_blank" rel="noopener noreferrer nofollow">{{ c.label }}</a>
     {% endif %}
     {% endfor %}
     {% if ev.links | length > 12 %}<span class="faint small">+{{ ev.links | length - 12 }} more</span>{% endif %}

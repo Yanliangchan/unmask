@@ -99,6 +99,10 @@ async def test_exports_csv_json_and_stix(client, db):
                       source_tool="analyst", confidence=0.6, dismissed_flag=dismissed))  # fmt: skip
     await db.commit()
 
+    gated = await client.get(f"/cases/{case_id}/export.csv")
+    assert gated.status_code == 303 and gated.headers["location"].endswith("error=assessment#report")
+    assessment = {"csrf_token": csrf, "analyst_assessment": "The handle janedoe on alpha is the subject."}
+    await client.post(f"/cases/{case_id}/settings/assessment", data=assessment)
     r = await client.get(f"/cases/{case_id}/export.csv")
     assert r.headers["content-disposition"].startswith("attachment;") and r.headers["content-type"].startswith(
         "text/csv"

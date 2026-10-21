@@ -17,7 +17,7 @@ from app.pivots.engine import auto_pivot_enabled
 from app.pivots.rules import rule_from_text
 from app.routes.shell import case_shell
 from app.security import client_ip, current_user, verify_csrf
-from app.services.cases import get_case_for_user
+from app.services.cases import get_case_for_user, require_owner
 from app.web import render
 
 router = APIRouter()
@@ -84,6 +84,7 @@ async def toggle_auto_pivot(
     user: User = Depends(current_user),
 ):
     case = await get_case_for_user(session, case_id, user)
+    require_owner(case, user)
     enabled = not auto_pivot_enabled(case)
     case.watch_config = {**(case.watch_config or {}), "auto_pivot": enabled}
     log_access(

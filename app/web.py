@@ -136,6 +136,14 @@ def _confidence_tier(value: float | None) -> str:
     return "low"
 
 
+def _safe_url(url) -> str:
+    """Links that came from tool output or a fetched page: web and mail links only, never javascript: or data:."""
+    text = str(url or "").strip()
+    scheme = text.split(":", 1)[0].lower() if ":" in text else ""
+    return text if scheme in ("http", "https", "mailto") else "#"
+
+
+templates.env.filters["safe_url"] = _safe_url
 templates.env.filters["timeago"] = _timeago
 templates.env.filters["isodate"] = _isodate
 templates.env.filters["confidence_tier"] = _confidence_tier

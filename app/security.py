@@ -144,10 +144,25 @@ async def current_user_optional(request: Request, session: AsyncSession = Depend
         request.session.clear()
         return None
     user = await session.get(User, user_id)
-    if user is None or not user.is_active:
+    if user is None or not user.is_active or not session_valid(request.session, user):
         request.session.clear()
         return None
     return user
+
+
+def start_session(request: Request, user: User) -> None:
+    request.session.clear()  # new session on privilege change
+    request.session.update({"user_id": str(user.id), "epoch": user.session_epoch, "iat": int(time.time())})
+
+
+def session_valid(data: dict, user: User) -> bool:
+    """The cookie re-issues itself on every response, so its own expiry slides; this one doesn't."""
+    try:
+        issued = int(data.get("iat", 0))
+        epoch = int(data.get("epoch", -1))
+    except (TypeError, ValueError):
+        return False
+    return epoch == user.session_epoch and 0 < time.time() - issued < get_settings().session_absolute_seconds
 
 
 async def current_user(user: User | None = Depends(current_user_optional)) -> User:
@@ -180,4 +195,14 @@ async def ensure_admin_user(session: AsyncSession) -> None:
 
 
 def client_ip(request: Request) -> str:
+    """The caller's address for rate limits and the audit log.
+
+    The left of X-Forwarded-For is whatever the client sent; each trusted proxy appends the
+    address it saw, so the entry ``trusted_proxy_hops`` from the right is the real one.
+    """
+    hops = get_settings().trusted_proxy_hops
+    if hops > 0:
+        chain = [p.strip() for p in request.headers.get("x-forwarded-for", "").split(",") if p.strip()]
+        if len(chain) >= hops:
+            return chain[-hops][:64]
     return request.client.host if request.client else "unknown"

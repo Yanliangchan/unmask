@@ -153,7 +153,7 @@ async def new_case(db, targets=None, tags=None):
         db,
         owner=owner,
         name=f"Correlation {uuid.uuid4().hex[:6]}",
-        authorization_note="correlation test",
+        authorization_note="Correlation test: engagement ref C-1",
         lawful_basis_confirmed=True,
         targets=targets or [TargetInput(value="yanliang", type="username", context_tags=tags or [])],
         disabled_tools=[],

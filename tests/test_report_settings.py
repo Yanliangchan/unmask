@@ -115,7 +115,7 @@ def test_render_markdown_handles_an_empty_case():
 
     from app.services.report import Report
 
-    case = Investigation(id=uuid.uuid4(), name="Empty", authorization_note="note", analyst_assessment=ASSESSMENT)
+    case = Investigation(id=uuid.uuid4(), name="Empty", authorization_note="consent T-2", analyst_assessment=ASSESSMENT)
     case.targets = []
     report = Report(case=case, generated_at=datetime.now(UTC), generated_by="a@example.com",
                     tiers=[("High confidence", [])], runs=[], pending_suggestions=0, contradictions=[],

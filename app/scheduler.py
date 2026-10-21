@@ -99,14 +99,14 @@ async def purge_date(session: AsyncSession, case: Investigation) -> datetime | N
 
 @dataclass
 class TickResult:
+    reaped: int = 0
     watch_started: list[str] = field(default_factory=list)
     purged: int = 0
     health_checks: list[str] = field(default_factory=list)
 
 
 async def _start_watch_scans(session: AsyncSession, now: datetime, limit: int) -> list[str]:
-    from app.jobs import enqueue_scan
-    from app.services.scans import create_scan_run
+    from app.services.scans import create_scan_run, dispatch
 
     due = []
     for case in (await session.scalars(select(Investigation).where(Investigation.is_sample.is_(False)))).all():
@@ -130,7 +130,7 @@ async def _start_watch_scans(session: AsyncSession, now: datetime, limit: int) -
         run = await create_scan_run(session, case, triggered_by="watch_mode")
         session.add(AccessLog(case_id=case.id, action="watch_scan", detail={"run_number": run.run_number}))
         await session.commit()
-        enqueue_scan(run.id, "watch_mode")
+        await dispatch(run.id, "watch_mode")
         started.append(str(case.id))
     return started
 
@@ -191,6 +191,11 @@ async def tick() -> TickResult:
     now = datetime.now(UTC)
     result = TickResult()
     async with sessionmaker()() as session:
+        from app.services.scans import fail_interrupted_runs, stale_after
+
+        # Before anything else: a run a dead worker left behind must not block this case's
+        # watch scans or its retention purge.
+        result.reaped = await fail_interrupted_runs(session, older_than=stale_after())
         result.watch_started = await _start_watch_scans(session, now, s.watch_max_per_tick)
         result.purged = await _purge_expired(session, now)
         result.health_checks = await _health_checks(session, now)

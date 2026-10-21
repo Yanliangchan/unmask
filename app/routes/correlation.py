@@ -216,6 +216,10 @@ async def accept_suggestion(
     await lock_case(session, case.id)
     rel = await _suggestion(session, case.id, relation_id)
     a, b = await _entity(session, case.id, rel.entity_a_id), await _entity(session, case.id, rel.entity_b_id)
+    if a.merged_into_id or b.merged_into_id:
+        # One side was merged into something else since this was suggested; merging it again
+        # would leave a chain in the merge tree. Re-run matching to get a fresh suggestion.
+        raise HTTPException(status_code=409, detail="One of these was already merged with another value")
     reason = rel.match_explanation
     try:
         winner = await merge_entities(

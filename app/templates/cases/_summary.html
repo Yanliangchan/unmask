@@ -25,7 +25,7 @@
         {% if c.about or c.location %}<p class="profile-about muted">{% if c.location %}{{ c.location }}{% if c.about %} · {% endif %}{% endif %}{{ c.about }}</p>{% endif %}
         <p class="profile-foot">
           <span class="strength-label s-{{ st[0] }}">{{ st[1] }}</span>
-          {% if c.entity.attributes.get('url') %}<a href="{{ c.entity.attributes.url }}" target="_blank" rel="noopener noreferrer nofollow">Open profile{{ ui.icon("external", "icon") }}</a>{% endif %}
+          {% if c.entity.attributes.get('url') %}<a href="{{ c.entity.attributes.url | safe_url }}" target="_blank" rel="noopener noreferrer nofollow">Open profile{{ ui.icon("external", "icon") }}</a>{% endif %}
           <a href="#ent-{{ c.entity.id }}" data-focus-entity="{{ c.entity.id }}">Evidence</a>
         </p>
       </div>

@@ -38,7 +38,7 @@ def _rel(db, case, a, b, rtype, created_by="engine"):
 async def _case(db):
     owner = await db.scalar(select(User).where(User.email == "admin@example.com"))
     case = await create_case(
-        db, owner=owner, name=f"Graph {uuid.uuid4().hex[:6]}", authorization_note="graph test",
+        db, owner=owner, name=f"Graph {uuid.uuid4().hex[:6]}", authorization_note="Graph test: engagement ref G-1",
         lawful_basis_confirmed=True, targets=[TargetInput("graphuser", "username")], disabled_tools=[],
     )  # fmt: skip
     await db.flush()

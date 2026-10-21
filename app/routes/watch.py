@@ -14,7 +14,7 @@ from app.models import ScanRun, User
 from app.routes.shell import case_shell
 from app.scheduler import set_watch, watch_state
 from app.security import client_ip, current_user, verify_csrf
-from app.services.cases import get_case_for_user
+from app.services.cases import get_case_for_user, require_owner
 from app.services.timeline import default_pair, diff_runs, timeline_track
 from app.web import render
 
@@ -71,6 +71,7 @@ async def toggle_watch(
     user: User = Depends(current_user),
 ):
     case = await get_case_for_user(session, case_id, user)
+    require_owner(case, user)
     if case.is_sample:
         raise HTTPException(status_code=400, detail="Sample cases can't be watched")
     enabled = not watch_state(case)["enabled"]

@@ -17,7 +17,7 @@
   <section class="review-candidate" aria-label="Finding to decide">
     <p class="faint small">{{ entity.type | replace('_', ' ') | capitalize }}{% if a.get('site') %} on {{ a.site }}{% endif %} · found by {{ entity.source_tool }}</p>
     <h2 class="review-value">
-      {% if a.get('url') %}<a href="{{ a.url }}" target="_blank" rel="noopener noreferrer nofollow">{{ entity.value }}{{ ui.icon("external", "icon") }}</a>{% else %}<span class="ident">{{ entity.value }}</span>{% endif %}
+      {% if a.get('url') %}<a href="{{ a.url | safe_url }}" target="_blank" rel="noopener noreferrer nofollow">{{ entity.value }}{{ ui.icon("external", "icon") }}</a>{% else %}<span class="ident">{{ entity.value }}</span>{% endif %}
     </h2>
     {% include "cases/_evidence.html" %}
     {% set why = a.get('_score_explanation') or [] %}

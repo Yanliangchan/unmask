@@ -4,7 +4,7 @@
   <div class="drawer-head-text">
     <p class="faint small">{{ entity.type | replace('_', ' ') | capitalize }}{% if a.get('site') %} on {{ a.site }}{% endif %}</p>
     <h2 class="drawer-title" id="drawer-title">
-      {% if a.get('url') %}<a href="{{ a.url }}" target="_blank" rel="noopener noreferrer nofollow">{{ entity.value }}{{ ui.icon("external", "icon") }}</a>{% else %}<span class="ident">{{ entity.value }}</span>{% endif %}
+      {% if a.get('url') %}<a href="{{ a.url | safe_url }}" target="_blank" rel="noopener noreferrer nofollow">{{ entity.value }}{{ ui.icon("external", "icon") }}</a>{% else %}<span class="ident">{{ entity.value }}</span>{% endif %}
     </h2>
     {% if entity.dismissed_flag or entity.confirmed_flag %}<p class="drawer-badges">{% if entity.dismissed_flag %}<span class="flag">Not them</span>{% else %}<span class="flag flag-ok">Confirmed</span>{% endif %}</p>{% endif %}
   </div>

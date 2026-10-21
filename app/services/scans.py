@@ -500,7 +500,6 @@ async def _notify_after_run(run_id: uuid.UUID) -> None:
 
 async def _pivot_after_run(run_id: uuid.UUID, case_id: uuid.UUID) -> None:
     """Start the pivot run this run's findings call for. Errors are recorded, never fatal."""
-    from app.jobs import enqueue_scan
     from app.pivots.engine import evaluate_pivots
 
     try:
@@ -508,7 +507,7 @@ async def _pivot_after_run(run_id: uuid.UUID, case_id: uuid.UUID) -> None:
             outcome = await evaluate_pivots(session, case_id, run_id)
             await session.commit()
         if outcome.run_id is not None:
-            enqueue_scan(outcome.run_id, "pivot_chain")
+            await dispatch(outcome.run_id, "pivot_chain")
         note, key = outcome.summary(), "_pivots"
     except Exception as exc:
         log.exception("pivot evaluation failed for case %s", case_id)
@@ -588,6 +587,37 @@ async def fail_interrupted_runs(session: AsyncSession, older_than: timedelta | N
         }
     await session.commit()
     return len(runs)
+
+
+def stale_after() -> timedelta:
+    """How long a run may stay queued or running before it is presumed dead (job timeout plus grace)."""
+    return timedelta(seconds=get_settings().scan_job_timeout_seconds + 600)
+
+
+async def active_run(session: AsyncSession, case_id: uuid.UUID) -> ScanRun | None:
+    """The case's queued or running scan, read under a row lock on the case so two
+    requests can't both decide there is none and start two runs."""
+    await session.execute(select(Investigation.id).where(Investigation.id == case_id).with_for_update())
+    return await session.scalar(
+        select(ScanRun)
+        .where(ScanRun.case_id == case_id, ScanRun.status.in_(("queued", "running")))
+        .order_by(ScanRun.run_number.desc())
+        .limit(1)
+    )
+
+
+async def dispatch(run_id: uuid.UUID, triggered_by: str) -> bool:
+    """Queue a committed run. If it can't be queued (Redis down), the run fails now with the
+    reason instead of sitting in "queued" and blocking the case's next scan and its purge."""
+    from app.jobs import enqueue_scan
+
+    try:
+        enqueue_scan(run_id, triggered_by)
+        return True
+    except Exception as exc:
+        log.exception("could not queue scan run %s", run_id)
+        await mark_run_crashed(run_id, f"could not queue the scan ({exc.__class__.__name__})")
+        return False
 
 
 async def mark_run_crashed(run_id: uuid.UUID, error: str) -> None:

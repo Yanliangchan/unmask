@@ -28,5 +28,7 @@ async def send_alert(text: str) -> bool:
             resp.raise_for_status()
         return True
     except httpx.HTTPError as exc:
-        log.warning("alert webhook failed: %s", exc)
+        # Never the exception text: it carries the webhook URL, which is a credential.
+        status = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else None
+        log.warning("alert webhook failed: %s%s", exc.__class__.__name__, f" (HTTP {status})" if status else "")
         return False

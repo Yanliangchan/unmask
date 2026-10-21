@@ -7,7 +7,7 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -140,6 +140,9 @@ async def export_case(
     if fmt not in FORMATS:
         raise HTTPException(status_code=404)
     case = await get_case_for_user(session, case_id, user)
+    if not assessment_ready(case):
+        # Same rule as reports: data leaves the platform only with a written conclusion beside it.
+        return RedirectResponse(f"/cases/{case.id}/settings?error=assessment#report", status_code=303)
     scope = request.query_params.get("scope", "visible")
     scope = scope if scope in exports.SCOPES else "visible"
     if fmt == "csv":

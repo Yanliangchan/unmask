@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import any_, func, literal, or_, select
@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app import crypto
+from app.config import get_settings
 from app.models import TARGET_TYPES, Entity, Investigation, ScanRun, Target, User
 
 _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -77,14 +78,24 @@ async def create_case(
     errors: list[str] = []
     if not name.strip():
         errors.append("Case name is required")
+    settings = get_settings()
     if not authorization_note.strip():
         errors.append("An authorization note is required")
+    elif len(authorization_note.strip()) < settings.min_authorization_chars:
+        errors.append("The authorization note is too short: say who authorized this, for what purpose, and a reference")
     if not lawful_basis_confirmed:
         errors.append("You must confirm a lawful basis before creating a case")
     real_targets = [t for t in targets if t.value.strip()]
     if not real_targets:
         errors.append("Add at least one target")
     errors.extend(e for t in real_targets if (e := validate_target(t)))
+    if len(real_targets) > settings.max_targets_per_case:
+        errors.append(
+            f"A case can hold at most {settings.max_targets_per_case} targets. A case is about one subject: "
+            "split unrelated people into separate cases, each with its own authorization."
+        )
+    elif real_targets and (problem := await quota_problem(session, owner, new_targets=len(real_targets))):
+        errors.append(problem)
     if errors:
         raise CaseValidationError(errors)
 
@@ -123,6 +134,52 @@ async def create_case(
         )
     await session.flush()
     return case
+
+
+async def quota_problem(session: AsyncSession, user: User, *, new_targets: int = 0, new_scans: int = 0) -> str | None:
+    """Rolling 24-hour limits on how many identifiers one account adds and how many scans it starts.
+
+    Counted from the database (cases created, scans logged), so the limits hold across
+    processes and restarts. A refusal is audited so an administrator can see who hit it.
+    """
+    from app.models import AccessLog
+
+    settings = get_settings()
+    since = datetime.now(UTC) - timedelta(hours=24)
+    problem = None
+    if new_targets:
+        added = await session.scalar(
+            select(func.count(Target.id))
+            .join(Investigation, Investigation.id == Target.case_id)
+            .where(Investigation.owner_id == user.id, Investigation.is_sample.is_(False), Target.created_at >= since)
+        )
+        if (added or 0) + new_targets > settings.max_targets_per_day:
+            problem = (
+                f"Daily limit reached: an account can add {settings.max_targets_per_day} targets in 24 hours "
+                f"({added} so far). Ask an administrator if your work needs more."
+            )
+    if new_scans and problem is None:
+        started = await session.scalar(
+            select(func.count(AccessLog.id)).where(
+                AccessLog.user_id == user.id, AccessLog.action == "run_scan", AccessLog.timestamp >= since
+            )
+        )
+        if (started or 0) + new_scans > settings.max_scans_per_day:
+            problem = (
+                f"Daily limit reached: an account can start {settings.max_scans_per_day} scans in 24 hours. "
+                "Ask an administrator if your work needs more."
+            )
+    if problem:
+        session.add(AccessLog(user_id=user.id, action="quota_exceeded",
+                              detail={"targets": new_targets, "scans": new_scans}))  # fmt: skip
+        await session.commit()
+    return problem
+
+
+def require_owner(case: Investigation, user: User) -> None:
+    """Settings that widen what a case collects or how long it keeps it belong to its owner."""
+    if case.owner_id != user.id and not user.is_admin:
+        raise HTTPException(status_code=403, detail="Only the case owner can change this")
 
 
 def _visible_to(user: User):

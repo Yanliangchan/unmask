@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 
-from app import jobs
+from app import brand, jobs
 from app.models import AccessLog, Entity, Investigation, Relation, ScanRun, ToolConfig, User
 from app.security import hash_password
 from tests.conftest import case_form_data as case_form
@@ -48,7 +48,7 @@ async def test_share_cards_and_icons(client):
     ):
         assert tag in r.text
     manifest = (await client.get("/site.webmanifest")).json()
-    assert manifest["name"] == "UNMASK" and manifest["theme_color"] == "#0B1417"
+    assert manifest["name"] == "UNMASK" and manifest["theme_color"] == brand.THEME_DARK
     assert {i["sizes"] for i in manifest["icons"]} >= {"192x192", "512x512"}
     assert "<lastmod>" in (await client.get("/sitemap.xml")).text
 
@@ -152,7 +152,7 @@ async def test_case_creation_is_blocked_without_requirements(client, db, overrid
 
 async def test_database_rejects_case_without_lawful_basis(db):
     owner = await db.scalar(select(User.id))
-    db.add(Investigation(name="x", authorization_note="note", lawful_basis_confirmed=False, owner_id=owner))
+    db.add(Investigation(name="x", authorization_note="consent T-2", lawful_basis_confirmed=False, owner_id=owner))
     with pytest.raises(IntegrityError):
         await db.commit()
     await db.rollback()
@@ -326,5 +326,5 @@ async def test_landing_page_sells_the_product_with_faq_structured_data(client):
     assert len(faq["mainEntity"]) >= 5 and all(q["acceptedAnswer"]["text"] for q in faq["mainEntity"])
     # Fonts are self-hosted: the CSP allows no other origin for them.
     css = (await client.get("/static/css/app.css")).text
-    assert 'url("../fonts/sora-latin-600-normal.woff2")' in css and "fonts.googleapis" not in page
-    assert (await client.get("/static/fonts/sora-latin-600-normal.woff2")).status_code == 200
+    assert 'url("../fonts/inter-latin-wght-normal.woff2")' in css and "fonts.googleapis" not in page
+    assert (await client.get("/static/fonts/inter-latin-wght-normal.woff2")).status_code == 200

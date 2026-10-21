@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.audit import log_access
 from app.db import get_session
 from app.models import User
-from app.security import client_ip, current_user_optional, login_limiter, verify_csrf, verify_password
+from app.security import client_ip, current_user_optional, login_limiter, start_session, verify_csrf, verify_password
 from app.web import Seo, render
 
 router = APIRouter()
@@ -59,8 +59,7 @@ async def login(
         return render(request, "auth/login.html", {**ctx, "error": "Invalid email or password."}, status_code=401)
 
     login_limiter.reset(ip, email_norm)
-    request.session.clear()  # new session on privilege change
-    request.session["user_id"] = str(user.id)
+    start_session(request, user)
     user.last_login_at = datetime.now(UTC)
     log_access(session, "login", user_id=user.id, ip=ip)
     await session.commit()
@@ -74,6 +73,8 @@ async def logout(
     user: User | None = Depends(current_user_optional),
 ):
     if user is not None:
+        # Ends this account's sessions everywhere, so a copied cookie dies with the sign-out.
+        user.session_epoch += 1
         log_access(session, "logout", user_id=user.id, ip=client_ip(request))
         await session.commit()
     request.session.clear()

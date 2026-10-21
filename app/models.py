@@ -102,6 +102,9 @@ class User(Base):
     # Which version of the Terms and Acceptable Use Policy this user accepted, and when.
     terms_version: Mapped[str | None] = mapped_column(String(20))
     terms_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Sessions carry the epoch they were issued under; bumping it (sign out, deactivation,
+    # password change) ends every session at once, since the session lives in a cookie.
+    session_epoch: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
 
 
 class Investigation(Base):

@@ -47,7 +47,7 @@ async def _case(db, name: str) -> Investigation:
         db,
         owner=owner,
         name=name,
-        authorization_note="queue test",
+        authorization_note="Queue test: engagement ref Q-1",
         lawful_basis_confirmed=True,
         targets=[TargetInput(value=f"user{uuid.uuid4().hex[:6]}", type="username")],
         disabled_tools=["fake_fail"],

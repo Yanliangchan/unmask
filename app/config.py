@@ -41,6 +41,19 @@ class Settings(BaseSettings):
     session_max_age_seconds: int = 60 * 60 * 12
     login_max_attempts: int = 5
     login_window_seconds: int = 15 * 60
+    # Sessions end this long after sign-in, however active they are (the cookie itself slides).
+    session_absolute_seconds: int = Field(default=7 * 24 * 60 * 60, alias="UNMASK_SESSION_ABSOLUTE")
+
+    # Proxies in front of the app that append to X-Forwarded-For (Railway's edge: 1). The client
+    # address is read that many entries from the right, so a forged header can't change it.
+    trusted_proxy_hops: int = Field(default=0, alias="UNMASK_TRUSTED_PROXY_HOPS")
+
+    # Misuse limits. A case is about one subject, so it holds a handful of identifiers;
+    # the daily quotas stop one account from profiling people in bulk.
+    max_targets_per_case: int = Field(default=25, alias="UNMASK_MAX_TARGETS_PER_CASE")
+    max_targets_per_day: int = Field(default=150, alias="UNMASK_MAX_TARGETS_PER_DAY")
+    max_scans_per_day: int = Field(default=80, alias="UNMASK_MAX_SCANS_PER_DAY")
+    min_authorization_chars: int = 20
 
     tools_bin_dir: str = Field(default="", alias="UNMASK_TOOLS_BIN")
     tool_timeout_seconds: int = Field(default=300, alias="UNMASK_TOOL_TIMEOUT")

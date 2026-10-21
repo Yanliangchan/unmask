@@ -13,7 +13,7 @@ from app.audit import log_access
 from app.correlation.engine import correlate_and_commit, lock_case, rescore_case
 from app.db import get_session
 from app.identifiers import split_identifiers
-from app.jobs import enqueue_health_check, enqueue_scan, stop_scan, uses_rq, worker_count
+from app.jobs import enqueue_health_check, stop_scan, uses_rq, worker_count
 from app.models import TARGET_TYPES, Entity, ScanRun, User
 from app.proxy import describe as describe_proxy
 from app.routes.public import render_landing
@@ -28,6 +28,7 @@ from app.services.cases import (
     get_case_for_user,
     mark_reviewed,
     parse_tags,
+    quota_problem,
     visible_case_ids,
 )
 from app.services.entities import (
@@ -39,7 +40,7 @@ from app.services.entities import (
     list_entities_view,
 )
 from app.services.graph import case_graph
-from app.services.scans import cancel_scan_run, create_scan_run
+from app.services.scans import active_run, cancel_scan_run, create_scan_run, dispatch
 from app.services.summary import case_summary
 from app.services.templates import TEMPLATES, form_for, get_template
 from app.services.tools import run_health_check, tool_configs, tool_health
@@ -155,6 +156,9 @@ async def tool_health_check(
     session: AsyncSession = Depends(get_session),
     user: User = Depends(current_user),
 ):
+    if not user.is_admin:
+        # A health check spends API quota and worker time.
+        raise HTTPException(status_code=403, detail="Only administrators can run health checks")
     if get_adapter(tool_name) is None:
         raise HTTPException(status_code=404, detail="Unknown tool")
     notice = None
@@ -294,7 +298,7 @@ async def create_case_submit(
                template=case.template)  # fmt: skip
     log_access(session, "run_scan", user_id=user.id, case_id=case.id, ip=ip, run_number=run.run_number)
     await session.commit()
-    enqueue_scan(run.id, run.triggered_by)
+    await dispatch(run.id, run.triggered_by)
     return RedirectResponse(f"/cases/{case.id}", status_code=303)
 
 
@@ -456,16 +460,17 @@ async def run_scan(
         raise HTTPException(status_code=400, detail="Sample cases use made-up data and can't be scanned")
     form = await request.form()
     only = [str(form["only"])] if form.get("only") else None
-    active = [r for r in case.scan_runs if r.status in ("queued", "running")]
-    if active:
-        run = active[-1]
-    else:
+    if (problem := await quota_problem(session, user, new_scans=1)) is not None:
+        raise HTTPException(status_code=429, detail=problem)
+    run = await active_run(session, case.id)
+    if run is None:
         run = await create_scan_run(session, case, triggered_by="manual", only_tools=only)
         log_access(
             session, "run_scan", user_id=user.id, case_id=case.id, ip=client_ip(request), run_number=run.run_number
         )
         await session.commit()
-        enqueue_scan(run.id, run.triggered_by)
+        await dispatch(run.id, run.triggered_by)
+        await session.refresh(run)
     if _is_htmx(request):
         return render(request, "partials/scan_status.html", {"case": case, "run": run, "workers": worker_count()})
     return RedirectResponse(f"/cases/{case.id}", status_code=303)

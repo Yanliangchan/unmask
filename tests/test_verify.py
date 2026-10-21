@@ -346,3 +346,21 @@ async def test_a_rescan_reuses_recent_checks_instead_of_fetching(client, db, che
     assert "https://real.example/janedoe" not in pages.hits  # verified last scan: reused
     run = await db.scalar(select(ScanRun).where(ScanRun.case_id == case_id, ScanRun.run_number == 2))
     assert run.failure_details["_verification"]["fake_checked"]["sources"]["reused"] == 1
+
+
+async def test_a_profile_that_redirects_inside_the_network_is_never_fetched(monkeypatch):
+    """SSRF: account URLs come from tool output, so every redirect hop is checked like a snapshot."""
+    seen = []
+
+    def pages(request):
+        seen.append(str(request.url))
+        if request.url.host == "lapsed.example":
+            return httpx.Response(302, headers={"location": "http://metadata.internal/latest/meta-data/"})
+        return httpx.Response(200, html="<title>secret</title>")
+
+    monkeypatch.setattr(verify, "transport", httpx.MockTransport(pages))
+    cand = EntityCandidate("account", "https://lapsed.example/janedoe",
+                           {"url": "https://lapsed.example/janedoe", "username": "janedoe"}, "C", 0.4)  # fmt: skip
+    kept, stats = await verify.verify_candidates([cand])
+    assert seen == ["https://lapsed.example/janedoe"]
+    assert kept == [] and stats.counts[REJECTED] == 1
