@@ -58,6 +58,7 @@
     <a href="/cases/{{ case.id }}{{ path }}" {% if sub == tab %}aria-current="page"{% endif %}>{{ sub_label }}
       {%- if counts_by.get(sub) %}<span class="count">{{ counts_by[sub] }}</span>{% endif %}</a>
     {% endfor %}
+    {% if key == "findings" and counts.undecided %}<a class="btn btn-sm btn-primary subtabs-cta" href="/cases/{{ case.id }}/review" data-review-link>Review {{ counts.undecided }} undecided</a>{% endif %}
   </nav>
   {% endfor %}
 </div>

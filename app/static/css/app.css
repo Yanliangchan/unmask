@@ -1428,3 +1428,23 @@ input[type="radio"], input[type="checkbox"] { accent-color: var(--text-strong); 
 .row-reason { display: block; margin-top: 2px; font-size: 12px; line-height: 1.4; color: var(--muted); max-width: 62ch; }
 .row-reason.has-against { color: var(--warn); }
 .dense .row-reason { display: none; }
+
+/* Review: where the time goes. Progress, the case in one line, and on a phone, thumb-sized decisions. */
+.subtabs .subtabs-cta { margin-left: auto; }
+.review-progress { display: flex; align-items: center; gap: 12px; }
+.review-progress progress { flex: 1; max-width: 240px; height: 6px; accent-color: var(--text-strong); }
+.review-subject summary { list-style: none; cursor: default; }
+.review-subject summary::-webkit-details-marker { display: none; }
+.review-reason { margin: 4px 0 12px; padding: 6px 10px; border-left: 3px solid var(--ok); background: var(--bg); font-size: 14px; color: var(--text); }
+.review-reason.has-against { border-left-color: var(--warn); }
+@media (max-width: 720px) {
+  .review-subject summary { cursor: pointer; }
+  .review-subject summary h2::after { content: " ▾"; color: var(--faint); }
+  .review-page { padding-bottom: 140px; }
+  .review-actions { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; margin: 0; padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    background: var(--bg-elev); border-top: 1px solid var(--border-strong); display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .review-actions > .btn-primary { grid-column: 1 / -1; }
+  .review-no { display: contents; }
+  .review-actions .btn { min-height: 44px; justify-content: center; font-size: 15px; }
+  .review-value { font-size: 16px !important; }
+}

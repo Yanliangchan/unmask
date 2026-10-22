@@ -3,22 +3,24 @@
 {% set a = entity.attributes %}
 <div class="review-progress">
   <span><strong>{{ remaining }}</strong> left to review{% if skipped %} · {{ skipped }} skipped{% endif %}</span>
+  {% if total %}<progress max="{{ total }}" value="{{ decided }}" aria-label="{{ decided }} of {{ total }} decided"></progress>{% endif %}
 </div>
 <article class="review-card" data-entity="{{ entity.id }}">
-  <section class="review-subject" aria-label="What you know">
-    <h2>The subject</h2>
+  <details class="review-subject" aria-label="What you know" open>
+    <summary><h2>The subject</h2></summary>
     <ul class="plain-list">
       {% for t in targets %}
       <li><span class="faint small">{{ t.type }}</span> <span class="ident">{{ t.value }}</span>
         {% for tag in t.context_tags or [] %}<span class="tag">{{ tag }}</span>{% endfor %}</li>
       {% endfor %}
     </ul>
-  </section>
+  </details>
   <section class="review-candidate" aria-label="Finding to decide">
     <p class="faint small">{{ entity.type | replace('_', ' ') | capitalize }}{% if a.get('site') %} on {{ a.site }}{% endif %} · found by {{ entity.source_tool }}</p>
     <h2 class="review-value">
       {% if a.get('url') %}<a href="{{ a.url | safe_url }}" target="_blank" rel="noopener noreferrer nofollow">{{ entity.value }}{{ ui.icon("external", "icon") }}</a>{% else %}<span class="ident">{{ entity.value }}</span>{% endif %}
     </h2>
+    {% if ev %}<p class="review-reason{% if ev.against %} has-against{% endif %}">{{ ev.reason }}</p>{% endif %}
     {% include "cases/_evidence.html" %}
     {% set why = a.get('_score_explanation') or [] %}
     {% if why %}

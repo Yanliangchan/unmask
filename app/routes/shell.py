@@ -59,6 +59,11 @@ async def case_shell(session: AsyncSession, case: Investigation, user: User, tab
     )
     from app.services.visits import record_visit, since_last_visit
 
+    undecided = 0
+    if SECTION_OF.get(tab) == "findings":
+        from app.routes.review import review_queue
+
+        undecided = len(await review_queue(session, case.id))
     previous = await record_visit(user, case.id)
     label = dict((k, v) for k, v, _ in TABS)[tab]
     path = f"/cases/{case.id}" + dict((k, p) for k, _, p in TABS)[tab]
@@ -75,6 +80,12 @@ async def case_shell(session: AsyncSession, case: Investigation, user: User, tab
         "workers": worker_count(),
         "watch": watch_state(case),
         "auto_pivot": auto_pivot_enabled(case),
-        "counts": {"entities": entity_count, "web": web_count, "pivots": pivot_count, "review": review_count},
+        "counts": {
+            "entities": entity_count,
+            "web": web_count,
+            "pivots": pivot_count,
+            "review": review_count,
+            "undecided": undecided,
+        },
         "since": await since_last_visit(session, case.id, previous),
     }

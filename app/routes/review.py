@@ -69,8 +69,18 @@ async def review_next(
     queue = await review_queue(session, case.id, include_hidden=include_hidden)
     remaining = [e for e in queue if str(e.id) not in skipped]
     hidden_left = 0 if include_hidden else len(await review_queue(session, case.id, include_hidden=True)) - len(queue)
+    decided = sum(
+        1
+        for e in (await session.scalars(select(Entity).where(Entity.case_id == case.id))).all()
+        if e.merged_into_id is None
+        and not e.is_seed
+        and e.type != "web_mention"
+        and (e.confirmed_flag or e.dismissed_flag)
+    )
     ctx = {
         "case": case,
+        "decided": decided,
+        "total": decided + len(queue),
         "remaining": len(remaining),
         "skipped": len(queue) - len(remaining),
         "hidden_left": hidden_left,
