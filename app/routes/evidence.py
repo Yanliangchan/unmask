@@ -146,7 +146,7 @@ async def export_case(
     case = await get_case_for_user(session, case_id, user)
     if not assessment_ready(case):
         # Same rule as reports: data leaves the platform only with a written conclusion beside it.
-        return RedirectResponse(f"/cases/{case.id}/settings?error=assessment#report", status_code=303)
+        return RedirectResponse(f"/cases/{case.id}/deliver?error=assessment#report", status_code=303)
     scope = request.query_params.get("scope", "visible")
     scope = scope if scope in exports.SCOPES else "visible"
     if fmt == "csv":
@@ -185,7 +185,7 @@ async def evidence_bundle(
 
     case = await get_case_for_user(session, case_id, user)
     if not assessment_ready(case):
-        return RedirectResponse(f"/cases/{case.id}/settings?error=assessment#report", status_code=303)
+        return RedirectResponse(f"/cases/{case.id}/deliver?error=assessment#report", status_code=303)
     log_access(session, "export_bundle", user_id=user.id, case_id=case.id, ip=client_ip(request))
     await session.commit()
     data, digest = await build_bundle(session, case, user)
@@ -212,11 +212,11 @@ async def download(
 
     case = await get_case_for_user(session, case_id, user)
     if not assessment_ready(case):
-        return RedirectResponse(f"/cases/{case.id}/settings?error=assessment#report", status_code=303)
+        return RedirectResponse(f"/cases/{case.id}/deliver?error=assessment#report", status_code=303)
     q = request.query_params
     formats = [f for f in dict.fromkeys(q.getlist("f")) if f in exporters.FORMATS]
     if not formats:
-        return RedirectResponse(f"/cases/{case.id}/settings?error=formats#export", status_code=303)
+        return RedirectResponse(f"/cases/{case.id}/deliver?error=formats#export", status_code=303)
     scope = q.get("scope") if q.get("scope") in SCOPES else "visible"
     detail = q.get("detail") if q.get("detail") in DETAILS else "full"
     log_access(session, "export_report", user_id=user.id, case_id=case.id, ip=client_ip(request),
@@ -281,7 +281,47 @@ async def new_share_link(
                link_id=str(link.id), expires_at=link.expires_at.isoformat())  # fmt: skip
     await session.commit()
     url = str(request.base_url).rstrip("/") + f"/s/{token}"
-    return render(request, "cases/settings.html", await settings_context(request, session, case, user, new_link=url))
+    ctx = await settings_context(request, session, case, user, "report", new_link=url)
+    return render(request, "cases/deliver.html", ctx)
+
+
+@router.post("/cases/{case_id}/handoff", dependencies=[Depends(verify_csrf)])
+async def handoff(
+    request: Request,
+    case_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(current_user),
+):
+    """Get the report ready to send in one step: a share link, the PDF, and a message to paste."""
+    case = await get_case_for_user(session, case_id, user)
+    if not _is_owner(case, user):
+        return _back(case, error="not_owner")
+    if not assessment_ready(case):
+        return _back(case, error="assessment")
+    form = await request.form()
+    recipient = str(form.get("recipient") or "").strip()[:120]
+    detail = "brief" if form.get("detail") == "brief" else "full"
+    try:
+        days = int(str(form.get("days") or 7))
+    except ValueError:
+        days = 7
+    link, token = await create_share_link(session, case, user, days=days, label=recipient or "Hand-off")
+    log_access(session, "handoff", user_id=user.id, case_id=case.id, ip=client_ip(request),
+               link_id=str(link.id), expires_at=link.expires_at.isoformat(), detail=detail)  # fmt: skip
+    await session.commit()
+    url = str(request.base_url).rstrip("/") + f"/s/{token}"
+    expires = link.expires_at.strftime("%-d %B %Y")
+    greeting = f"Hi {recipient}," if recipient else "Hi,"
+    message = (
+        f"{greeting}\n\nHere is the {'brief' if detail == 'brief' else 'report'} for {case.name}. You can read it "
+        f"online until {expires}:\n{url}\n\nThe PDF is attached. It is marked TLP:AMBER and contains personal data, "
+        f"so please share it only with people who need it for this matter.\n\n{user.email}"
+    )
+    pdf = f"/cases/{case.id}/download?f=pdf&detail={detail}"
+    ctx = await settings_context(request, session, case, user, "report",
+                                 handoff={"url": url, "pdf": pdf, "message": message, "expires": expires,
+                                          "recipient": recipient, "detail": detail})  # fmt: skip
+    return render(request, "cases/deliver.html", ctx)
 
 
 @router.post("/cases/{case_id}/share-links/{link_id}/revoke", dependencies=[Depends(verify_csrf)])

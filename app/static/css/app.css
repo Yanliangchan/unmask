@@ -1402,3 +1402,29 @@ input[type="radio"], input[type="checkbox"] { accent-color: var(--text-strong); 
 .dense .table.entities .flags { display: none; }
 .dense .table.entities { font-size: 12.5px; }
 [data-density][aria-pressed="true"] { background: var(--accent-soft); color: var(--soft-text); }
+
+/* Case navigation: four sections, a gear for settings, and a quieter row for a section's pages. */
+.case-nav { margin: 20px 0 16px; }
+.case-nav .tabs { margin: 0; }
+.tabs .tab-gear { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+.subtabs { display: flex; gap: 4px; padding: 8px 0 0; overflow-x: auto; }
+.subtabs a { color: var(--muted); padding: 4px 10px; border-radius: var(--radius-sm); font-size: 13px; white-space: nowrap; }
+.subtabs a:hover { color: var(--text); background: var(--hover); text-decoration: none; }
+.subtabs a[aria-current="page"] { color: var(--text-strong); background: var(--bg-sunk); font-weight: 500; }
+.subtabs .count { margin-left: 6px; }
+@media (max-width: 640px) { .visually-hidden-sm { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); } }
+
+/* Hand-off: the one place to get a report out of the door. */
+.handoff { margin: 0 0 24px; padding: 16px 18px; border: 1px solid var(--border-strong); border-left: 4px solid var(--mark); border-radius: var(--radius); background: var(--surface); }
+.handoff h2 { margin: 0 0 6px; font-size: 17px; }
+.handoff-form { margin-top: 10px; }
+.handoff-steps { list-style: none; margin: 10px 0; padding: 0; display: grid; gap: 14px; }
+.handoff-steps li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start; }
+.handoff-steps .step-n { width: 22px; height: 22px; border-radius: 50%; background: var(--text-strong); color: var(--bg); font: 600 12px/22px var(--mono); text-align: center; }
+.handoff-steps .btn { margin: 6px 6px 0 0; }
+.handoff-message { display: block; width: 100%; margin-top: 6px; font: 13px/1.5 var(--font); }
+
+/* The finding's case in words, under its value. */
+.row-reason { display: block; margin-top: 2px; font-size: 12px; line-height: 1.4; color: var(--muted); max-width: 62ch; }
+.row-reason.has-against { color: var(--warn); }
+.dense .row-reason { display: none; }

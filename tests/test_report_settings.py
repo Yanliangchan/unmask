@@ -40,7 +40,7 @@ async def test_export_is_blocked_until_a_real_assessment_exists(client, db):
     for path in ("report", "report.md"):
         r = await client.get(f"/cases/{case_id}/{path}")
         assert r.status_code == 303 and r.headers["location"].endswith("error=assessment")
-    page = await client.get(f"/cases/{case_id}/settings")
+    page = await client.get(f"/cases/{case_id}/deliver")
     assert "Write the assessment to enable export" in page.text
 
     await save_assessment(client, csrf, case_id, "Looks like him.")  # too short to count

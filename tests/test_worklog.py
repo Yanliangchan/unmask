@@ -49,7 +49,7 @@ async def test_entries_and_pins_make_a_log_and_a_draft(client, db):
     drawer = (await client.get(f"/cases/{case_id}/entities/{entity.id}/drawer")).text
     assert "same bio" not in drawer and "Pin to log" in drawer
 
-    settings = (await client.get(f"/cases/{case_id}/settings?draft=log")).text
+    settings = (await client.get(f"/cases/{case_id}/deliver?draft=log")).text
     assert "Drafted from the working log" in settings and "Key findings:" in settings
     assert f"{entity.value} (score" in settings and "same bio" in settings and "Checked alpha: bio matches." in settings
     assert "Conclusion: [what the evidence supports" in settings

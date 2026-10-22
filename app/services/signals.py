@@ -66,6 +66,23 @@ class Evidence:
             parts.append(f"{len(self.against)} against")
         return " · ".join(parts) or "No evidence either way"
 
+    @property
+    def reason(self) -> str:
+        """The finding's case in one line, in words: the strongest reasons for, and the main one against."""
+        pros = sorted(self.for_, key=lambda s: _STRENGTH_ORDER.get(s.label.split(" ")[0], 9))
+        if pros and self.against:
+            return f"{pros[0].label}, but {self.against[0].label[:1].lower()}{self.against[0].label[1:]}"
+        if pros:
+            return " · ".join(s.label for s in pros[:2])
+        if self.against:
+            return self.against[0].label
+        return self.notes[0].label if self.notes else "No evidence either way"
+
+
+# Which reasons to name first: the ones that tie a finding to the subject most directly.
+_STRENGTH_ORDER = {"Corroborated": 0, "Links": 1, "Linked": 2, "Display": 3, "Mentions": 4, "Profile": 5,
+                   "Same": 6, "Found": 7, "Username": 8}  # fmt: skip
+
 
 @dataclass
 class CaseIndex:

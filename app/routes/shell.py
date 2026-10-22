@@ -12,16 +12,19 @@ from app.pivots.engine import auto_pivot_enabled
 from app.scheduler import watch_state
 from app.web import Seo
 
-TABS = [
-    ("entities", "Entities", ""),
-    ("web", "Web", "/web"),
-    ("graph", "Graph", "/graph"),
-    ("timeline", "Timeline", "/timeline"),
-    ("log", "Log", "/log"),
-    ("pivots", "Pivots", "/pivots"),
-    ("activity", "Activity", "/activity"),
-    ("settings", "Settings", "/settings"),
+# Four sections, each with the pages that belong to it; Settings sits apart (the gear).
+SECTIONS = [
+    ("findings", "Findings", [("entities", "Entities", ""), ("web", "Web results", "/web")]),
+    ("graph", "Graph", [("graph", "Graph", "/graph"), ("timeline", "Compare scans", "/timeline")]),
+    (
+        "log",
+        "Log",
+        [("log", "Working log", "/log"), ("pivots", "Follow-ups", "/pivots"), ("activity", "Activity", "/activity")],
+    ),
+    ("report", "Report", [("report", "Report", "/deliver")]),
 ]
+TABS = [t for _, _, subs in SECTIONS for t in subs] + [("settings", "Settings", "/settings")]
+SECTION_OF = {key: section for section, _, subs in SECTIONS for key, _, _ in subs}
 
 
 async def case_shell(session: AsyncSession, case: Investigation, user: User, tab: str) -> dict:
@@ -65,6 +68,8 @@ async def case_shell(session: AsyncSession, case: Investigation, user: User, tab
         "case": case,
         "tab": tab,
         "tabs": TABS,
+        "sections": SECTIONS,
+        "section": SECTION_OF.get(tab, tab),
         "latest_run": latest,
         "run": latest,
         "workers": worker_count(),

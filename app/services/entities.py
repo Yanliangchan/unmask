@@ -65,6 +65,7 @@ class EntityRow:
     ev_for: int = 0
     ev_against: int = 0
     ev_summary: str = ""
+    ev_reason: str = ""
 
 
 async def _sources_by_owner(session: AsyncSession, entities: list[Entity]) -> dict[uuid.UUID, set[str]]:
@@ -94,8 +95,8 @@ async def _row_evidence(
     all_entities: list[Entity],
     rows: list[Entity],
     sources: dict[uuid.UUID, set[str]],
-) -> dict[uuid.UUID, tuple[int, int, str]]:
-    """(for, against, summary) per listed finding: the same lines as its evidence panel, from one query."""
+) -> dict[uuid.UUID, tuple[int, int, str, str]]:
+    """(for, against, summary, reason) per listed finding: the same lines as its evidence panel, from one query."""
     from app.models import Target
     from app.services.signals import CORROBORATING, CaseIndex, evidence
 
@@ -118,7 +119,7 @@ async def _row_evidence(
     out = {}
     for e in rows:
         ev = evidence(e, targets=targets, relations=rels[e.id], tools=sources.get(e.id, ()), index=index)
-        out[e.id] = (len(ev.for_), len(ev.against), ev.summary)
+        out[e.id] = (len(ev.for_), len(ev.against), ev.summary, ev.reason)
     return out
 
 
@@ -187,6 +188,7 @@ async def list_entities_view(session: AsyncSession, case_id: uuid.UUID, filters:
                 ev_for=evidence_of[e.id][0],
                 ev_against=evidence_of[e.id][1],
                 ev_summary=evidence_of[e.id][2],
+                ev_reason=evidence_of[e.id][3],
             )
             for e in rows
         ],

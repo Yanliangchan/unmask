@@ -59,7 +59,7 @@ async def test_web_results_list_keep_and_set_aside(client, db):
     assert "1 web result in the" in table
 
     page = await client.get(f"/cases/{case_id}/web")
-    assert 'Web<span class="count">2</span>' in page.text
+    assert 'Web results<span class="count">2</span>' in page.text
 
 
 async def test_analyst_can_add_a_finding_they_found_elsewhere(client, db):

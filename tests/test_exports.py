@@ -91,8 +91,9 @@ async def test_downloads_need_the_assessment_and_a_format(client, db):
     await client.post(f"/cases/{case_id}/settings/assessment", data=written)
     none = await client.get(f"/cases/{case_id}/download", params={"f": "exe"})
     assert none.status_code == 303 and "error=formats" in none.headers["location"]
-    page = (await client.get(f"/cases/{case_id}/settings")).text
+    page = (await client.get(f"/cases/{case_id}/deliver")).text
     assert 'name="f" value="docx"' in page and "Download the report" in page
+    assert "Download the report" not in (await client.get(f"/cases/{case_id}/settings")).text
 
 
 async def test_the_api_serves_the_report(client, db):

@@ -43,14 +43,24 @@
 </p>
 {% endif %}
 
-<nav class="tabs" aria-label="Case sections">
-  {% for key, label, suffix in tabs %}
-  <a href="/cases/{{ case.id }}{{ suffix }}" {% if key == tab %}aria-current="page"{% endif %}>{{ label }}
-    {%- if key == "entities" and counts.entities %}<span class="count">{{ counts.entities }}</span>{% endif %}
-    {%- if key == "pivots" and counts.pivots %}<span class="count">{{ counts.pivots }}</span>{% endif %}
-    {%- if key == "web" and counts.web %}<span class="count">{{ counts.web }}</span>{% endif %}</a>
+{% set counts_by = {"entities": counts.entities, "web": counts.web, "pivots": counts.pivots} %}
+<div class="case-nav">
+  <nav class="tabs" aria-label="Case sections">
+    {% for key, label, subs in sections %}
+    <a href="/cases/{{ case.id }}{{ subs[0][2] }}" {% if key == section %}aria-current="page"{% endif %}>{{ label }}
+      {%- if key == "findings" and counts.entities %}<span class="count">{{ counts.entities }}</span>{% endif %}</a>
+    {% endfor %}
+    <a class="tab-gear" href="/cases/{{ case.id }}/settings" {% if tab == "settings" %}aria-current="page"{% endif %} title="Case settings">{{ ui.icon("gear") }}<span class="visually-hidden-sm">Settings</span></a>
+  </nav>
+  {% for key, label, subs in sections if key == section and subs | length > 1 %}
+  <nav class="subtabs" aria-label="{{ label }}">
+    {% for sub, sub_label, path in subs %}
+    <a href="/cases/{{ case.id }}{{ path }}" {% if sub == tab %}aria-current="page"{% endif %}>{{ sub_label }}
+      {%- if counts_by.get(sub) %}<span class="count">{{ counts_by[sub] }}</span>{% endif %}</a>
+    {% endfor %}
+  </nav>
   {% endfor %}
-</nav>
+</div>
 
 <section aria-label="{{ tab | capitalize }}">
   {% block tab %}{% endblock %}

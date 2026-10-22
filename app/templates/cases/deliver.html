@@ -1,0 +1,167 @@
+{% extends "cases/_layout.html" %}
+{% block tab %}
+{% if message %}<p class="alert alert-ok" role="status">{{ message }}</p>{% endif %}
+{% if error %}<p class="alert alert-error" role="alert">{{ errors[error] }}</p>{% endif %}
+
+{% set ready = (case.analyst_assessment or '') | trim | length >= min_assessment %}
+{% if is_owner and not case.is_sample %}
+<section class="handoff" id="send" aria-labelledby="send-title">
+  {% if handoff %}
+  <div class="handoff-ready" role="status">
+    <h2 id="send-title">Ready to send{% if handoff.recipient %} to {{ handoff.recipient }}{% endif %}</h2>
+    <ol class="handoff-steps">
+      <li><span class="step-n">1</span><div><strong>Download the PDF</strong> and attach it.
+        <a class="btn btn-primary btn-sm" href="{{ handoff.pdf }}">{{ ui.icon("download") }}PDF{% if handoff.detail == "brief" %} (brief){% endif %}</a></div></li>
+      <li><span class="step-n">2</span><div><strong>Copy the message</strong>, with a read-only link that works until {{ handoff.expires }}.
+        <textarea class="handoff-message" rows="9" readonly data-select-on-focus aria-label="Message to send">{{ handoff.message }}</textarea>
+        <button class="btn btn-sm" type="button" data-copy="{{ handoff.message }}" data-copied="Message copied.">{{ ui.icon("copy") }}Copy message</button>
+        <button class="btn btn-ghost btn-sm" type="button" data-copy="{{ handoff.url }}" data-copied="Link copied.">{{ ui.icon("link") }}Copy link only</button></div></li>
+    </ol>
+    <p class="hint">The link is shown once. You can revoke it below under Share links at any time.</p>
+  </div>
+  {% else %}
+  <h2 id="send-title">Send the report</h2>
+  {% if ready %}
+  <p class="muted">One step: a read-only link, the PDF, and a message you can paste into an email.</p>
+  <form method="post" action="/cases/{{ case.id }}/handoff" class="inline-form handoff-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label class="field grow"><span>Who it's for <span class="faint">(optional)</span></span><input type="text" name="recipient" maxlength="120" placeholder="e.g. Priya at Acme Legal"></label>
+    <label class="field"><span>Version</span><select name="detail"><option value="full">Full report</option><option value="brief">Brief</option></select></label>
+    <label class="field"><span>Link works for</span><select name="days"><option value="7" selected>7 days</option><option value="30">30 days</option><option value="1">1 day</option></select></label>
+    <button class="btn btn-primary btn-sm" type="submit">{{ ui.icon("link") }}Prepare to send</button>
+  </form>
+  {% else %}
+  <p class="muted">Write your assessment below first: a report always goes out with your conclusion.</p>
+  {% endif %}
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="settings-section" id="report">
+  <header>
+    <h2>Report</h2>
+    <p>The report presents the evidence. The conclusion is yours: export unlocks once you've written it (at least {{ min_assessment }} characters).</p>
+  </header>
+  <div class="body">
+    <form method="post" action="/cases/{{ case.id }}/settings/assessment" class="form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="field">
+        <span>Analyst assessment <span class="req" aria-hidden="true">*</span></span>
+        <textarea name="analyst_assessment" rows="7"
+          placeholder="What the evidence supports, how strongly, what is still uncertain, and what you ruled out.">{{ assessment_draft or case.analyst_assessment or '' }}</textarea>
+        {% if assessment_draft %}<span class="hint hint-mark">Drafted from the working log and not saved yet. Write the conclusion and the uncertainties in your own words, then save.{% if case.analyst_assessment %} Saving replaces the assessment saved {{ case.analyst_assessment_updated_at | isodate }}.{% endif %}</span>
+        {% else %}<span class="hint">{% if case.analyst_assessment_updated_at %}Saved {{ case.analyst_assessment_updated_at | isodate }}.{% else %}Not written yet.{% endif %} <a href="/cases/{{ case.id }}/settings?draft=log#report">Draft from the working log</a></span>{% endif %}
+      </label>
+      {% set ready = (case.analyst_assessment or '') | trim | length >= min_assessment %}
+      <div class="form-actions split">
+        <div class="inline-form">
+          {% if ready %}
+          <a class="btn" href="/cases/{{ case.id }}/report" target="_blank" rel="noopener">View report / PDF</a>
+          <a class="btn" href="/cases/{{ case.id }}/report.md">Download Markdown</a>
+          {% else %}
+          <button class="btn" type="button" disabled>View report / PDF</button>
+          <button class="btn" type="button" disabled>Download Markdown</button>
+          <span class="hint">Write the assessment to enable export.</span>
+          {% endif %}
+        </div>
+        <button class="btn btn-primary" type="submit">Save assessment</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="settings-section" id="export">
+  <header>
+    <h2>Download the report</h2>
+    <p>The report and its data in the formats people actually use. Pick one to get the file, or several to get them together in a ZIP. Every download is recorded in the audit log.</p>
+  </header>
+  <div class="body">
+    <form class="export-picker" method="get" action="/cases/{{ case.id }}/download">
+      <fieldset class="export-formats">
+        <legend class="eyebrow">Formats</legend>
+        {% for key, label, hint, on in [
+          ("pdf", "PDF", "Ready to send or print. Cover, summary, findings, method.", True),
+          ("docx", "Word", "Editable, for adding your own commentary or letterhead.", False),
+          ("html", "Web page", "One self-contained file; opens in any browser, offline.", False),
+          ("md", "Markdown", "For wikis, tickets and repositories.", False),
+          ("txt", "Raw data (text)", "Every value in full, for searching and comparing. Not formatted for reading.", False),
+          ("evidence", "Evidence bundle", "Findings, provenance, audit trail and captured pages, with SHA-256 manifest.", False),
+        ] %}
+        <label class="export-option"><input type="checkbox" name="f" value="{{ key }}" {% if on %}checked{% endif %}>
+          <span><strong>{{ label }}</strong><span class="hint">{{ hint }}</span></span></label>
+        {% endfor %}
+      </fieldset>
+      <div class="inline-form">
+        <label class="field"><span>Length</span>
+          <select name="detail">
+            <option value="full">Full report</option>
+            <option value="brief">Brief: summary and the strongest findings</option>
+          </select>
+        </label>
+        <label class="field"><span>Include</span>
+          <select name="scope">
+            <option value="visible">All findings except "Not them"</option>
+            <option value="confirmed">Confirmed findings and targets only</option>
+            <option value="all">Everything, including "Not them"</option>
+          </select>
+        </label>
+        <button class="btn btn-primary btn-sm" type="submit">{{ ui.icon("download") }}Download</button>
+      </div>
+      <p class="hint mt-8">Reports are marked TLP:AMBER and carry a reference number on every page. Raw data always lists every finding in scope, even with the brief.</p>
+    </form>
+    <form class="inline-form export-form mt-16" method="get" data-export-form>
+      <span class="hint">For spreadsheets and other tools:</span>
+      <input type="hidden" name="scope" value="visible">
+      <button class="btn btn-ghost btn-sm" type="submit" formaction="/cases/{{ case.id }}/export.csv">CSV</button>
+      <button class="btn btn-ghost btn-sm" type="submit" formaction="/cases/{{ case.id }}/export.json">JSON</button>
+      <button class="btn btn-ghost btn-sm" type="submit" formaction="/cases/{{ case.id }}/export.stix">STIX 2.1</button>
+    </form>
+  </div>
+</section>
+
+{% if is_owner %}
+<section class="settings-section" id="share-links">
+  <header>
+    <h2>Share links</h2>
+    <p>A read-only link to the report for someone without an account, such as a client or a manager. It shows the assessment and findings, never lets anyone change the case, and stops working when it expires or you revoke it.</p>
+  </header>
+  <div class="body">
+    {% if new_link %}
+    <div class="alert alert-ok" role="status">
+      <p><strong>Link created.</strong> Copy it now: for safety it won't be shown again.</p>
+      <label class="field"><span class="visually-hidden">Share link</span><input type="text" class="mono" value="{{ new_link }}" readonly data-select-on-focus></label>
+    </div>
+    {% endif %}
+    {% if share_links %}
+    <ul class="people share-links">
+      {% for l in share_links %}
+      {% set live = not l.revoked_at and l.expires_at > now %}
+      <li>
+        <span>{{ l.label or "Link" }} <span class="faint small">· created {{ l.created_at | timeago }} · {% if l.revoked_at %}revoked{% elif not live %}expired{% else %}expires {{ l.expires_at | isodate }}{% endif %} · {{ l.views }} view{{ 's' if l.views != 1 }}</span></span>
+        {% if live %}
+        <form method="post" action="/cases/{{ case.id }}/share-links/{{ l.id }}/revoke">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-ghost btn-xs" type="submit">Revoke</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% if (case.analyst_assessment or '') | trim | length >= min_assessment %}
+    <form method="post" action="/cases/{{ case.id }}/share-links" class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="field grow"><span>Who it's for <span class="faint">(optional)</span></span><input type="text" name="label" maxlength="120" placeholder="e.g. Client legal team"></label>
+      <label class="field"><span>Expires after</span>
+        <select name="days"><option value="1">1 day</option><option value="7" selected>7 days</option><option value="30">30 days</option></select>
+      </label>
+      <button class="btn btn-sm" type="submit">{{ ui.icon("link") }}Create link</button>
+    </form>
+    <p class="hint mt-8">Anyone with the link can read the report until it expires. Share it only with people covered by this case's authorization.</p>
+    {% else %}
+    <p class="hint">Write the analyst assessment first: a shared report always carries your conclusion.</p>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

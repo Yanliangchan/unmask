@@ -37,9 +37,26 @@ def _is_owner(case: Investigation, user: User) -> bool:
     return case.owner_id == user.id or user.is_admin
 
 
+# Messages and errors about the report live on the Report tab; the rest on Settings.
+REPORT_KEYS = {"assessment", "link_revoked", "formats"}
+
+
 def _back(case: Investigation, saved: str | None = None, error: str | None = None) -> RedirectResponse:
     q = f"?saved={saved}" if saved else f"?error={error}" if error else ""
-    return RedirectResponse(f"/cases/{case.id}/settings{q}", status_code=303)
+    page = "deliver" if (saved or error) in REPORT_KEYS else "settings"
+    return RedirectResponse(f"/cases/{case.id}/{page}{q}", status_code=303)
+
+
+@router.get("/cases/{case_id}/deliver")
+async def report_tab(
+    request: Request,
+    case_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(current_user),
+):
+    """The Report tab: the assessment, sending it, downloads and share links."""
+    case = await get_case_for_user(session, case_id, user)
+    return render(request, "cases/deliver.html", await settings_context(request, session, case, user, "report"))
 
 
 @router.get("/cases/{case_id}/settings")
@@ -53,7 +70,9 @@ async def settings_page(
     return render(request, "cases/settings.html", await settings_context(request, session, case, user))
 
 
-async def settings_context(request: Request, session: AsyncSession, case: Investigation, user: User, **extra) -> dict:
+async def settings_context(
+    request: Request, session: AsyncSession, case: Investigation, user: User, tab: str = "settings", **extra
+) -> dict:
     from app.services.evidence import share_links_for
 
     shared = (
@@ -63,7 +82,7 @@ async def settings_context(request: Request, session: AsyncSession, case: Invest
     )
     owner = await session.get(User, case.owner_id) if case.owner_id else None
     error = request.query_params.get("error")
-    ctx = await case_shell(session, case, user, "settings")
+    ctx = await case_shell(session, case, user, tab)
     draft = None
     if request.query_params.get("draft") == "log":
         from app.services.worklog import draft_assessment
