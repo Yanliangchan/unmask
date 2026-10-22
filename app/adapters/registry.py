@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from app.adapters.amass import AmassAdapter
 from app.adapters.base import ToolAdapter
+from app.adapters.blackbird import BlackbirdAdapter
 from app.adapters.crtsh import CrtShAdapter
+from app.adapters.domain_intel import DOMAIN_ADAPTERS
 from app.adapters.h8mail import H8mailAdapter
 from app.adapters.holehe import HoleheAdapter
 from app.adapters.keyed import (
@@ -26,10 +28,12 @@ from app.adapters.lookups import (
     WaybackAdapter,
 )
 from app.adapters.maigret import MaigretAdapter
+from app.adapters.platforms import PLATFORM_ADAPTERS
 from app.adapters.sherlock import SherlockAdapter
 from app.adapters.spiderfoot import SpiderFootAdapter
 from app.adapters.theharvester import TheHarvesterAdapter
 from app.adapters.websearch import DuckDuckGoAdapter, WebSearchAdapter
+from app.adapters.whatsmyname import WhatsMyNameAdapter
 
 _ADAPTERS: dict[str, ToolAdapter] = {}
 
@@ -57,7 +61,9 @@ def adapters_for(target_type: str) -> list[ToolAdapter]:
 CORE_ADAPTERS: tuple[type[ToolAdapter], ...] = (
     SherlockAdapter,
     MaigretAdapter,
+    WhatsMyNameAdapter,
     HoleheAdapter,
+    BlackbirdAdapter,
     H8mailAdapter,
     TheHarvesterAdapter,
     CrtShAdapter,
@@ -74,6 +80,8 @@ CORE_ADAPTERS: tuple[type[ToolAdapter], ...] = (
     LeakCheckAdapter,
     WaybackAdapter,
     RdapAdapter,
+    *PLATFORM_ADAPTERS,
+    *DOMAIN_ADAPTERS,
     # Need a key from the Integrations page
     HibpAdapter,
     HunterAdapter,

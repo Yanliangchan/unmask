@@ -91,6 +91,13 @@ RULES: list[PivotRule] = [
     PivotRule("domain-hunter", "domain found", "domain", 0.0, "hunter", own_domain),
     PivotRule("domain-virustotal", "domain found", "domain", 0.0, "virustotal", own_domain),
     PivotRule("domain-securitytrails", "domain found", "domain", 0.0, "securitytrails", own_domain),
+    # Domain infrastructure: only ever for a domain found in the case, never a shared provider's.
+    PivotRule("domain-subfinder", "domain found", "domain", 0.0, "subfinder", own_domain),
+    PivotRule("domain-dns", "domain found", "domain", 0.0, "dns", own_domain),
+    PivotRule("domain-urlscan", "domain found", "domain", 0.0, "urlscan", own_domain),
+    PivotRule("username-whatsmyname", "username found (conf > 0.6)", "username", 0.6, "whatsmyname",
+              same_value("username")),
+    PivotRule("email-blackbird", "email found (conf > 0.6)", "email", 0.6, "blackbird", same_value("email")),
     PivotRule("ip-ipinfo", "IP address found (conf > 0.5)", "ip", 0.5, "ipinfo", same_value("ip")),
     PivotRule("ip-shodan", "IP address found (conf > 0.5)", "ip", 0.5, "shodan", same_value("ip")),
 ]  # fmt: skip
