@@ -19,8 +19,9 @@ Keys used, on the 3×3 keypad grid:
 ## Construction
 - 32-unit grid, keys at 6 / 16 / 26.
 - Path `M16 26 L26 16 L16 6 L6 26 L16 16`, stroke 4.4, round caps and joins, no fill.
-- Gradient version: linear, `#10B981` → `#0EA5E9`, top-left to bottom-right (`x1=6 y1=6 x2=26 y2=26`, user space).
-- Single colour: emerald `#047857` on light, `#34D399` or `#F1F7F5` on dark, `#0B1417` for print.
+- In the product: a single colour, ink (`--text-strong`), so it follows the light and dark themes.
+- Highlight colour (used beside the mark, never on it): highlighter yellow `--mark` (`#F2D34B`).
+- Older gradient version (emerald `#10B981` → `#0EA5E9`) is kept in `mark.svg` for existing uses.
 
 ## Files
 | File | Use |
@@ -34,6 +35,6 @@ Keys used, on the 3×3 keypad grid:
 
 ## Usage
 - Clear space: at least a quarter of the mark's width on every side.
-- Lockup: mark, then **UNMASK** in Sora 600 with 0.06em tracking. The mark is about 1.4× the cap height.
+- Lockup: mark, then **UNMASK** in IBM Plex Mono 500 with 0.22em tracking. The mark is about 1.4× the cap height.
 - Don't: rotate or mirror it (the path order is the name), add the keypad dots, outline it, put it in a
   shield or circle, change the stroke weight, or set it on a busy photo.

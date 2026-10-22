@@ -29,8 +29,9 @@ def available_tool_labels() -> list[str]:
     return [a.label for a in all_adapters() if a.configured() is None]
 
 
-INPUT_LABELS = {"username": "Usernames", "email": "Email addresses", "name": "Names", "domain": "Domains",
-                "phone": "Phone numbers", "ip": "IP addresses"}  # fmt: skip
+# Infrastructure first: most cases start from an organisation, not a person.
+INPUT_LABELS = {"domain": "Domains", "ip": "IP addresses", "email": "Email addresses", "username": "Usernames",
+                "name": "Names", "phone": "Phone numbers"}  # fmt: skip
 
 
 def tool_groups() -> list[tuple[str, list[str]]]:
@@ -57,30 +58,33 @@ def _tool_sentence(labels: list[str]) -> str:
 
 FAQ = [
     ("What is UNMASK?",
-     "A self-hosted open-source intelligence (OSINT) platform. You add what you know about a person or organisation "
-     "(a username, email address, name, domain, phone number or IP address), and UNMASK runs a set of OSINT tools as "
-     "one case, then de-duplicates, scores and links what they find."),
-    ("Which tools does it run?",
-     "Username checkers such as Sherlock and Maigret, direct lookups against GitHub, GitLab, Keybase, Hacker News and "
-     "Gravatar, breach sources, web search, certificate transparency, DNS and domain registration records, and more. "
-     "Tools that need an API key are added from the Integrations page."),
-    ("How does it cut false positives?",
-     "Every account hit is checked against its profile page before it is shown, profiles are compared on names, "
-     "locations and links, common usernames are scored down, and your own decisions teach it which sites to trust. "
-     "Scores come with the reasons behind them."),
-    ("Is my data safe?",
-     "UNMASK is self-hosted, so case data stays on your infrastructure. Identifiers are encrypted at rest, every "
-     "decision and export is audited, and cases are deleted when their retention period ends."),
+     "An open-source, self-hosted case platform for authorised OSINT investigations. You open a case with a written "
+     "authorisation, UNMASK runs your OSINT tools as one case, and you get de-duplicated findings scored with their "
+     "reasons, a graph of how they connect, and a report built around your conclusion."),
+    ("Is it really open source?",
+     "Yes, under the MIT licence. You run it on your own servers with Docker, Postgres and Redis. The OSINT tools it "
+     "runs keep their own licences and run as separate programs."),
+    ("Where does case data live?",
+     "On your infrastructure. Identifiers and notes are encrypted at rest with keys kept apart from the database, "
+     "there is no telemetry, and each case is deleted when its retention period ends. The audit log is kept."),
+    ("What leaves my network?",
+     "Only the lookups themselves: the identifiers in a case are sent to the sources that check them. Which sources "
+     "run is listed on the Tools page, and tools that need an API key stay off until you add one."),
     ("Does a high score mean it is the same person?",
-     "No. A score says how much the collected evidence ties a finding to the subject: a checked profile page, the same "
-     "handle on several sites, a link from one profile to another. Every score lists what raised and lowered it, "
-     "inferred links are marked as inferred, and only a person can confirm a finding."),
-    ("Can I use it on anyone?",
-     "No. Every case needs a documented lawful basis and authorisation, and the Acceptable Use Policy prohibits "
-     "stalking, harassment and discrimination. You are responsible for how you use it."),
-    ("What do I get at the end?",
-     "A report built around your written assessment, with the evidence behind it, plus CSV, JSON and STIX 2.1 exports "
-     "and read-only links that expire."),
+     "No. A score says how much the collected evidence ties a finding to the subject, and lists what raised and "
+     "lowered it. Inferred links are marked as inferred, and only a person can confirm a finding."),
+    ("How is misuse prevented?",
+     "Every case needs a written authorisation and a lawful basis, enforced down to a database constraint. A case "
+     "holds at most 25 identifiers, each account has daily limits, every action is logged against a named person, "
+     "and reports can't leave without a written assessment."),
+    ("What can I hand over at the end?",
+     "A report in PDF, Word, HTML or Markdown, marked TLP:AMBER with a reference on every page; an evidence bundle "
+     "with a SHA-256 manifest; CSV, JSON and STIX 2.1 data; and read-only links that expire. There is also an API "
+     "and signed webhooks."),
+    ("How accurate is it?",
+     "The matching engine is measured on every change against labelled synthetic cases built around the ways "
+     "attribution goes wrong, and the results are reproducible with one command. Synthetic cases test the logic, not "
+     "the world, which is why a person makes every call."),
 ]  # fmt: skip
 
 
@@ -100,8 +104,11 @@ def landing_seo() -> Seo:
                 "operatingSystem": "Linux, Docker",
                 "description": SITE_DESCRIPTION,
                 "url": base + "/",
-                "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
-                "screenshot": base + "/static/img/screenshot-graph.png",
+                "offers": {"@type": "Offer", "price": "0", "priceCurrency": "GBP"},
+                "license": "https://opensource.org/licenses/MIT",
+                "isAccessibleForFree": True,
+                "codeRepository": brand.SOURCE_URL,
+                "screenshot": base + "/static/img/landing/graph-light-1200.webp",
                 "image": base + "/static/img/og-image.png",
                 "featureList": [
                     f"Runs {_tool_sentence(available_tool_labels())} as one case",
@@ -110,6 +117,7 @@ def landing_seo() -> Seo:
                     "Scan-to-scan comparison with watch mode",
                     "Tool failures reported instead of shown as empty results",
                     "Self-hosted, with identifiers encrypted at rest",
+                    "Reports in PDF, Word, HTML and Markdown, and evidence bundles with a SHA-256 manifest",
                 ],
             },
             {
@@ -140,6 +148,7 @@ def render_landing(request: Request):
             "tool_labels": labels,
             "faq": FAQ,
             "tool_groups": tool_groups(),
+            "source_count": len(labels),
         },
     )
 

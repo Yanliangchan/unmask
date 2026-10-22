@@ -30,6 +30,7 @@ audit trail, time-aware diffing between scans, and an open tool-adapter architec
 - [Key management](#key-management)
 - [Writing a tool adapter](#writing-a-tool-adapter)
 - [Operational footprint & ethics](#operational-footprint--ethics)
+- [Licence](#licence)
 
 ## Features
 
@@ -465,3 +466,13 @@ Register it in `app/adapters/registry.py`. Rules:
 `UNMASK_GOVERNING_LAW`. They are a starting point, not legal advice: have them reviewed by a
 lawyer qualified where you operate before relying on them, since some liability can't be
 limited and requirements differ between countries.
+
+## Licence
+
+UNMASK is open source under the [MIT licence](LICENSE).
+
+The third-party OSINT tools it runs (Sherlock, Maigret, Holehe, h8mail, theHarvester, SpiderFoot,
+Amass and others) keep their own licences, several of them GPL. UNMASK never imports their code:
+each runs as a separate program in its own environment (`scripts/install-tools.sh`), so their
+licences cover those programs, not UNMASK. Check each tool's licence before redistributing an
+image that bundles it. The IBM Plex fonts are under the SIL Open Font License.

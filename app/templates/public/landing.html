@@ -1,191 +1,285 @@
 {% extends "base.html" %}
 {% block body_class %}landing{% endblock %}
 {% block main_class %}landing-main{% endblock %}
-{% block head %}<link rel="stylesheet" href="{{ static_url('css/landing.css') }}">{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ static_url('css/landing.css') }}">
+<link rel="preload" href="{{ static_url('fonts/ibm-plex-sans-latin-600-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
+<link rel="preload" as="image" type="image/webp" imagesizes="(max-width: 960px) 100vw, 640px"
+      imagesrcset="{{ static_url('img/landing/graph-' ~ ('dark' if theme == 'dark' else 'light') ~ '-720.webp') }} 720w, {{ static_url('img/landing/graph-' ~ ('dark' if theme == 'dark' else 'light') ~ '-1200.webp') }} 1200w">
+<script src="{{ static_url('js/landing.js') }}" defer></script>
+{% endblock %}
+
+{#- A product screenshot that follows the theme: the visitor's choice if they made one, else their system. -#}
+{% macro shot(name, w, h, alt, eager=false, sizes="(max-width: 960px) 100vw, 640px") -%}
+<picture>
+  {% if theme != "light" and name == "graph" %}
+  <source type="image/webp" sizes="{{ sizes }}" {% if theme != "dark" %}media="(prefers-color-scheme: dark)"{% endif %}
+          srcset="{{ static_url('img/landing/' ~ name ~ '-dark-720.webp') }} 720w, {{ static_url('img/landing/' ~ name ~ '-dark-1200.webp') }} 1200w">
+  {% endif %}
+  {% set file = name ~ ('-light' if name == "graph" else '') %}
+  <source type="image/webp" sizes="{{ sizes }}"
+          srcset="{{ static_url('img/landing/' ~ file ~ '-720.webp') }} 720w, {{ static_url('img/landing/' ~ file ~ '-1200.webp') }} 1200w">
+  <img src="{{ static_url('img/landing/' ~ file ~ '-1200.webp') }}" width="{{ w }}" height="{{ h }}" alt="{{ alt }}" decoding="async"
+       {% if eager %}fetchpriority="high"{% else %}loading="lazy"{% endif %}>
+</picture>
+{%- endmacro %}
 
 {% block topbar %}
 <header class="l-nav">
   <div class="l-wrap l-nav-inner">
     <a class="brand" href="/" aria-label="{{ brand.NAME }} home">{{ ui.lockup("g-nav") }}</a>
     <nav class="l-links" aria-label="Sections">
-      <a href="#how">Method</a>
-      <a href="#features">Evidence</a>
-      <a href="#governance">Governance</a>
-      <a href="/trust">Trust</a>
+      <a href="#method">Method</a>
+      <a href="#evidence">Evidence</a>
+      <a href="#outputs">Reports</a>
+      <a href="#responsible">Responsible use</a>
       <a href="#faq">FAQ</a>
     </nav>
-    <a class="btn btn-primary btn-sm" href="/login">Sign in</a>
+    <div class="l-nav-acts">
+      <a class="btn btn-ghost btn-sm l-hide-sm" href="{{ brand.SOURCE_URL }}" rel="noopener">{{ ui.icon("code") }}Source</a>
+      <a class="btn btn-primary btn-sm" href="/login">Sign in</a>
+    </div>
   </div>
 </header>
 {% endblock %}
 
 {% block content %}
+{# --- Hero ------------------------------------------------------------------------------------ #}
 <section class="l-hero" aria-labelledby="hero-title">
   <div class="l-wrap l-hero-grid">
     <div class="l-hero-copy">
-      <p class="l-file">{{ brand.NAME }} <span>/</span> {{ brand.DESCRIPTOR }} <span>/</span> self-hosted</p>
-      <h1 id="hero-title">Investigations you can defend.</h1>
-      <p class="l-sub">{{ brand.NAME }} runs {{ tools_sentence }} as one audited case on your own servers, and shows the evidence behind every finding and every link it draws, so the conclusion is yours and the reasoning is on the record.</p>
+      <p class="l-file"><span>Open source</span><span>Self-hosted</span><span>{{ brand.LICENCE }} licence</span></p>
+      <h1 id="hero-title">Investigations you can <mark class="l-mark">defend</mark>.</h1>
+      <p class="l-sub">{{ brand.NAME }} runs your OSINT tools as one authorised case on your own servers, shows the evidence behind every finding and every link, and hands over a report with the method attached.</p>
       <div class="l-cta">
-        <a class="btn btn-primary btn-lg" href="/login">Sign in to your workspace</a>
-        <a class="btn btn-lg" href="#how">Read the method</a>
+        <a class="btn btn-primary btn-lg" href="{{ brand.SOURCE_URL }}" rel="noopener">{{ ui.icon("code") }}Self-host it</a>
+        <a class="btn btn-lg" href="#method">See how it works</a>
       </div>
+      <p class="l-cta-note">Free and open source. Docker, Postgres and Redis. Your data never leaves your servers except for the lookups you run.</p>
     </div>
-    <dl class="l-spec" aria-label="At a glance">
-      <div><dt>Deployment</dt><dd>Your servers. One Docker image, Postgres and Redis.</dd></div>
-      <div><dt>Case data</dt><dd>Encrypted at rest; keys kept apart from the database.</dd></div>
-      <div><dt>Before any lookup</dt><dd>A written authorisation and a lawful basis, enforced by the database.</dd></div>
-      <div><dt>Every link</dt><dd>Observed, rule, similarity or analyst, with its evidence.</dd></div>
-      <div><dt>Out</dt><dd>Assessment-led report, CSV, JSON, STIX 2.1, expiring read-only links.</dd></div>
-    </dl>
+    <figure class="l-exhibit l-exhibit-hero" data-reveal="rise">
+      <p class="l-exhibit-tab"><span>Exhibit 1</span>Graph workspace · sample case</p>
+      {{ shot("graph", 1200, 629, "The " ~ brand.NAME ~ " graph workspace: findings around three targets, filters on the left, and a summary of how every link was established on the right.", eager=true) }}
+    </figure>
   </div>
   <div class="l-wrap">
-    <figure class="l-exhibit l-exhibit-hero">
-      <picture>
-        <source type="image/webp" sizes="(max-width: 1240px) 100vw, 1200px"
-                srcset="{{ static_url('img/screenshot-graph-720.webp') }} 720w, {{ static_url('img/screenshot-graph.webp') }} 1440w">
-        <img src="{{ static_url('img/screenshot-graph.png') }}" width="1440" height="900" decoding="async" fetchpriority="high"
-             alt="The {{ brand.NAME }} graph workspace: findings around three targets, filters on the left, and on the right the two strongest evidence paths between two findings, with the weakest link of each named.">
-      </picture>
-      <figcaption><span>Exhibit 1</span> The graph workspace on the sample case (made-up people, reserved example domains): the two strongest paths between an address and an account, each with its weakest link named.</figcaption>
+    <dl class="l-spec" aria-label="At a glance" data-reveal>
+      <div><dt>Runs on</dt><dd>Your servers. One Docker image.</dd></div>
+      <div><dt>Case data</dt><dd>Encrypted at rest, keys apart.</dd></div>
+      <div><dt>Before a lookup</dt><dd>A written authorisation.</dd></div>
+      <div><dt>Every finding</dt><dd>Scored, with its reasons.</dd></div>
+      <div><dt>At the end</dt><dd>PDF, Word, HTML, STIX, API.</dd></div>
+    </dl>
+  </div>
+</section>
+
+{# --- Responsible use, right where it can't be missed ------------------------------------------ #}
+<section class="l-band" id="responsible" aria-labelledby="responsible-title">
+  <div class="l-wrap l-band-inner" data-reveal>
+    <h2 id="responsible-title">Not a people-search tool.</h2>
+    <ul class="l-band-list" role="list">
+      <li>No case without a written authorisation and a lawful basis, checked down to the database.</li>
+      <li>Every lookup, decision and export is logged against a named person.</li>
+      <li>Hard limits on identifiers per case and scans per day. Stalking and harassment are prohibited.</li>
+    </ul>
+    <p class="l-band-more"><a href="/acceptable-use">Acceptable use</a> · <a href="/acceptable-use#a7">Report misuse</a></p>
+  </div>
+</section>
+
+{# --- 01 The problem: a ledger, before and after ----------------------------------------------- #}
+<section class="l-section" aria-labelledby="problem-title">
+  <div class="l-wrap">
+    <p class="l-kicker">§01 · The problem</p>
+    <h2 id="problem-title" class="l-h2">Twenty tabs is not an investigation.</h2>
+    <div class="l-ledger" data-reveal>
+      <div class="l-ledger-col l-ledger-before">
+        <h3>Ad-hoc OSINT</h3>
+        <ul role="list">
+          <li><s>No record of who approved the work</s></li>
+          <li><s>A blocked tool read as "nothing found"</s></li>
+          <li><s>Two accounts judged the same, no one knows why</s></li>
+          <li><s>Screenshots that can't be checked later</s></li>
+        </ul>
+      </div>
+      <div class="l-ledger-col l-ledger-after">
+        <h3>A case file</h3>
+        <ul role="list">
+          <li>Authorisation and lawful basis, written before the first lookup</li>
+          <li>Every failure shown as a failure, with the reason</li>
+          <li>Every match with its evidence for and against</li>
+          <li>Captured pages with their SHA-256 fingerprint</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# --- 02 Method --------------------------------------------------------------------------------- #}
+<section class="l-section l-rule" id="method" aria-labelledby="method-title">
+  <div class="l-wrap">
+    <p class="l-kicker">§02 · Method</p>
+    <h2 id="method-title" class="l-h2">Five steps, all of them on the record.</h2>
+    <ol class="l-rail" role="list">
+      <li data-reveal style="--i: 0"><span class="l-step">1</span><h3>Authorise</h3><p>Name the identifiers, who approved the work and why. The case can't exist without it.</p></li>
+      <li data-reveal style="--i: 1"><span class="l-step">2</span><h3>Collect</h3><p>Tools run in parallel within their limits. Profile pages are checked; a bot wall is a failure, never "nothing found".</p></li>
+      <li data-reveal style="--i: 2"><span class="l-step">3</span><h3>Correlate</h3><p>Identical values merge. Anything that is a judgement is a suggestion with its reason, for a person to decide.</p></li>
+      <li data-reveal style="--i: 3"><span class="l-step">4</span><h3>Follow up, within limits</h3><p>Strong findings are followed up automatically, capped by depth and budget. Every skipped follow-up says why.</p></li>
+      <li data-reveal style="--i: 4"><span class="l-step">5</span><h3>Decide and report</h3><p>Review findings one at a time, write your assessment, and send the report.</p></li>
+    </ol>
+    <details class="l-sources">
+      <summary><span>{{ source_count }} sources on this deployment</span> <span class="l-sources-hint">See which</span></summary>
+      <dl class="l-tool-table">
+        {% for label, tools in tool_groups %}
+        <div><dt>{{ label }}</dt><dd>{{ tools | join(", ") }}</dd></div>
+        {% endfor %}
+      </dl>
+      <p class="l-note">Sources that need an API key appear once an administrator adds one. Each is pinned, health-checked against a known result, and switched off automatically after repeated failures.</p>
+    </details>
+  </div>
+</section>
+
+{# --- 03 Evidence -------------------------------------------------------------------------------- #}
+<section class="l-section l-rule" id="evidence" aria-labelledby="evidence-title">
+  <div class="l-wrap l-split">
+    <div>
+      <p class="l-kicker">§03 · Evidence</p>
+      <h2 id="evidence-title" class="l-h2">Evidence, not verdicts.</h2>
+      <div class="l-claims">
+        <div data-reveal><h3>Every score shows its working</h3><p>What raised it (a checked profile page, independent sources, a link from another profile) and what lowered it, <mark class="l-mark">in plain words</mark> on every row. Source grade is kept apart from the match.</p></div>
+        <div data-reveal><h3>Every link says how it was made</h3><p>Observed by a tool, matched by a rule, suggested by similarity, or decided by a person. Inferred links are labelled as inferred.</p></div>
+        <div data-reveal><h3>Paths with their weakest link</h3><p>Ask how two findings connect and get the strongest evidence paths, each naming the link it rests on.</p></div>
+        <div data-reveal><h3>Decisions at the speed of reading</h3><p>Review one finding at a time beside what you know, with the keyboard or on a phone.</p></div>
+      </div>
+    </div>
+    <figure class="l-exhibit" data-reveal="rise">
+      <p class="l-exhibit-tab"><span>Exhibit 2</span>Review · one finding at a time</p>
+      {{ shot("review", 1200, 596, "Reviewing a finding: the subject on the left, and on the right the account, its reason in one line, the score and each piece of evidence for it.") }}
     </figure>
   </div>
 </section>
 
-<section class="l-section" aria-labelledby="problem-title">
-  <div class="l-wrap l-cols">
-    <div class="l-num">00</div>
-    <div>
-      <h2 id="problem-title" class="l-h2">Twenty tabs is not an investigation</h2>
-      <p class="l-p">Ad-hoc OSINT leaves nothing anyone can review: no record of who approved the work, which tools failed and were read as "nothing found", or why two accounts were judged to be the same person. {{ brand.NAME }} turns the same work into a case file: what was searched, what came back, how each conclusion was reached, and who reached it.</p>
-    </div>
+{# --- 04 Outputs -------------------------------------------------------------------------------- #}
+<section class="l-section l-rule" id="outputs" aria-labelledby="outputs-title">
+  <div class="l-wrap">
+    <p class="l-kicker">§04 · Reports</p>
+    <h2 id="outputs-title" class="l-h2">Hand it over in the format they asked for.</h2>
+    <p class="l-p">Reports open with your conclusion and carry the method behind it. They are marked TLP:AMBER with a reference on every page, and nothing leaves without a written assessment.</p>
+    <ul class="l-docs" role="list">
+      {% for fmt, what in [("PDF", "Ready to send or print. Summary, findings, method, evidence."),
+                           ("DOCX", "Editable, for your own commentary or letterhead."),
+                           ("HTML", "One self-contained file that opens offline."),
+                           ("ZIP", "Evidence bundle: provenance, audit trail, captured pages, SHA-256 manifest."),
+                           ("STIX", "STIX 2.1, CSV and JSON for other tools."),
+                           ("API", "Scoped, expiring keys, and signed webhooks.")] %}
+      <li class="l-doc" data-reveal style="--i: {{ loop.index0 }}">
+        <span class="l-doc-sheet" aria-hidden="true"><i></i><i></i><i></i><b>{{ fmt }}</b></span>
+        <span class="l-doc-text"><strong>{{ fmt }}</strong>{{ what }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="l-more">From the Report tab, one step prepares a read-only link, the PDF and a message to paste into an email.</p>
   </div>
 </section>
 
-<section class="l-section l-rule" id="how" aria-labelledby="how-title">
-  <div class="l-wrap l-cols">
-    <div class="l-num">01</div>
-    <div>
-      <h2 id="how-title" class="l-h2">Method</h2>
-      <ol class="l-method" role="list">
-        <li><h3>Authorise</h3><p>Name the subject's identifiers, who approved the work and why. The case cannot exist without it.</p></li>
-        <li><h3>Collect</h3><p>Tools run in parallel within their rate limits. Account hits are checked against the live profile page; a bot wall is reported as a failure, never as an empty result.</p></li>
-        <li><h3>Correlate</h3><p>Identical identifiers merge. Everything that is a judgement (similar names, matching handles) is a suggestion with its reason, for a person to accept or reject.</p></li>
-        <li><h3>Pivot, within limits</h3><p>Strong findings are followed up automatically, capped by depth and budget. Every skipped pivot is logged with the reason.</p></li>
-        <li><h3>Decide and report</h3><p>Confirm or rule out findings one key at a time, write the assessment, and export. Watch mode re-scans and shows what changed.</p></li>
-      </ol>
-      <div class="l-tools" aria-labelledby="tools-title">
-        <h3 id="tools-title" class="l-label">What it can look up here</h3>
-        <dl class="l-tool-table">
-          {% for label, tools in tool_groups %}
-          <div><dt>{{ label }}</dt><dd>{{ tools | join(", ") }}</dd></div>
-          {% endfor %}
-        </dl>
-        <p class="l-note">Tools that need an API key appear once an administrator adds it. Each is pinned, health-checked against a known result, and switched off by a circuit breaker after repeated failures.</p>
-      </div>
+{# --- 05 Measured -------------------------------------------------------------------------------- #}
+<section class="l-section l-rule l-measured" aria-labelledby="measured-title">
+  <div class="l-wrap">
+    <p class="l-kicker">§05 · Measured</p>
+    <h2 id="measured-title" class="l-h2">Measured, not asserted.</h2>
+    <p class="l-p">The matching engine runs on every change against labelled cases built around how attribution goes wrong: namesakes, pages that echo any username, other people's accounts that link to each other, common handles, reordered names.</p>
+    <div class="l-figures">
+      <div data-reveal style="--i: 0"><span class="l-fig">0.992</span><span class="l-fig-was">was <s>0.835</s></span><span class="l-fig-label">Precision of "Likely"</span></div>
+      <div data-reveal style="--i: 1"><span class="l-fig">0</span><span class="l-fig-was">was <s>10</s></span><span class="l-fig-label">Values of different people merged</span></div>
+      <div data-reveal style="--i: 2"><span class="l-fig">0 <small>of 12</small></span><span class="l-fig-was">was <s>12 of 12</s></span><span class="l-fig-label">Decoy accounts scored "Likely"</span></div>
     </div>
+    <p class="l-note">Synthetic benchmark, 271 labelled findings, reproducible with <code>python -m app.cli lab</code>. Synthetic cases test the logic, not the world: a person makes every call.</p>
   </div>
 </section>
 
-<section class="l-section l-rule" id="features" aria-labelledby="features-title">
-  <div class="l-wrap l-cols">
-    <div class="l-num">02</div>
+{# --- 06 Governance, set as the form a reviewer signs ----------------------------------------- #}
+<section class="l-section l-rule" id="governance" aria-labelledby="gov-title">
+  <div class="l-wrap l-split l-split-rev">
     <div>
-      <h2 id="features-title" class="l-h2">Evidence, not verdicts</h2>
-      <div class="l-two">
-        <div>
-          <h3>Every score shows its working</h3>
-          <p>A finding's score lists what raised it (a checked profile page, independent tools, a link from another profile, the case context) and what lowered it (a page that names someone else, a common handle). Source grade (Admiralty A–F) is kept apart from the match score.</p>
-          <h3>Every link says how it was made</h3>
-          <p>Observed by a tool, matched by a rule, suggested by similarity, or decided by an analyst, with when it was first and last seen. Inferred links are drawn and labelled as inferred.</p>
-          <h3>Paths with their weakest link</h3>
-          <p>Ask how two findings connect and get the strongest evidence paths, ranked by link kind and confidence, discounted through shared hubs, each naming the link it rests on.</p>
-          <h3>Pages kept as they were</h3>
-          <p>Capture a profile with its SHA-256 fingerprint so the evidence survives when the page changes. Every sighting records which tool reported it, from what, and when.</p>
-        </div>
-        <figure class="l-exhibit">
-          <img src="{{ static_url('img/screenshot-edge.png') }}" width="720" height="615" loading="lazy" decoding="async"
-               alt="The link inspector: a similarity link between a profile name and the subject's name, its evidence, and a note that an inferred link is not proof of identity.">
-          <figcaption><span>Exhibit 2</span> A link, opened: how it was established, its evidence, and the caveat that travels with inferred links.</figcaption>
-        </figure>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="l-section l-rule" aria-labelledby="measured-title">
-  <div class="l-wrap l-cols">
-    <div class="l-num">03</div>
-    <div>
-      <h2 id="measured-title" class="l-h2">Measured, not asserted</h2>
-      <p class="l-p">The Identity Resolution Lab runs the real correlation engine on labelled cases built around how attribution goes wrong: namesakes, pages that echo any username, another person's accounts that link to each other, common handles, foreign phone numbers, reordered names. It runs on every change.</p>
-      <table class="l-results">
-        <caption>Synthetic benchmark, 271 labelled findings. Reproduce with <code>python -m app.cli lab</code>.</caption>
-        <thead><tr><th scope="col"></th><th scope="col">Before the October 2026 fixes</th><th scope="col">Now</th></tr></thead>
-        <tbody>
-          <tr><th scope="row">Precision of “Likely”</th><td>0.835</td><td>0.992</td></tr>
-          <tr><th scope="row">Values of different people merged</th><td>10</td><td>0</td></tr>
-          <tr><th scope="row">Decoy accounts scored “Likely”</th><td>12 of 12</td><td>0 of 12</td></tr>
-        </tbody>
-      </table>
-      <p class="l-note">Synthetic cases test the logic, not the world. Login-walled accounts stay unproven on purpose: the score never claims evidence the platform does not have.</p>
-    </div>
-  </div>
-</section>
-
-<section class="l-section l-rule" id="governance" aria-labelledby="trust-title">
-  <div class="l-wrap l-cols">
-    <div class="l-num">04</div>
-    <div>
-      <h2 id="trust-title" class="l-h2">Built for the people who sign off</h2>
-      <dl class="l-gov">
-        <div><dt>Authorised first</dt><dd>No case without a written authorisation and a lawful basis, checked in the interface, the service and a database constraint.</dd></div>
-        <div><dt>Bounded</dt><dd>A case holds at most 25 identifiers about one subject; each account has daily limits on targets and scans, and hitting one is logged.</dd></div>
-        <div><dt>On the record</dt><dd>Sign-ins, case views, scans, decisions, exports and share-link views are logged against a named person, and the log outlives the case.</dd></div>
-        <div><dt>Gated output</dt><dd>Reports and data exports need a written analyst assessment first. Share links are read-only and expire within 30 days.</dd></div>
-        <div><dt>Nothing kept forever</dt><dd>Each case has a retention period and is deleted when it lapses.</dd></div>
-      </dl>
+      <p class="l-kicker">§06 · Governance</p>
+      <h2 id="gov-title" class="l-h2">Built for the people who sign off.</h2>
+      <p class="l-p">Security, HR and counsel can see who approved each case, what was searched, what came back and who concluded what, long after the case itself is gone.</p>
       <p class="l-more"><a href="/trust">How data is protected</a> · <a href="/acceptable-use">Acceptable use</a></p>
     </div>
-  </div>
-</section>
-
-<section class="l-section l-rule" aria-labelledby="uses-title">
-  <div class="l-wrap l-cols">
-    <div class="l-num">05</div>
-    <div>
-      <h2 id="uses-title" class="l-h2">For teams that answer to legal</h2>
-      <div class="l-uses">
-        <div><h3>Impersonation and brand abuse</h3><p>Find the accounts and domains using a person's or company's name, keep watching, and hand legal a dated record.</p></div>
-        <div><h3>Insider risk and fraud</h3><p>Look into a lead under a documented authorisation, with every step reviewable by HR and counsel.</p></div>
-        <div><h3>Due diligence</h3><p>Check that a person or supplier is who they say they are, with the method in the report.</p></div>
-        <div><h3>External reconnaissance</h3><p>Map an organisation's domains, hosts and exposed accounts for an authorised test, and export STIX.</p></div>
-      </div>
+    <div class="l-form" data-reveal="rise">
+      <p class="l-form-head"><span>Form A-1</span>Authorisation record</p>
+      <dl>
+        <div><dt>Authorised first</dt><dd>A written authorisation and lawful basis, checked in the interface, the service and the database.</dd></div>
+        <div><dt>Bounded</dt><dd>At most 25 identifiers about one subject, and daily limits per account. Hitting one is logged.</dd></div>
+        <div><dt>On the record</dt><dd>Sign-ins, views, scans, decisions and exports, against a named person. The log outlives the case.</dd></div>
+        <div><dt>Gated output</dt><dd>No report or export without a written assessment. Share links are read-only and expire.</dd></div>
+        <div><dt>Not kept forever</dt><dd>Every case has a retention period and is deleted when it lapses.</dd></div>
+      </dl>
     </div>
   </div>
 </section>
 
-<section class="l-section l-rule" id="faq" aria-labelledby="faq-title">
-  <div class="l-wrap l-cols">
-    <div class="l-num">06</div>
+{# --- 07 Uses ------------------------------------------------------------------------------------ #}
+<section class="l-section l-rule" aria-labelledby="uses-title">
+  <div class="l-wrap">
+    <p class="l-kicker">§07 · Uses</p>
+    <h2 id="uses-title" class="l-h2">For teams that answer to legal.</h2>
+    <div class="l-table-wrap" data-reveal>
+      <table class="l-uses">
+        <thead><tr><th scope="col">Work</th><th scope="col">What you hand over</th><th scope="col">Usually as</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Impersonation and brand abuse</th><td>The accounts and domains using your organisation's or executives' names, watched over time, with a dated record.</td><td>PDF, share link</td></tr>
+          <tr><th scope="row">Insider risk and fraud</th><td>A lead looked into under a documented authorisation, every step reviewable by HR and counsel.</td><td>PDF, evidence bundle</td></tr>
+          <tr><th scope="row">Due diligence</th><td>Whether a supplier or counterparty is who they say they are, with the method in the report.</td><td>Word, PDF</td></tr>
+          <tr><th scope="row">External reconnaissance</th><td>An organisation's domains, hosts and exposed accounts for an authorised test.</td><td>STIX, CSV, API</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+{# --- 08 The name ------------------------------------------------------------------------------- #}
+<section class="l-section l-rule l-keypad-band" aria-labelledby="name-title">
+  <div class="l-wrap l-keypad-inner">
+    <svg class="l-keypad" viewBox="0 0 32 32" width="200" height="200" role="img" aria-labelledby="keypad-title" data-reveal="draw">
+      <title id="keypad-title">A phone keypad with a path through 8, 6, 2, 7 and 5</title>
+      <path d="M16 26 26 16 16 6 6 26 16 16" pathLength="1"/>
+      {% for n in range(1, 10) %}{% set x = [6, 16, 26][(n - 1) % 3] %}{% set y = [6, 16, 26][(n - 1) // 3] %}
+      <g class="{% if n in (8, 6, 2, 7, 5) %}on{% endif %}"><circle cx="{{ x }}" cy="{{ y }}" r="3.3"/><text x="{{ x }}" y="{{ y + 1.15 }}" text-anchor="middle">{{ n }}</text></g>
+      {% endfor %}
+    </svg>
     <div>
-      <h2 id="faq-title" class="l-h2">Questions</h2>
-      <div class="l-faq">
-        {% for q, a in faq %}
-        <details><summary>{{ q }}</summary><p>{{ a }}</p></details>
-        {% endfor %}
-      </div>
+      <p class="l-kicker">§08 · The mark</p>
+      <h2 id="name-title" class="l-h2">A path through known points that ends at the answer.</h2>
+      <p class="l-p">Type U-N-M-A-S-K on a phone keypad and join the keys in order: 8, 6, 2, 7, 5. One stroke, ending on the centre key. It's how an investigator works, and it's the logo.</p>
+    </div>
+  </div>
+</section>
+
+{# --- FAQ -------------------------------------------------------------------------------------- #}
+<section class="l-section l-rule" id="faq" aria-labelledby="faq-title">
+  <div class="l-wrap l-split">
+    <div>
+      <p class="l-kicker">§09 · Questions</p>
+      <h2 id="faq-title" class="l-h2">Questions people ask first.</h2>
+    </div>
+    <div class="l-faq">
+      {% for q, a in faq %}
+      <details><summary>{{ q }}</summary><p>{{ a }}</p></details>
+      {% endfor %}
     </div>
   </div>
 </section>
 
 <section class="l-final" aria-labelledby="final-title">
-  <div class="l-wrap l-final-inner">
+  <div class="l-wrap l-final-inner" data-reveal>
     <div>
-      <h2 id="final-title">Open a case.</h2>
-      <p>Sign in to start one, or explore the sample case with made-up data first.</p>
+      <h2 id="final-title">Run your next investigation on the record.</h2>
+      <p>Open source under the {{ brand.LICENCE }} licence. Deploy it on your own servers in a few minutes.</p>
     </div>
-    <a class="btn btn-primary btn-lg" href="/login">Sign in</a>
+    <div class="l-final-acts">
+      <a class="btn btn-primary btn-lg" href="{{ brand.SOURCE_URL }}" rel="noopener">{{ ui.icon("code") }}Self-host it</a>
+      <a class="btn btn-lg l-btn-on-dark" href="/login">Sign in</a>
+    </div>
   </div>
 </section>
 {% endblock %}
@@ -197,9 +291,9 @@
       {{ ui.lockup("g-foot", descriptor=True) }}
       <p>For authorised investigations with a documented lawful basis.</p>
     </div>
-    <nav aria-label="Product"><h2>Product</h2><a href="#how">Method</a><a href="#features">Evidence</a><a href="#faq">FAQ</a><a href="/login">Sign in</a></nav>
-    <nav aria-label="Legal"><h2>Legal</h2><a href="/trust">Trust</a><a href="/terms">Terms of Service</a><a href="/acceptable-use">Acceptable Use</a><a href="/privacy">Privacy</a></nav>
-    <nav aria-label="Contact"><h2>Contact</h2><a href="/trust#disclosure">Report a vulnerability</a><a href="/acceptable-use#a7">Report misuse</a></nav>
+    <nav aria-label="Product"><h2>Product</h2><a href="#method">Method</a><a href="#evidence">Evidence</a><a href="#outputs">Reports</a><a href="#faq">FAQ</a><a href="/login">Sign in</a></nav>
+    <nav aria-label="Open source"><h2>Open source</h2><a href="{{ brand.SOURCE_URL }}" rel="noopener">Source code</a><a href="{{ brand.SOURCE_URL }}#deploying-to-railway" rel="noopener">Deploy guide</a><a href="{{ brand.SOURCE_URL }}/blob/main/LICENSE" rel="noopener">{{ brand.LICENCE }} licence</a></nav>
+    <nav aria-label="Legal"><h2>Trust</h2><a href="/trust">Security and data</a><a href="/terms">Terms</a><a href="/acceptable-use">Acceptable use</a><a href="/privacy">Privacy</a><a href="/trust#disclosure">Report a vulnerability</a></nav>
   </div>
   <div class="l-wrap l-footer-base"><span>© {{ now.year }} {{ brand.NAME }}</span><span>{{ brand.TAGLINE }}</span></div>
 </footer>

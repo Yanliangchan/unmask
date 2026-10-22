@@ -683,7 +683,7 @@ input::placeholder, textarea::placeholder { color: var(--faint); }
 .review-page { max-width: 1000px; }
 .review-progress { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
 .review-card { display: grid; grid-template-columns: 280px 1fr; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
-.review-card section { padding: 18px 20px; min-width: 0; }
+.review-card section, .review-card > details { padding: 18px 20px; min-width: 0; }
 .review-subject { border-right: 1px solid var(--border); background: var(--bg); border-radius: var(--radius) 0 0 var(--radius); }
 .review-card h2 { font-size: 13px; color: var(--faint); font-weight: 500; margin: 0 0 8px; }
 .review-card h3 { font-size: 12.5px; color: var(--muted); margin: 16px 0 4px; }

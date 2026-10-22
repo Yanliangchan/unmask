@@ -44,7 +44,7 @@ async def test_share_cards_and_icons(client):
         'property="og:image:width" content="1200"',
         'name="twitter:image"',
         'rel="apple-touch-icon"',
-        "<title>UNMASK: Open-source intelligence platform | Discover. Correlate. Investigate.</title>",
+        "<title>UNMASK: OSINT case platform | Authorise. Evidence. Report.</title>",
     ):
         assert tag in r.text
     manifest = (await client.get("/site.webmanifest")).json()
@@ -319,8 +319,15 @@ async def test_landing_page_sells_the_product_with_faq_structured_data(client):
     import re
 
     page = (await client.get("/")).text
-    assert "Discover." in page and "Investigate." in page and "Open-source intelligence platform" in page
-    assert 'id="features"' in page and 'id="how"' in page and 'id="faq"' in page and 'href="/login"' in page
+    assert "Investigations you can" in page and "Not a people-search tool." in page and "OSINT case platform" in page
+    for section in ("method", "evidence", "outputs", "responsible", "governance", "faq"):
+        assert f'id="{section}"' in page
+    assert 'href="/login"' in page and brand.SOURCE_URL in page and "MIT licence" in page
+    # Responsible use and the acceptable use policy are linked from the top of the page, not just the footer.
+    assert page.index("/acceptable-use") < page.index('id="method"')
+    # No inline scripts: motion comes from a self-hosted file, so the CSP holds.
+    assert "/static/js/landing.js" in page and "<script>" not in page
+    assert (await client.get("/static/js/landing.js")).status_code == 200
     blocks = [json.loads(b) for b in re.findall(r'<script type="application/ld\+json">(.*?)</script>', page, re.S)]
     faq = next(b for b in blocks if b.get("@type") == "FAQPage")
     assert len(faq["mainEntity"]) >= 5 and all(q["acceptedAnswer"]["text"] for q in faq["mainEntity"])

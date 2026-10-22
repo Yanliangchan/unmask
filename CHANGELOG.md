@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-10 — easier to use, open source
+
+- **Open source** under the MIT licence (`LICENSE`).
+- **Case navigation:** four sections (Findings, Graph, Log, Report) with their pages as sub-tabs,
+  and Settings behind a gear. Every existing URL still works.
+- **Report tab:** the assessment, downloads and share links in one place. "Prepare to send" makes
+  a read-only link, the PDF and a message to paste into an email in one step.
+- **Reasons in words** on every finding row, with the main reason against when there is one.
+- **Review:** a "Review N undecided" button in Findings; each card shows progress and the finding's
+  reason in one line; on a phone the decisions sit in a fixed bar of thumb-sized buttons.
+- **Landing page rebuilt:** a responsible-use band at the top, the method as five steps, reports and
+  outputs, measured accuracy, the authorisation record, and fresh screenshots that follow the light
+  and dark themes. Motion is subtle, only below the fold, and off for anyone who prefers reduced motion.
+
 ## 2026-10 — investigation workflow
 
 Schema: migrations 0014–0016 (webhooks; working log notes; imported findings).

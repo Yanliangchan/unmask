@@ -69,7 +69,9 @@ class Evidence:
     @property
     def reason(self) -> str:
         """The finding's case in one line, in words: the strongest reasons for, and the main one against."""
-        pros = sorted(self.for_, key=lambda s: _STRENGTH_ORDER.get(s.label.split(" ")[0], 9))
+        # One mention per kind of reason: two corroborating links read as one "Corroborated".
+        unique = list({s.label: s for s in self.for_}.values())
+        pros = sorted(unique, key=lambda s: _STRENGTH_ORDER.get(s.label.split(" ")[0], 9))
         if pros and self.against:
             return f"{pros[0].label}, but {self.against[0].label[:1].lower()}{self.against[0].label[1:]}"
         if pros:

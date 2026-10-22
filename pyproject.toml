@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Self-hosted OSINT orchestration platform: pivot chains, audited case management, time-aware diffing and open tool adapters."
 requires-python = ">=3.11"
 readme = "README.md"
-license = { text = "Proprietary" }
+license = { text = "MIT" }
 
 [tool.ruff]
 line-length = 120
