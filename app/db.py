@@ -28,7 +28,16 @@ def _current() -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
     if pair is None:
         # Idle connections are recycled rather than held open indefinitely (the
         # idle monitor also closes them all when nobody is using the app).
-        engine = create_async_engine(get_settings().database_url, pool_pre_ping=True, pool_recycle=300)
+        # A small pool: every Postgres connection costs the database server several MB, and
+        # LIFO reuse keeps the surplus ones idle so they age out instead of staying warm.
+        engine = create_async_engine(
+            get_settings().database_url,
+            pool_pre_ping=True,
+            pool_recycle=300,
+            pool_size=4,
+            max_overflow=6,
+            pool_use_lifo=True,
+        )
         pair = _engines[key] = (engine, async_sessionmaker(engine, expire_on_commit=False))
     return pair
 
