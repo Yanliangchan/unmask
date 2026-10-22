@@ -25,6 +25,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import undefer
 
 from app import brand
 from app.models import AccessLog, Entity, EntityObservation, Investigation, Relation, ScanRun, Snapshot, User
@@ -126,7 +127,12 @@ async def build_bundle(session: AsyncSession, case: Investigation, user: User) -
         "worklog.json": _json(await _worklog(session, case)),
     }
     snaps = (
-        await session.scalars(select(Snapshot).where(Snapshot.case_id == case.id).order_by(Snapshot.created_at))
+        await session.scalars(
+            select(Snapshot)
+            .where(Snapshot.case_id == case.id)
+            .order_by(Snapshot.created_at)
+            .options(undefer(Snapshot.body_b64))  # deferred elsewhere; the bundle needs the bytes
+        )
     ).all()
     emails = {u.id: u.email for u in (await session.scalars(select(User))).all()} if snaps else {}
     meta = []

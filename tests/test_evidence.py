@@ -171,10 +171,13 @@ async def test_share_links_are_read_only_expiring_and_revocable(client, db, app)
     assert link.views == 1 and link.revoked_at is not None
 
 
-async def test_the_evidence_bundle_carries_everything_with_a_verifiable_manifest(client, db):
+async def test_the_evidence_bundle_carries_everything_with_a_verifiable_manifest(client, db, web):
     import zipfile
 
     case_id, csrf = await _case(client, db, name="Bundle")
+    entity = await db.scalar(select(Entity).where(Entity.case_id == case_id, Entity.type == "account").limit(1))
+    await client.post(f"/cases/{case_id}/entities/{entity.id}/snapshot", headers={"HX-Request": "true",
+                      "X-CSRF-Token": csrf})  # fmt: skip
     assert (await client.get(f"/cases/{case_id}/bundle.zip")).status_code == 303  # needs the assessment
     written = {"csrf_token": csrf, "analyst_assessment": "The handle janedoe on alpha is the subject."}
     await client.post(f"/cases/{case_id}/settings/assessment", data=written)
@@ -195,3 +198,6 @@ async def test_the_evidence_bundle_carries_everything_with_a_verifiable_manifest
     )
     audit = json.loads(z.read("audit.json"))
     assert any(a["action"] == "export_bundle" for a in audit)
+    digest = hashlib.sha256(PAGE).hexdigest()
+    assert z.read(f"snapshots/{digest}") == PAGE  # the captured bytes, exactly
+    assert json.loads(z.read("snapshots.json"))[0]["intact"] is True
