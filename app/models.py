@@ -123,7 +123,7 @@ class Investigation(Base):
     lawful_basis_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     notes: Mapped[str | None] = mapped_column(Text)
     # Human-written conclusion; required before a report can be exported.
-    analyst_assessment: Mapped[str | None] = mapped_column(Text)
+    analyst_assessment: Mapped[str | None] = mapped_column(EncryptedText)  # encrypted since 0017
     analyst_assessment_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     owner_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), index=True)
     shared_with: Mapped[list[uuid.UUID]] = mapped_column(

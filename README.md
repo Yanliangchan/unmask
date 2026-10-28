@@ -37,7 +37,7 @@ audit trail, time-aware diffing between scans, and an open tool-adapter architec
 | | |
 |---|---|
 | **Case gate** | Cases cannot be created without an authorization note and lawful-basis confirmation — enforced in the UI, the service layer *and* a database `CHECK` constraint. |
-| **Encryption at rest** | Entity values, attributes and target values are encrypted (Fernet) before they reach Postgres. Lookups use an HMAC blind index. Keys never live with the database. |
+| **Encryption at rest** | Entity values, attributes, target values, notes and the analyst assessment are encrypted (Fernet) before they reach Postgres. Lookups use an HMAC blind index. Keys never live with the database. |
 | **Honest failures** | Adapters must prove an empty result is genuinely empty. Bot walls, proxy blocks and soft-200 pages raise `SignatureMismatch` and are shown as failures — never as "0 results". |
 | **Failure isolation** | One broken tool never fails a scan. Every failure is written to `scan_runs.tools_failed` / `failure_details` and shown on the case. |
 | **Circuit breaker** | Three consecutive failures auto-disable a tool and raise a banner. A passing health check (against a known-good target, validated by content signature) re-enables it. |

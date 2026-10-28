@@ -3,6 +3,8 @@
 ## 2026-10 — easier to use, open source
 
 - **Open source** under the MIT licence (`LICENSE`).
+- **The analyst assessment is encrypted at rest**, like the rest of a case's content. Migration
+  0017 encrypts existing assessments (it needs `UNMASK_DATA_KEYS`, as the app does).
 - **Case navigation:** four sections (Findings, Graph, Log, Report) with their pages as sub-tabs,
   and Settings behind a gear. Every existing URL still works.
 - **Report tab:** the assessment, downloads and share links in one place. "Prepare to send" makes
