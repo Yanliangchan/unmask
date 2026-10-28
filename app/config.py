@@ -103,6 +103,7 @@ class Settings(BaseSettings):
     securitytrails_key: str = Field(default="", alias="UNMASK_SECURITYTRAILS_KEY")
     numverify_key: str = Field(default="", alias="UNMASK_NUMVERIFY_KEY")
     emailrep_key: str = Field(default="", alias="UNMASK_EMAILREP_KEY")
+    urlscan_key: str = Field(default="", alias="UNMASK_URLSCAN_KEY")
 
     # Outbound proxy for tools that sites block from cloud IPs (see app/proxy.py).
     proxy_url: str = Field(default="", alias="UNMASK_PROXY_URL")

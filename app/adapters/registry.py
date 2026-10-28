@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.adapters.amass import AmassAdapter
 from app.adapters.base import ToolAdapter
 from app.adapters.crtsh import CrtShAdapter
+from app.adapters.domain_intel import DOMAIN_ADAPTERS
 from app.adapters.h8mail import H8mailAdapter
 from app.adapters.holehe import HoleheAdapter
 from app.adapters.keyed import (
@@ -74,6 +75,7 @@ CORE_ADAPTERS: tuple[type[ToolAdapter], ...] = (
     LeakCheckAdapter,
     WaybackAdapter,
     RdapAdapter,
+    *DOMAIN_ADAPTERS,
     # Need a key from the Integrations page
     HibpAdapter,
     HunterAdapter,

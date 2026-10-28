@@ -72,7 +72,7 @@ TEMPLATES: list[CaseTemplate] = [
         authorization_hint="The scope letter or engagement ID, and that you are authorized to assess this domain.",
         target_types=["domain"],
         depth="deep",
-        tools=["crtsh", "theharvester", "amass", "spiderfoot", "websearch"],
+        tools=["crtsh", "subfinder", "dns", "urlscan", "rdap", "theharvester", "amass", "spiderfoot", "websearch"],
         watch="weekly",
         tips=["Watch mode re-scans weekly and the Timeline shows what changed."],
     ),

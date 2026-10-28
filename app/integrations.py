@@ -129,6 +129,12 @@ CATALOG: list[Integration] = [
         "50 free lookups a month", "https://securitytrails.com/app/account/credentials",
         (KeyField("securitytrails_key", "API key"),), ("securitytrails",),
     ),
+    Integration(
+        "urlscan", "urlscan.io", "Infrastructure",
+        "Public scans of a domain: its hostnames, the servers that hosted it, and page titles over time.",
+        "Free key; works without one at lower limits", "https://urlscan.io/user/profile/",
+        (KeyField("urlscan_key", "API key"),), ("urlscan",), optional=True,
+    ),
     # --- Phone ---------------------------------------------------------------------------------
     Integration(
         "numverify", "Numverify", "Phone",

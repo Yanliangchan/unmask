@@ -3,6 +3,14 @@
 ## 2026-10 — easier to use, open source
 
 - **Open source** under the MIT licence (`LICENSE`).
+- **Three domain sources**, which run only on a domain (a domain target, or one a scan finds),
+  never on shared mail or platform domains:
+  - **Subfinder**: passive subdomain discovery. A run where most of its sources failed is refused
+    rather than read as "no subdomains". `scripts/install-tools.sh` installs a checksummed release.
+  - **DNS records** (DNS-over-HTTPS): addresses, mail and name servers, SPF and DMARC, and the
+    services the records name (mail providers, verified tools).
+  - **urlscan.io**: hostnames and hosting seen in public scans. Works without a key;
+    `UNMASK_URLSCAN_KEY` raises the limits.
 - **The analyst assessment is encrypted at rest**, like the rest of a case's content. Migration
   0017 encrypts existing assessments (it needs `UNMASK_DATA_KEYS`, as the app does).
 - **Case navigation:** four sections (Findings, Graph, Log, Report) with their pages as sub-tabs,
